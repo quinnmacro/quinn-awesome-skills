@@ -2,7 +2,7 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills Count](https://img.shields.io/badge/skills-5-brightgreen)
+![Skills Count](https://img.shields.io/badge/skills-8-brightgreen)
 
 > Personal collection of Claude Code skills for AI-native development workflows
 > 
@@ -20,6 +20,9 @@
 |-------|-------------|----------|
 | [url-fetcher](skills/url-fetcher/) | Fetch any URL as clean Markdown. Supports X/Twitter, WeChat, Feishu, PDFs, and web search. | 📄 Content |
 | [presearch](skills/presearch/) | Search developer resources before building. GitHub, npm, PyPI, Docker Hub, arXiv with health assessment. | 🔍 Research |
+| [investor-distiller](skills/investor-distiller/) | Extract investment wisdom from legendary investors into actionable frameworks. Buffett, Munger, Dalio, etc. | 📊 Investment |
+| [macro-brief](skills/macro-brief/) | Generate macroeconomic briefs, market summaries, and economic analysis reports. | 📈 Macro |
+| [earnings-analyzer](skills/earnings-analyzer/) | Analyze financial statements and earnings reports with key metrics and insights. | 💰 Finance |
 | [creative-prompt](skills/creative-prompt/) | Generate creative prompts for writing, design, brainstorming, and ideation. | 💡 Creativity |
 | [dev-joke](skills/dev-joke/) | Developer jokes, coding humor, and tech memes. Perfect for debugging morale boost. | 😄 Humor |
 | [code-poet](skills/code-poet/) | Transform code into poetry, write code-inspired poems, or explain code poetically. | 📜 Art |
@@ -40,6 +43,11 @@
 - 📚 **arXiv**: Academic papers
 - 🏥 **Health Assessment**: Project activity, stars, maintenance status
 - 🎨 **Fun Formats**: emoji, meme, poetry output styles
+
+**Investment Skills** - Professional investment analysis:
+- 📊 **Investor Distiller**: Extract frameworks from Buffett, Munger, Dalio
+- 📈 **Macro Brief**: Economic analysis and market summaries
+- 💰 **Earnings Analyzer**: Financial statement analysis
 
 ### Installation
 
@@ -108,6 +116,9 @@ python3 ~/.claude/skills/presearch/modules/presearch_core.py "Python web framewo
 |-------|------|------|
 | [url-fetcher](skills/url-fetcher/) | 将任意 URL 转为干净的 Markdown。支持 X/Twitter、微信公众号、飞书文档、PDF 和网页搜索。 | 📄 内容 |
 | [presearch](skills/presearch/) | 开发前搜索现有方案。GitHub、npm、PyPI、Docker Hub、arXiv，带项目健康度评估。 | 🔍 调研 |
+| [investor-distiller](skills/investor-distiller/) | 蒸馏投资大师的投资哲学和方法论，生成可执行的分析框架。巴菲特、芒格、达利欧等。 | 📊 投资 |
+| [macro-brief](skills/macro-brief/) | 生成宏观经济简报、市场分析和经济数据解读。 | 📈 宏观 |
+| [earnings-analyzer](skills/earnings-analyzer/) | 分析上市公司财务报表，提取关键指标和投资洞察。 | 💰 财报 |
 | [creative-prompt](skills/creative-prompt/) | 生成创意提示，用于写作、设计、头脑风暴和创意构思。 | 💡 创意 |
 | [dev-joke](skills/dev-joke/) | 开发者笑话、编程幽默和技术梗图。调试时提振士气必备。 | 😄 幽默 |
 | [code-poet](skills/code-poet/) | 将代码转化为诗歌，编写代码主题诗，或用诗意语言解释代码。 | 📜 艺术 |
@@ -128,6 +139,11 @@ python3 ~/.claude/skills/presearch/modules/presearch_core.py "Python web framewo
 - 📚 **arXiv**: 学术论文
 - 🏥 **健康度评估**: 项目活跃度、stars、维护状态
 - 🎨 **趣味格式**: emoji、meme、诗歌等输出风格
+
+**投资技能** - 专业投资分析：
+- 📊 **投资大师蒸馏**: 提炼巴菲特、芒格、达利欧的投资框架
+- 📈 **宏观简报**: 经济分析和市场总结
+- 💰 **财报分析**: 财务报表分析
 
 ### 安装
 
@@ -197,6 +213,9 @@ quinn-awesome-skills/
 ├── skills/                # 技能目录
 │   ├── url-fetcher/       # URL 抓取
 │   ├── presearch/         # 开发前搜索
+│   ├── investor-distiller/ # 投资大师蒸馏
+│   ├── macro-brief/       # 宏观简报
+│   ├── earnings-analyzer/ # 财报分析
 │   ├── creative-prompt/   # 创意提示
 │   ├── dev-joke/          # 开发者笑话
 │   └── code-poet/         # 代码诗人

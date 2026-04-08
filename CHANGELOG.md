@@ -5,25 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2025-04-08
+
+### Added
+- ✨ **investor-distiller** skill - Extract investment wisdom from legendary investors
+  - Support for Buffett, Munger, Dalio, Soros, Druckenmiller, etc.
+  - Generate investment frameworks and checklists
+  - Distill investment philosophies into actionable strategies
+- ✨ **macro-brief** skill - Generate macroeconomic briefs and market analysis
+  - Daily/weekly brief templates
+  - Key economic indicators tracking
+  - Central bank policy analysis
+  - Growth-inflation matrix framework
+- ✨ **earnings-analyzer** skill - Analyze financial statements and earnings reports
+  - Three-statement analysis (income, balance sheet, cash flow)
+  - Key metrics and ratios
+  - DuPont analysis
+  - Industry benchmarks
+- 📝 Updated README with 7 skills (bilingual)
+- 📝 Updated project structure
+
 ## [1.1.0] - 2025-04-08
 
 ### Added
 - ✨ **creative-prompt** skill - Generate creative prompts for writing, design, brainstorming
-  - Writing prompts (story starters, character ideas, plot twists)
-  - Design prompts (logo, poster, UI inspiration)
-  - Brainstorm prompts using SCAMPER technique
 - ✨ **dev-joke** skill - Developer jokes and coding humor
-  - Classic programming jokes
-  - Debug life humor
-  - Tech stack jokes
-  - Git humor
-  - Support for frustration relief during debugging
 - ✨ **code-poet** skill - Transform code into poetry
-  - Haiku (5-7-5)
-  - Free verse
-  - Sonnet
-  - Chinese classical poetry (唐诗宋词)
-  - Poetic code explanation
 - 📝 Added skill template (`templates/SKILL_TEMPLATE.md`)
 - 📝 Updated README with bilingual skill descriptions
 - 📝 Updated project structure documentation
@@ -78,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |
 | 1.0.1 | 2025-04-08 | Add LLM Agent, environment config, bilingual README |
 | 1.0.0 | 2025-04-08 | Initial release with url-fetcher skill |
