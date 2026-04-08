@@ -2,7 +2,7 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills Count](https://img.shields.io/badge/skills-4-brightgreen)
+![Skills Count](https://img.shields.io/badge/skills-5-brightgreen)
 
 > Personal collection of Claude Code skills for AI-native development workflows
 > 
@@ -19,6 +19,7 @@
 | Skill | Description | Category |
 |-------|-------------|----------|
 | [url-fetcher](skills/url-fetcher/) | Fetch any URL as clean Markdown. Supports X/Twitter, WeChat, Feishu, PDFs, and web search. | 📄 Content |
+| [presearch](skills/presearch/) | Search developer resources before building. GitHub, npm, PyPI, Docker Hub, arXiv with health assessment. | 🔍 Research |
 | [creative-prompt](skills/creative-prompt/) | Generate creative prompts for writing, design, brainstorming, and ideation. | 💡 Creativity |
 | [dev-joke](skills/dev-joke/) | Developer jokes, coding humor, and tech memes. Perfect for debugging morale boost. | 😄 Humor |
 | [code-poet](skills/code-poet/) | Transform code into poetry, write code-inspired poems, or explain code poetically. | 📜 Art |
@@ -32,28 +33,44 @@
 - 🔍 **Web Search**: 8 engines, no API key required
 - 🤖 **LLM Agent**: Built-in LLM integration for summarization, translation, analysis
 
+**Presearch** - Search developer resources before building:
+- 🐙 **GitHub**: Open source projects sorted by stars
+- 📦 **npm/PyPI**: JavaScript and Python packages
+- 🐳 **Docker Hub**: Container images with pull counts
+- 📚 **arXiv**: Academic papers
+- 🏥 **Health Assessment**: Project activity, stars, maintenance status
+- 🎨 **Fun Formats**: emoji, meme, poetry output styles
+
 ### Installation
 
 ```bash
-# Quick install
-git clone https://github.com/quinnmacro/quinn-awesome-skills.git ~/.claude/skills/quinn-awesome-skills
+# Quick install (recommended)
+git clone https://github.com/quinnmacro/quinn-awesome-skills.git
+cd quinn-awesome-skills
+bash install.sh
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your API keys
+# Or one-liner
+curl -sL https://raw.githubusercontent.com/quinnmacro/quinn-awesome-skills/main/install.sh | bash
 ```
+
+This will:
+- Install skills to `~/.agent/skills/`
+- Create symlinks to `~/.claude/skills/` and `~/.openclaw/skills/`
+- Set up slash commands (`/url-fetcher`, `/presearch`)
 
 ### Usage
 
 ```bash
-# Fetch URL as Markdown
-bash skills/url-fetcher/scripts/fetch.sh "https://example.com"
+# Use slash commands in Claude Code
+/url-fetcher https://example.com
+/presearch "React framework"
 
-# Web search (no API key)
-bash skills/url-fetcher/scripts/search.sh "query" duckduckgo 5
+# Or call scripts directly
+bash ~/.claude/skills/url-fetcher/scripts/fetch.sh "https://example.com"
+bash ~/.claude/skills/url-fetcher/scripts/search.sh "query" duckduckgo 5
 
-# LLM agent
-bash scripts/llm.sh "Summarize this text" --json
+# Presearch with fun format
+python3 ~/.claude/skills/presearch/modules/presearch_core.py "Python web framework" -f emoji
 ```
 
 ### Requirements
@@ -90,6 +107,7 @@ bash scripts/llm.sh "Summarize this text" --json
 | Skill | 描述 | 分类 |
 |-------|------|------|
 | [url-fetcher](skills/url-fetcher/) | 将任意 URL 转为干净的 Markdown。支持 X/Twitter、微信公众号、飞书文档、PDF 和网页搜索。 | 📄 内容 |
+| [presearch](skills/presearch/) | 开发前搜索现有方案。GitHub、npm、PyPI、Docker Hub、arXiv，带项目健康度评估。 | 🔍 调研 |
 | [creative-prompt](skills/creative-prompt/) | 生成创意提示，用于写作、设计、头脑风暴和创意构思。 | 💡 创意 |
 | [dev-joke](skills/dev-joke/) | 开发者笑话、编程幽默和技术梗图。调试时提振士气必备。 | 😄 幽默 |
 | [code-poet](skills/code-poet/) | 将代码转化为诗歌，编写代码主题诗，或用诗意语言解释代码。 | 📜 艺术 |
@@ -103,28 +121,44 @@ bash scripts/llm.sh "Summarize this text" --json
 - 🔍 **网页搜索**: 8 个搜索引擎，无需 API key
 - 🤖 **LLM 集成**: 内置 LLM Agent，支持摘要、翻译、分析
 
+**Presearch** - 开发前搜索现有方案：
+- 🐙 **GitHub**: 开源项目，按 stars 排序
+- 📦 **npm/PyPI**: JavaScript 和 Python 包
+- 🐳 **Docker Hub**: 容器镜像及下载量
+- 📚 **arXiv**: 学术论文
+- 🏥 **健康度评估**: 项目活跃度、stars、维护状态
+- 🎨 **趣味格式**: emoji、meme、诗歌等输出风格
+
 ### 安装
 
 ```bash
-# 快速安装
-git clone https://github.com/quinnmacro/quinn-awesome-skills.git ~/.claude/skills/quinn-awesome-skills
+# 快速安装（推荐）
+git clone https://github.com/quinnmacro/quinn-awesome-skills.git
+cd quinn-awesome-skills
+bash install.sh
 
-# 配置环境变量
-cp .env.example .env
-# 编辑 .env 填入你的 API keys
+# 或一键安装
+curl -sL https://raw.githubusercontent.com/quinnmacro/quinn-awesome-skills/main/install.sh | bash
 ```
+
+安装后会：
+- 将 skills 安装到 `~/.agent/skills/`
+- 创建软链接到 `~/.claude/skills/` 和 `~/.openclaw/skills/`
+- 设置斜杠命令（`/url-fetcher`、`/presearch`）
 
 ### 使用示例
 
 ```bash
-# 获取网页内容
-bash skills/url-fetcher/scripts/fetch.sh "https://example.com"
+# 在 Claude Code 中使用斜杠命令
+/url-fetcher https://example.com
+/presearch "React 框架"
 
-# 网页搜索（无需 API key）
-bash skills/url-fetcher/scripts/search.sh "关键词" duckduckgo 5
+# 或直接调用脚本
+bash ~/.claude/skills/url-fetcher/scripts/fetch.sh "https://example.com"
+bash ~/.claude/skills/url-fetcher/scripts/search.sh "关键词" duckduckgo 5
 
-# LLM 调用
-bash scripts/llm.sh "总结这段文字" --json
+# Presearch 使用趣味格式
+python3 ~/.claude/skills/presearch/modules/presearch_core.py "Python web framework" -f emoji
 ```
 
 ### 环境配置
@@ -159,9 +193,10 @@ quinn-awesome-skills/
 ├── CLAUDE.md              # Claude Code 配置
 ├── CHANGELOG.md           # 版本历史
 ├── CONTRIBUTING.md        # 贡献指南
-├── .env.example           # 环境变量模板
+├── install.sh             # 一键安装脚本
 ├── skills/                # 技能目录
 │   ├── url-fetcher/       # URL 抓取
+│   ├── presearch/         # 开发前搜索
 │   ├── creative-prompt/   # 创意提示
 │   ├── dev-joke/          # 开发者笑话
 │   └── code-poet/         # 代码诗人
