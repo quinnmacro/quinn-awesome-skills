@@ -2,7 +2,7 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills Count](https://img.shields.io/badge/skills-1-brightgreen)
+![Skills Count](https://img.shields.io/badge/skills-4-brightgreen)
 
 > Personal collection of Claude Code skills for AI-native development workflows
 > 
@@ -18,7 +18,10 @@
 
 | Skill | Description | Category |
 |-------|-------------|----------|
-| [url-fetcher](skills/url-fetcher/) | Fetch any URL as clean Markdown. Supports X/Twitter, WeChat, Feishu, PDFs, and web search. | 📄 Content Fetching |
+| [url-fetcher](skills/url-fetcher/) | Fetch any URL as clean Markdown. Supports X/Twitter, WeChat, Feishu, PDFs, and web search. | 📄 Content |
+| [creative-prompt](skills/creative-prompt/) | Generate creative prompts for writing, design, brainstorming, and ideation. | 💡 Creativity |
+| [dev-joke](skills/dev-joke/) | Developer jokes, coding humor, and tech memes. Perfect for debugging morale boost. | 😄 Humor |
+| [code-poet](skills/code-poet/) | Transform code into poetry, write code-inspired poems, or explain code poetically. | 📜 Art |
 
 ### Features
 
@@ -86,7 +89,10 @@ bash scripts/llm.sh "Summarize this text" --json
 
 | Skill | 描述 | 分类 |
 |-------|------|------|
-| [url-fetcher](skills/url-fetcher/) | 将任意 URL 转为干净的 Markdown。支持 X/Twitter、微信公众号、飞书文档、PDF 和网页搜索。 | 📄 内容抓取 |
+| [url-fetcher](skills/url-fetcher/) | 将任意 URL 转为干净的 Markdown。支持 X/Twitter、微信公众号、飞书文档、PDF 和网页搜索。 | 📄 内容 |
+| [creative-prompt](skills/creative-prompt/) | 生成创意提示，用于写作、设计、头脑风暴和创意构思。 | 💡 创意 |
+| [dev-joke](skills/dev-joke/) | 开发者笑话、编程幽默和技术梗图。调试时提振士气必备。 | 😄 幽默 |
+| [code-poet](skills/code-poet/) | 将代码转化为诗歌，编写代码主题诗，或用诗意语言解释代码。 | 📜 艺术 |
 
 ### 功能特性
 
@@ -155,13 +161,15 @@ quinn-awesome-skills/
 ├── CONTRIBUTING.md        # 贡献指南
 ├── .env.example           # 环境变量模板
 ├── skills/                # 技能目录
-│   └── url-fetcher/
-│       ├── SKILL.md       # 技能定义
-│       ├── scripts/       # 脚本文件
-│       └── references/    # 参考文档
+│   ├── url-fetcher/       # URL 抓取
+│   ├── creative-prompt/   # 创意提示
+│   ├── dev-joke/          # 开发者笑话
+│   └── code-poet/         # 代码诗人
 ├── scripts/               # 公共脚本
 │   ├── llm_agent.py       # LLM Agent
 │   └── llm.sh             # LLM 包装脚本
+├── templates/             # 模板文件
+│   └── SKILL_TEMPLATE.md  # Skill 模板
 ├── memory/                # 项目记忆
 └── .claude/commands/      # 自定义命令
 ```
