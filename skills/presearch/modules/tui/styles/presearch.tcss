@@ -1,0 +1,184 @@
+/* Presearch TUI 样式 */
+
+/* 主屏幕 */
+Screen {
+    background: $surface;
+}
+
+/* 标题栏 */
+Header {
+    background: $primary;
+    color: $text-on-primary;
+    dock: top;
+}
+
+/* 底部状态栏 */
+Footer {
+    background: $panel;
+    color: $text;
+    dock: bottom;
+}
+
+/* 搜索输入框 */
+.search-container {
+    dock: top;
+    height: 3;
+    margin: 1 2;
+    background: $surface;
+}
+
+.search-input {
+    border: tall $primary;
+    background: $surface;
+    color: $text;
+}
+
+.search-input:focus {
+    border: tall $accent;
+}
+
+/* 数据源标签栏 */
+.source-tabs {
+    dock: top;
+    height: 3;
+    margin: 0 2;
+    background: $panel;
+}
+
+.source-tab {
+    margin: 0 1;
+    padding: 0 2;
+    color: $text-muted;
+    background: transparent;
+}
+
+.source-tab.active {
+    background: $primary;
+    color: $text-on-primary;
+}
+
+.source-tab:hover {
+    background: $primary-darken-1;
+    color: $text-on-primary;
+}
+
+/* 结果列表 */
+.result-list {
+    height: 1fr;
+    margin: 1 2;
+    background: $surface;
+    overflow-y: auto;
+}
+
+/* 结果项 */
+.result-item {
+    height: auto;
+    min-height: 4;
+    margin: 0 1 1 1;
+    padding: 1 2;
+    background: $panel;
+    border: none;
+}
+
+.result-item:hover {
+    background: $panel-lighten-1;
+}
+
+.result-item:selected {
+    background: $primary;
+    color: $text-on-primary;
+}
+
+.result-item .name {
+    text-style: bold;
+    color: $accent;
+}
+
+.result-item:selected .name {
+    color: $text-on-primary;
+}
+
+.result-item .description {
+    color: $text-muted;
+    margin-top: 1;
+}
+
+.result-item:selected .description {
+    color: $text-on-primary-darken-1;
+}
+
+.result-item .meta {
+    color: $text-muted;
+    text-style: dim;
+}
+
+/* 健康度徽章 */
+.health-excellent {
+    color: $success;
+}
+
+.health-good {
+    color: $warning;
+}
+
+.health-fair {
+    color: $warning-darken-1;
+}
+
+.health-new {
+    color: $error;
+}
+
+/* 详情面板 */
+.detail-panel {
+    dock: right;
+    width: 40%;
+    min-width: 30;
+    max-width: 50;
+    background: $panel;
+    border-left: tall $primary;
+    padding: 1 2;
+    overflow-y: auto;
+}
+
+.detail-panel.hidden {
+    display: none;
+}
+
+.detail-panel .title {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.detail-panel .section {
+    margin-top: 1;
+    padding-top: 1;
+    border-top: dashed $primary;
+}
+
+.detail-panel .label {
+    color: $text-muted;
+}
+
+.detail-panel .value {
+    color: $text;
+}
+
+/* 加载指示器 */
+.loading {
+    align: center middle;
+    color: $primary;
+}
+
+/* 空状态 */
+.empty-state {
+    align: center middle;
+    color: $text-muted;
+}
+
+/* 错误状态 */
+.error-state {
+    align: center middle;
+    color: $error;
+}
