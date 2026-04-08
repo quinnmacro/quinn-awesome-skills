@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.pyo
+.pyd
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Browser state
+twitter_state/
+*.log
+
+# Environment
+.env
+.env.local
+
+# Build
+dist/
+build/
