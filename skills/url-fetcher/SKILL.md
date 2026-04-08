@@ -216,6 +216,26 @@ bash ~/.claude/skills/url-fetcher/scripts/extract_pdf.sh "/path/to/paper.pdf"
 bash ~/.claude/skills/url-fetcher/scripts/fetch.sh "https://example.com" "http://127.0.0.1:7890"
 ```
 
+## LLM Agent Integration
+
+Skills can call LLM for enhanced processing (summarization, translation, analysis):
+
+```bash
+# Basic usage
+bash ~/.claude/skills/quinn-awesome-skills/scripts/llm.sh "Summarize this text"
+
+# With system prompt
+bash ~/.claude/skills/quinn-awesome-skills/scripts/llm.sh "Translate to English" --system "You are a translator"
+
+# JSON output
+bash ~/.claude/skills/quinn-awesome-skills/scripts/llm.sh "Extract key points" --json
+```
+
+**Configuration**: Copy `.env.example` to `.env` and configure:
+- `LLM_PROVIDER`: `infini` (default) or `anthropic`
+- `INFINI_API_KEY`: Your Infini GenStudio API key
+- `LLM_MODEL`: Model to use (e.g., `glm-5`, `deepseek-v3.2`)
+
 ## Notes
 
 - r.jina.ai and defuddle.md require no API key
@@ -224,6 +244,7 @@ bash ~/.claude/skills/url-fetcher/scripts/fetch.sh "https://example.com" "http:/
 - WeChat script requires: `pip install playwright beautifulsoup4 lxml && playwright install chromium`
 - Feishu script requires: `FEISHU_APP_ID` + `FEISHU_APP_SECRET` env vars
 - PDF extraction tries: marker-pdf → pdftotext → pypdf
+- LLM Agent requires: `pip install requests` and `.env` configuration
 
 ### Social Media Support (No Login Required)
 

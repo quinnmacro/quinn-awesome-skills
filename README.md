@@ -33,6 +33,27 @@ cp -r /tmp/quinn-skills/skills/url-fetcher ~/.claude/skills/
 2. Copy desired skill folder to `~/.claude/skills/`
 3. Skills load automatically when relevant
 
+### Environment Configuration
+
+Copy `.env.example` to `.env` and configure your credentials:
+
+```bash
+# Clone and configure
+git clone https://github.com/quinnmacro/quinn-awesome-skills.git
+cd quinn-awesome-skills
+cp .env.example .env
+
+# Edit .env with your API keys
+```
+
+**Required for**:
+- **Feishu**: `FEISHU_APP_ID` + `FEISHU_APP_SECRET`
+- **LLM Agent**: `INFINI_API_KEY` or `ANTHROPIC_API_KEY`
+
+**Optional**:
+- **Proxy**: `USE_PROXY=true` + `PROXY_URL`
+- **Web Search**: `JINA_API_KEY` or `BRAVE_SEARCH_API_KEY`
+
 ## URL Fetcher Features
 
 ### Supported Platforms
@@ -64,6 +85,23 @@ bash ~/.claude/skills/url-fetcher/scripts/search.sh "golang tutorial" brave 10
 
 **Supported engines**: DuckDuckGo, Brave, Bing, Exa, Baidu, CSDN, Juejin, Startpage
 
+### LLM Agent
+
+Skills can call LLM for enhanced processing:
+
+```bash
+# Summarize content
+bash scripts/llm.sh "Summarize: $(cat content.md)"
+
+# Translate
+bash scripts/llm.sh "Translate to Chinese" --system "You are a professional translator"
+
+# JSON extraction
+bash scripts/llm.sh "Extract all URLs from this text" --json
+```
+
+**Supported providers**: Infini GenStudio (default), Anthropic
+
 ## Usage Examples
 
 ```bash
@@ -88,6 +126,10 @@ bash ~/.claude/skills/url-fetcher/scripts/search.sh "Claude Code skills"
 - **Feishu**: `FEISHU_APP_ID` and `FEISHU_APP_SECRET` environment variables
 - **PDF**: `pip install marker-pdf` (best) or `brew install poppler` (pdftotext)
 - **Search**: `npx open-websearch@latest`
+
+### LLM Agent (Optional)
+- **Core**: `pip install requests`
+- **Config**: Set `INFINI_API_KEY` or `ANTHROPIC_API_KEY` in `.env`
 
 ## Project Structure
 
