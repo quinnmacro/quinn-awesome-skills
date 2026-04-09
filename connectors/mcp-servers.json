@@ -1,0 +1,99 @@
+{
+  "$schema": "https://github.com/anthropics/mcp-server-schema",
+  "description": "MCP Servers Configuration for quinn-awesome-skills",
+  "mcpServers": {
+    "github": {
+      "command": "mcp-github",
+      "description": "GitHub API access for repository search and operations",
+      "skills": ["presearch", "url-fetcher"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "brave-search": {
+      "command": "mcp-brave-search",
+      "description": "Web search via Brave Search API",
+      "skills": ["presearch", "url-fetcher"],
+      "env": {
+        "BRAVE_API_KEY": "${BRAVE_API_KEY}"
+      }
+    },
+    "arxiv": {
+      "command": "mcp-arxiv",
+      "description": "Academic papers search and retrieval",
+      "skills": ["presearch"],
+      "enabled": true
+    },
+    "playwright": {
+      "command": "mcp-playwright",
+      "description": "Browser automation for web scraping",
+      "skills": ["url-fetcher"],
+      "enabled": true
+    },
+    "filesystem": {
+      "command": "mcp-filesystem",
+      "description": "File system operations",
+      "skills": ["*"],
+      "args": ["--root", "${HOME}/Downloads"]
+    },
+    "fetch": {
+      "command": "mcp-fetch",
+      "description": "HTTP fetch for URL content retrieval",
+      "skills": ["url-fetcher"],
+      "enabled": true
+    }
+  },
+  "dataProviders": {
+    "financial": {
+      "description": "Financial data providers for investment skills",
+      "providers": {
+        "yahoo-finance": {
+          "description": "Free financial data API",
+          "skills": ["earnings-analyzer", "macro-brief"]
+        },
+        "alpha-vantage": {
+          "description": "Stock market data",
+          "env": {
+            "ALPHA_VANTAGE_API_KEY": "${ALPHA_VANTAGE_API_KEY}"
+          },
+          "skills": ["earnings-analyzer"]
+        },
+        "fred": {
+          "description": "Federal Reserve Economic Data",
+          "env": {
+            "FRED_API_KEY": "${FRED_API_KEY}"
+          },
+          "skills": ["macro-brief"]
+        }
+      }
+    },
+    "social": {
+      "description": "Social media and content platforms",
+      "providers": {
+        "wechat": {
+          "description": "WeChat Official Account articles",
+          "skills": ["url-fetcher"],
+          "requires": ["playwright"]
+        },
+        "feishu": {
+          "description": "Feishu/Lark documents",
+          "skills": ["url-fetcher"],
+          "env": {
+            "FEISHU_APP_ID": "${FEISHU_APP_ID}",
+            "FEISHU_APP_SECRET": "${FEISHU_APP_SECRET}"
+          }
+        },
+        "twitter": {
+          "description": "X/Twitter content via proxy",
+          "skills": ["url-fetcher"],
+          "proxy": "fxtwitter.com"
+        }
+      }
+    }
+  },
+  "proxy": {
+    "enabled": false,
+    "url": "${PROXY_URL}",
+    "cascade": ["r.jina.ai", "defuddle.md", "agent-fetch"]
+  }
+}
