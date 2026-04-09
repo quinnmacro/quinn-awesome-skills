@@ -182,7 +182,47 @@ class PresearchCore:
 
     def search_arxiv(self, query, max_results=5):
         """
-        搜索arXiv
+        搜索arXiv - 使用 arxiv Python 包
+
+        Args:
+            query: 搜索查询
+            max_results: 最大结果数量
+
+        Returns:
+            (source_name, results) 元组
+        """
+        try:
+            import arxiv
+
+            # 使用 arxiv 包搜索（新 API）
+            search = arxiv.Search(
+                query=query,
+                max_results=max_results,
+                sort_by=arxiv.SortCriterion.Relevance
+            )
+
+            client = arxiv.Client()
+            papers = []
+            for result in client.results(search):
+                paper = {
+                    'title': result.title,
+                    'link': result.entry_id,
+                    'published': str(result.published)[:10] if result.published else '',
+                    'authors': [author.name for author in result.authors] if result.authors else ['未知作者'],
+                    'summary': result.summary[:200] + '...' if result.summary and len(result.summary) > 200 else (result.summary or '')
+                }
+                papers.append(paper)
+
+            return ('arxiv', papers)
+        except ImportError:
+            # 回退到 HTTP 方式
+            return self._search_arxiv_http(query, max_results)
+        except Exception as e:
+            return ('arxiv', {'error': 'arxiv_unknown_error', 'message': str(e)})
+
+    def _search_arxiv_http(self, query, max_results=5):
+        """
+        回退方法：通过HTTP搜索arXiv
 
         Args:
             query: 搜索查询
