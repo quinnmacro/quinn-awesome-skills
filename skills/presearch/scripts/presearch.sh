@@ -10,4 +10,7 @@ FORMAT="${2:-table}"
 # 设置模块路径
 export PRESEARCH_MODULES="$(dirname "$0")/../modules"
 
+# Windows 编码兼容
+export PYTHONIOENCODING=utf-8
+
 python3 "$PRESEARCH_MODULES/presearch_core.py" "$QUERY" -f "$FORMAT"
