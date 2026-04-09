@@ -41,6 +41,29 @@
       "description": "HTTP fetch for URL content retrieval",
       "skills": ["url-fetcher"],
       "enabled": true
+    },
+    "spglobal": {
+      "command": "mcp-server-spglobal",
+      "url": "https://kfinance.kensho.com/integrations/mcp",
+      "description": "S&P Global Capital IQ data integration for financial analysis",
+      "skills": ["spglobal", "tear-sheet", "funding-digest", "earnings-preview"],
+      "env": {
+        "SPGLOBAL_API_KEY": "${SPGLOBAL_API_KEY}"
+      },
+      "dataTypes": [
+        "company-profile",
+        "financial-statements",
+        "valuation-metrics",
+        "ownership",
+        "transactions",
+        "estimates",
+        "competitors"
+      ],
+      "usage": {
+        "tearSheet": "Generate company one-page profiles",
+        "fundingDigest": "Industry funding and M&A summaries",
+        "earningsPreview": "Pre-earnings analysis reports"
+      }
     }
   },
   "dataProviders": {
@@ -64,6 +87,22 @@
             "FRED_API_KEY": "${FRED_API_KEY}"
           },
           "skills": ["macro-brief"]
+        },
+        "spglobal": {
+          "description": "S&P Global Capital IQ - Professional financial data",
+          "env": {
+            "SPGLOBAL_API_KEY": "${SPGLOBAL_API_KEY}"
+          },
+          "skills": ["spglobal", "tear-sheet", "funding-digest", "earnings-preview"],
+          "features": [
+            "Company profiles (public + private)",
+            "Financial statements",
+            "Valuation metrics",
+            "M&A and funding transactions",
+            "Analyst estimates",
+            "Ownership data"
+          ],
+          "mcp_endpoint": "https://kfinance.kensho.com/integrations/mcp"
         }
       }
     },

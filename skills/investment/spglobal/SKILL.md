@@ -1,0 +1,239 @@
+---
+name: spglobal
+description: |
+  S&P Global (Capital IQ) data integration for financial analysis.
+  Generate tear sheets, funding digests, earnings previews with live data.
+  "标普全球", "Capital IQ", "S&P", "公司简报", "融资摘要", "业绩预览".
+version: 1.0.0
+author: quinnmacro
+requires:
+  - Capital IQ Pro subscription or S&P Global LLM-ready API
+mcp:
+  server: https://kfinance.kensho.com/integrations/mcp
+  provider: S&P Global
+---
+
+# S&P Global - 标普全球数据集成
+
+使用标普 Capital IQ 实时数据进行 AI 驱动的金融研究。
+
+## What is S&P Global?
+
+标普全球（S&P Global）是全球领先的金融数据、分析和评级提供商。其旗下的 **Capital IQ** 平台是投资银行、股票研究、企业发展和销售团队的核心数据工具，提供：
+
+| 数据类型 | 覆盖范围 |
+|----------|----------|
+| 公司财务数据 | 全球上市+私有公司 |
+| 估值指标 | P/E, EV/EBITDA, P/B 等 |
+| 交易记录 | M&A, IPO, 融资轮次 |
+| 分析师预估 | 共识预测、目标价 |
+| 行业数据 | 市场份额、行业趋势 |
+
+## Why It Matters
+
+传统的金融研究需要在多个数据终端之间切换、手动复制粘贴数据，效率低下且容易出错。
+
+**S&P Global MCP 集成**让 Claude 直接访问 Capital IQ 数据：
+
+| 传统方式 | MCP 集成 |
+|----------|----------|
+| 登录 Capital IQ 网页端 | 一条 `/command` 直接调用 |
+| 手动搜索公司、复制数据 | 自动拉取实时数据 |
+| 在 Excel/Word 中格式化 | 自动生成格式化报告 |
+| 多个浏览器标签页 | 单一 AI 会话完成 |
+
+## Skills Overview
+
+| Skill | Description | Command | Output |
+|-------|-------------|---------|--------|
+| [Tear Sheet](skills/tear-sheet/SKILL.md) | 公司简报生成器 | `/tear-sheet` | Word 文档 |
+| [Funding Digest](skills/funding-digest/SKILL.md) | 行业融资/并购摘要 | `/funding-digest` | PowerPoint |
+| [Earnings Preview](skills/earnings-preview/SKILL.md) | 业绩预览报告 | `/earnings-preview` | 研究报告 |
+
+## MCP Configuration
+
+### Prerequisites
+
+- [Capital IQ Pro](https://www.spglobal.com/market-intelligence/en/solutions/products/sp-capital-iq-pro) 订阅，或
+- [S&P Global LLM-ready API](https://www.marketplace.spglobal.com/en/solutions/kensho-llm-ready-api-%28a156fe9f-5564-4f60-a624-95d8645dc98f%29) 订阅
+
+### Configuration
+
+Add to your `~/.claude/connectors/mcp-servers.json`:
+
+```json
+{
+  "mcpServers": {
+    "spglobal": {
+      "command": "mcp-server-spglobal",
+      "url": "https://kfinance.kensho.com/integrations/mcp",
+      "description": "S&P Global Capital IQ data integration",
+      "env": {
+        "SPGLOBAL_API_KEY": "${SPGLOBAL_API_KEY}"
+      },
+      "skills": ["spglobal", "tear-sheet", "funding-digest", "earnings-preview"]
+    }
+  }
+}
+```
+
+### Environment Variables
+
+```bash
+# Set your S&P Global API key
+export SPGLOBAL_API_KEY="your_api_key_here"
+
+# Or add to .env file
+echo "SPGLOBAL_API_KEY=your_api_key_here" >> ~/.claude/skills/quinn-awesome-skills/.env
+```
+
+## Example Usage
+
+### Tear Sheet (公司简报)
+
+```
+/tear-sheet Palantir --audience equity-research
+/tear-sheet 苹果 --audience ib-ma
+/tear-sheet Tesla --audience sales-bd
+```
+
+**Audience Types:**
+- `equity-research` - 股票研究分析师
+- `ib-ma` - 投资银行/并购
+- `corporate-development` - 企业发展
+- `sales-bd` - 销售/业务拓展
+
+### Funding Digest (融资摘要)
+
+```
+/funding-digest AI行业 --period weekly
+/funding-digest "semiconductor" --period monthly
+/funding-digest "data infrastructure" --region US
+```
+
+### Earnings Preview (业绩预览)
+
+```
+/earnings-preview AAPL 2024Q4
+/earnings-preview Salesforce --quarter upcoming
+/earnings-preview 微软 --consensus
+```
+
+## Data Available via MCP
+
+### Company Data
+
+| Data Point | Description |
+|------------|-------------|
+| Company Profile | 名称、行业、总部、员工数 |
+| Financial Statements | 损益表、资产负债表、现金流 |
+| Valuation Metrics | P/E, P/B, EV/EBITDA, P/S |
+| Ownership | 机构持股、内部人士持股 |
+| Competitors | 同行业可比公司 |
+
+### Transaction Data
+
+| Data Point | Description |
+|------------|-------------|
+| M&A Deals | 并购交易记录 |
+| Funding Rounds | VC/PE 融资轮次 |
+| IPO Data | 上市信息 |
+| Valuations | 投前/投后估值 |
+
+### Estimates Data
+
+| Data Point | Description |
+|------------|-------------|
+| Consensus Estimates | 分析师一致预测 |
+| Guidance | 公司指引 |
+| Target Prices | 目标价 |
+| Ratings | 买入/卖出评级 |
+
+## Workflow Integration
+
+### Investment Banking
+
+```bash
+# Pre-pitch company research
+/tear-sheet [target] --audience ib-ma
+
+# Comparable transactions
+/funding-digest [industry] --deal-type m&a
+
+# Management presentation prep
+/earnings-preview [company] --focus guidance
+```
+
+### Equity Research
+
+```bash
+# Earnings season prep
+/earnings-preview [ticker] --quarter upcoming
+
+# Industry overview
+/funding-digest [sector] --period quarterly
+
+# Company tear sheet
+/tear-sheet [company] --audience equity-research
+```
+
+### Private Equity
+
+```bash
+# Deal sourcing
+/funding-digest [sector] --stage early
+
+# Due diligence
+/tear-sheet [target] --audience corporate-development
+
+# Market analysis
+/funding-digest [industry] --period monthly
+```
+
+## Best Practices
+
+1. **数据验证**: MCP 返回的数据需与 Capital IQ 终端交叉验证
+2. **时效性**: 实时数据可能有延迟，关键决策前确认更新时间
+3. **覆盖范围**: 私有公司数据可能不完整，需标注数据缺口
+4. **合规要求**: 数据使用需遵守 S&P Global 许可协议
+
+## Common Errors
+
+### Error: Authentication Failed
+
+```
+解决方案:
+1. 确认 SPGLOBAL_API_KEY 环境变量已设置
+2. 确认 API Key 未过期
+3. 确认订阅包含所需数据类型
+```
+
+### Error: Company Not Found
+
+```
+解决方案:
+1. 使用 Capital IQ 公司 ID (IQ ID)
+2. 尝试股票代码 + 交易所 (如: AAPL-US)
+3. 使用完整公司名称
+```
+
+### Error: Rate Limit Exceeded
+
+```
+解决方案:
+1. 减少请求频率
+2. 升级 API 配额
+3. 使用缓存机制
+```
+
+## Related Skills
+
+- [earnings-analyzer](../earnings-analyzer/) - 财报分析
+- [investor-distiller](../investor-distiller/) - 投资大师智慧
+- [macro-brief](../macro-brief/) - 宏观经济简报
+
+## References
+
+- [S&P Global Capital IQ](https://www.spglobal.com/market-intelligence/en/solutions/products/sp-capital-iq-pro)
+- [Finance Context S&P Plugin](https://financecontext.com/zh/partner-built/spglobal/overview)
+- [MCP Protocol](https://modelcontextprotocol.io/)
