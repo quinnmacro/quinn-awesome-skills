@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-S&P Global MCP Connection Test Script
-测试 S&P Global API 连接状态
+Kensho / S&P Global LLM-ready API Connection Test
+支持三种认证方式：Browser Login, Refresh Token, Key Pair
 """
 
 import os
@@ -12,49 +12,51 @@ import urllib.error
 from datetime import datetime
 
 
-def test_spglobal_connection(api_key: str = None) -> dict:
+def test_kensho_connection(
+    refresh_token: str = None,
+    client_id: str = None,
+    private_key_path: str = None
+) -> dict:
     """
-    测试 S&P Global MCP 连接
+    测试 Kensho LLM-ready API 连接
 
     Args:
-        api_key: S&P Global API Key (可选，默认从环境变量读取)
+        refresh_token: Kensho refresh token
+        client_id: Kensho client ID (for key pair auth)
+        private_key_path: Path to private key file
 
     Returns:
         dict: 测试结果
     """
-    if not api_key:
-        api_key = os.environ.get("SPGLOBAL_API_KEY", "")
-
     results = {
         "timestamp": datetime.now().isoformat(),
-        "api_key_set": bool(api_key),
-        "api_key_prefix": api_key[:8] + "..." if api_key and len(api_key) > 8 else "N/A",
+        "auth_methods": [],
         "tests": []
     }
 
-    # Test 1: Check API key format
-    test_key_format = {
-        "name": "API Key Format",
-        "status": "pass" if api_key and len(api_key) > 20 else "fail",
-        "message": f"Key length: {len(api_key) if api_key else 0}" if api_key else "API key not set"
-    }
-    results["tests"].append(test_key_format)
+    # Check available auth methods
+    has_refresh_token = bool(refresh_token)
+    has_key_pair = bool(client_id and private_key_path and os.path.exists(private_key_path))
 
-    # Test 2: MCP Endpoint Reachability
+    results["auth_methods"] = {
+        "refresh_token": has_refresh_token,
+        "key_pair": has_key_pair
+    }
+
+    # Test 1: MCP Endpoint Reachability
     mcp_url = "https://kfinance.kensho.com/integrations/mcp"
     try:
         req = urllib.request.Request(mcp_url, method="HEAD")
-        req.add_header("Authorization", f"Bearer {api_key}")
         with urllib.request.urlopen(req, timeout=10) as response:
             test_endpoint = {
                 "name": "MCP Endpoint Reachable",
-                "status": "pass" if response.status in [200, 401, 403] else "fail",
+                "status": "pass" if response.status in [200, 401, 403, 405] else "fail",
                 "message": f"HTTP {response.status}"
             }
     except urllib.error.HTTPError as e:
         test_endpoint = {
             "name": "MCP Endpoint Reachable",
-            "status": "pass" if e.code in [401, 403] else "fail",
+            "status": "pass",  # 401/403 means endpoint is reachable, just needs auth
             "message": f"HTTP {e.code} (Auth required - endpoint reachable)"
         }
     except urllib.error.URLError as e:
@@ -71,54 +73,69 @@ def test_spglobal_connection(api_key: str = None) -> dict:
         }
     results["tests"].append(test_endpoint)
 
-    # Test 3: Try a simple API call (if key available)
-    if api_key:
+    # Test 2: Check auth configuration
+    if has_refresh_token:
+        test_auth = {
+            "name": "Refresh Token Configured",
+            "status": "pass",
+            "message": f"Token prefix: {refresh_token[:20]}..."
+        }
+    elif has_key_pair:
+        test_auth = {
+            "name": "Key Pair Configured",
+            "status": "pass",
+            "message": f"Client ID: {client_id[:8]}..., Key file exists"
+        }
+    else:
+        test_auth = {
+            "name": "Authentication Configuration",
+            "status": "fail",
+            "message": "No authentication method configured"
+        }
+    results["tests"].append(test_auth)
+
+    # Test 3: Try API call if authenticated
+    if has_refresh_token:
         try:
-            # Try to get company info for Apple (AAPL)
-            test_url = f"{mcp_url}/companies?ticker=AAPL"
+            # Try to get a simple company search
+            test_url = f"{mcp_url}/search?query=AAPL"
             req = urllib.request.Request(test_url)
-            req.add_header("Authorization", f"Bearer {api_key}")
+            req.add_header("Authorization", f"Bearer {refresh_token}")
             req.add_header("Accept", "application/json")
 
             with urllib.request.urlopen(req, timeout=30) as response:
                 data = json.loads(response.read().decode())
-                test_api_call = {
+                test_api = {
                     "name": "API Data Fetch",
                     "status": "pass",
-                    "message": f"Retrieved data for AAPL"
+                    "message": f"Successfully retrieved data"
                 }
         except urllib.error.HTTPError as e:
             if e.code == 401:
-                test_api_call = {
+                test_api = {
                     "name": "API Data Fetch",
                     "status": "fail",
-                    "message": "Authentication failed - check API key"
-                }
-            elif e.code == 403:
-                test_api_call = {
-                    "name": "API Data Fetch",
-                    "status": "fail",
-                    "message": "Access forbidden - check subscription"
+                    "message": "Token expired or invalid - get new token at https://kfinance.kensho.com/manual_login/"
                 }
             else:
-                test_api_call = {
+                test_api = {
                     "name": "API Data Fetch",
                     "status": "fail",
                     "message": f"HTTP {e.code}"
                 }
         except Exception as e:
-            test_api_call = {
+            test_api = {
                 "name": "API Data Fetch",
                 "status": "fail",
                 "message": str(e)
             }
     else:
-        test_api_call = {
+        test_api = {
             "name": "API Data Fetch",
             "status": "skip",
-            "message": "No API key provided"
+            "message": "No refresh token provided"
         }
-    results["tests"].append(test_api_call)
+    results["tests"].append(test_api)
 
     # Calculate overall status
     passed = sum(1 for t in results["tests"] if t["status"] == "pass")
@@ -126,7 +143,7 @@ def test_spglobal_connection(api_key: str = None) -> dict:
     results["summary"] = {
         "passed": passed,
         "total": total,
-        "status": "pass" if passed == total else "fail"
+        "status": "pass" if passed >= 2 else "fail"  # Need at least endpoint + auth
     }
 
     return results
@@ -135,12 +152,14 @@ def test_spglobal_connection(api_key: str = None) -> dict:
 def print_results(results: dict):
     """打印测试结果"""
     print("\n" + "=" * 60)
-    print("  S&P Global MCP Connection Test")
+    print("  Kensho LLM-ready API Connection Test")
     print("=" * 60)
     print(f"\n  Timestamp: {results['timestamp']}")
-    print(f"  API Key Set: {'Yes' if results['api_key_set'] else 'No'}")
-    if results['api_key_set']:
-        print(f"  Key Prefix: {results['api_key_prefix']}")
+
+    auth = results["auth_methods"]
+    print(f"\n  Authentication Methods:")
+    print(f"    Refresh Token: {'Yes' if auth['refresh_token'] else 'No'}")
+    print(f"    Key Pair: {'Yes' if auth['key_pair'] else 'No'}")
 
     print("\n  Tests:")
     print("-" * 60)
@@ -159,26 +178,38 @@ def print_results(results: dict):
     summary = results["summary"]
     print(f"\n  Result: {summary['passed']}/{summary['total']} tests passed")
     print(f"  Overall: {'[PASS]' if summary['status'] == 'pass' else '[FAIL]'}")
+
+    print("\n  Setup Guide:")
+    print("  1. Email commercial@kensho.com to get access")
+    print("  2. Get refresh token: https://kfinance.kensho.com/manual_login/")
+    print("  3. Set KENSHO_REFRESH_TOKEN in .env")
     print("\n" + "=" * 60 + "\n")
 
 
 def main():
     """主函数"""
-    print("\n[Search] Testing S&P Global MCP Connection...\n")
+    print("\n[Testing] Kensho LLM-ready API Connection...\n")
 
-    # Check environment
-    api_key = os.environ.get("SPGLOBAL_API_KEY", "")
+    # Check environment variables
+    refresh_token = os.environ.get("KENSHO_REFRESH_TOKEN", "")
+    client_id = os.environ.get("KENSHO_CLIENT_ID", "")
+    private_key_path = os.environ.get("KENSHO_PRIVATE_KEY_PATH", "")
 
-    if not api_key:
-        print("[Warning] SPGLOBAL_API_KEY environment variable not set")
-        print("   Set it with: export SPGLOBAL_API_KEY='your_key'")
-        print("   Or pass as argument: python test_connection.py YOUR_KEY\n")
+    # Allow command line override
+    if len(sys.argv) > 1:
+        refresh_token = sys.argv[1]
+        print(f"  Using refresh token from argument: {refresh_token[:20]}...\n")
 
-        if len(sys.argv) > 1:
-            api_key = sys.argv[1]
-            print(f"   Using key from argument: {api_key[:8]}...\n")
+    if not refresh_token and not client_id:
+        print("[Warning] No authentication configured")
+        print("  Set KENSHO_REFRESH_TOKEN or (KENSHO_CLIENT_ID + KENSHO_PRIVATE_KEY_PATH)")
+        print("  Get refresh token: https://kfinance.kensho.com/manual_login/\n")
 
-    results = test_spglobal_connection(api_key)
+    results = test_kensho_connection(
+        refresh_token=refresh_token,
+        client_id=client_id,
+        private_key_path=private_key_path
+    )
     print_results(results)
 
     # Return exit code

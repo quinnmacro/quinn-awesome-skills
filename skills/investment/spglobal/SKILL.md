@@ -55,36 +55,89 @@ mcp:
 ### Prerequisites
 
 - [Capital IQ Pro](https://www.spglobal.com/market-intelligence/en/solutions/products/sp-capital-iq-pro) 订阅，或
-- [S&P Global LLM-ready API](https://www.marketplace.spglobal.com/en/solutions/kensho-llm-ready-api-%28a156fe9f-5564-4f60-a624-95d8645dc98f%29) 订阅
+- [Kensho LLM-ready API](https://docs.kensho.com/llmreadyapi/overview) 访问权限
 
-### Configuration
+### Step 1: 获取访问权限
 
-Add to your `~/.claude/connectors/mcp-servers.json`:
+发邮件到 **commercial@kensho.com**：
 
-```json
-{
-  "mcpServers": {
-    "spglobal": {
-      "command": "mcp-server-spglobal",
-      "url": "https://kfinance.kensho.com/integrations/mcp",
-      "description": "S&P Global Capital IQ data integration",
-      "env": {
-        "SPGLOBAL_API_KEY": "${SPGLOBAL_API_KEY}"
-      },
-      "skills": ["spglobal", "tear-sheet", "funding-digest", "earnings-preview"]
-    }
-  }
-}
+```
+Subject: Request for Kensho LLM-ready API Access
+
+I would like to request access to the Kensho LLM-ready API.
+Purpose: AI-powered financial analysis workflows.
 ```
 
-### Environment Variables
+Kensho 会回复 Okta 凭据（用户名 + 密码）。
+
+### Step 2: 选择认证方式
+
+| 方式 | 用途 | 过期时间 | 推荐度 |
+|------|------|----------|--------|
+| **Browser Login** | 快速测试 | 会话期 | ⭐⭐ 开发测试 |
+| **Refresh Token** | 开发环境 | 7 天 | ⭐⭐⭐ 短期使用 |
+| **Public/Private Key** | 生产环境 | 永久 | ⭐⭐⭐⭐⭐ 生产环境 |
+
+### Step 3: 获取 Refresh Token（推荐快速开始）
+
+1. 访问 [LLM-ready API Manual Login](https://kfinance.kensho.com/manual_login/)
+2. 用 Okta 凭据登录
+3. 复制 Refresh Token
+
+### Step 4: 配置环境变量
 
 ```bash
-# Set your S&P Global API key
-export SPGLOBAL_API_KEY="your_api_key_here"
+# 方式 1: 设置环境变量
+export KENSHO_REFRESH_TOKEN="your_refresh_token_here"
 
-# Or add to .env file
-echo "SPGLOBAL_API_KEY=your_api_key_here" >> ~/.claude/skills/quinn-awesome-skills/.env
+# 方式 2: 添加到 .env 文件
+echo "KENSHO_REFRESH_TOKEN=your_refresh_token_here" >> ~/.claude/skills/quinn-awesome-skills/.env
+```
+
+### Step 5: Claude Desktop 集成（最简单）
+
+1. 打开 Claude Desktop
+2. 点击聊天框 "Search and tools"
+3. 点击 "Add connectors"
+4. 选择 "S&P Global" connector
+5. 用 Kensho Okta 凭据登录
+6. 完成！
+
+### 生产环境：Public/Private Key 认证
+
+```bash
+# 1. 生成密钥对
+openssl genrsa -out private.pem 2048
+openssl rsa -in private.pem -outform PEM -pubout -out public.pem
+
+# 2. 发送公钥到 support@kensho.com
+# 邮件内容:
+# - 附件: public.pem
+# - 请求加入 users_kfinance 组
+
+# 3. 收到 Client ID 后配置
+export KENSHO_CLIENT_ID="your_client_id"
+export KENSHO_PRIVATE_KEY_PATH="~/.keys/private.pem"
+```
+
+### Python 客户端使用
+
+```python
+from kfinance import Client
+
+# 方式 1: Browser Login
+client = Client()
+
+# 方式 2: Refresh Token
+client = Client(refresh_token="your_refresh_token")
+
+# 方式 3: Key Pair
+with open('private.pem', 'rb') as f:
+    private_key = f.read()
+client = Client(client_id="your_client_id", private_key=private_key)
+
+# 获取 access token
+access_token = client.access_token
 ```
 
 ## Example Usage
