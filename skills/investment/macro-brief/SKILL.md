@@ -6,12 +6,28 @@ description: |
   "宏观经济简报", "市场晨报", "经济日报".
 version: 1.0.0
 author: quinnmacro
+layer: domain. Triggers: "宏观经济简报", "市场晨报", "经济日报", "生成宏观简报", "宏观分析", "macro brief", "economic summary", "market overview".
 ---
 
 # Macro Brief - 宏观经济简报
 
 生成专业的宏观经济简报和市场分析报告。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
 ## Trigger Phrases
 
 - "生成宏观简报"

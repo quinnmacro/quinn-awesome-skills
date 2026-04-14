@@ -6,12 +6,28 @@ description: |
   Buffett, Munger, Dalio, Soros, Druckenmiller, etc. "投资大师蒸馏".
 version: 1.0.0
 author: quinnmacro
+layer: domain. Triggers: "投资大师蒸馏", "蒸馏巴菲特", "分析芒格的投资哲学", "瑞·达利欧的投资原则", "索罗斯的反身性理论", "投资大师方法论", "distill investor wisdom", "extract investment framework".
 ---
 
 # Investor Distiller - 投资大师蒸馏器
 
 将投资大师的投资哲学、方法论蒸馏为可执行的分析框架。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
 ## Trigger Phrases
 
 - "蒸馏巴菲特"

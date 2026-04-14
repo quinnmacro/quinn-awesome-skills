@@ -6,12 +6,28 @@ description: |
   Identify key metrics, trends, and investment insights. "财报分析", "财务报表".
 version: 1.0.0
 author: quinnmacro
+layer: domain. Triggers: "财报分析", "财务报表", "分析财报", "财务报表分析", "解读财报", "earnings analysis", "financial statement", "季报/年报分析".
 ---
 
 # Earnings Analyzer - 财报分析器
 
 分析上市公司财务报表，提取关键指标和投资洞察。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
 ## Trigger Phrases
 
 - "分析财报"

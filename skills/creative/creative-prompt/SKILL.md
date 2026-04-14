@@ -6,12 +6,39 @@ description: |
   "brainstorm help", or "give me ideas for".
 version: 1.0.0
 author: quinnmacro
+layer: domain. Triggers: "creative ideas", "writing prompts", "design inspiration", "brainstorm help", "give me ideas for", "给我一些创意", "帮我头脑风暴", "写个故事灵感".
 ---
 
 # Creative Prompt Generator
 
 Generate creative prompts for various creative tasks: writing, design, art, brainstorming.
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## Trigger Phrases
 
 - "给我一些创意"

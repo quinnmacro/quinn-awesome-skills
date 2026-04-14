@@ -7,12 +7,39 @@ description: |
   Use this BEFORE other fetch tools. Triggers on any URL share, "fetch this", "search for".
 version: 1.0.0
 author: quinnmacro
+layer: core. Triggers: "fetch this", "search for".
 ---
 
 # URL Fetcher - URL to Markdown
 
 将任意 URL 转为干净的 Markdown。支持需要登录的页面、PDF、专有平台。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## URL Routing (先判断再执行)
 
 收到 URL 后，先判断类型，不同类型走不同通道：

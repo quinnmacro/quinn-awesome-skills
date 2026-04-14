@@ -7,12 +7,39 @@ description: |
 version: 1.0.0
 author: quinnmacro
 parent: spglobal
+layer: domain. Triggers: "融资摘要", "交易流", "Deal Flow", "并购动态".
 ---
 
 # Funding Digest - 融资摘要生成器
 
 使用标普 Capital IQ 交易数据生成行业融资和并购摘要。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## What is a Funding Digest?
 
 Funding Digest（融资摘要/交易流摘要）是金融专业人士追踪特定行业或市场融资活动的周期性报告。

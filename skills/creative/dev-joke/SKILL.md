@@ -6,12 +6,39 @@ description: |
   or needs a morale boost during debugging sessions.
 version: 1.0.0
 author: quinnmacro
+layer: domain. Triggers: "joke", "funny", "make me laugh", "程序员笑话", "讲个笑话", "来个段子", "哄我开心", "debug 太累了".
 ---
 
 # Developer Joke Generator
 
 Generate programming humor to lighten the mood during long coding sessions.
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## Trigger Phrases
 
 - "讲个笑话"

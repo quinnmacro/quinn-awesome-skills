@@ -10,12 +10,39 @@ author: quinnmacro
 requires:
   - Capital IQ Pro 网页端访问权限
   - playwright (uv tool install playwright && playwright install chromium)
+layer: domain. Triggers: "标普全球", "Capital IQ", "S&P", "公司简报", "融资摘要", "业绩预览".
 ---
 
 # S&P Global Web - Capital IQ 网页数据抓取
 
 直接抓取 Capital IQ 网页数据，无需复杂的 API 认证。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## Why Web Scraping?
 
 | API 方式 | 网页抓取 |

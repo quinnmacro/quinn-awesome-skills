@@ -11,12 +11,28 @@ requires:
 mcp:
   server: https://kfinance.kensho.com/integrations/mcp
   provider: S&P Global
+layer: domain. Triggers: "标普全球", "Capital IQ", "S&P", "公司简报", "融资摘要", "业绩预览".
 ---
 
 # S&P Global - 标普全球数据集成
 
 使用标普 Capital IQ 实时数据进行 AI 驱动的金融研究。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
 ## What is S&P Global?
 
 标普全球（S&P Global）是全球领先的金融数据、分析和评级提供商。其旗下的 **Capital IQ** 平台是投资银行、股票研究、企业发展和销售团队的核心数据工具，提供：
@@ -59,7 +75,7 @@ mcp:
 
 ### Step 1: 获取访问权限
 
-发邮件到 **commercial@kensho.com**：
+发邮件到 **REDACTED@example.com**：
 
 ```
 Subject: Request for Kensho LLM-ready API Access
@@ -110,7 +126,7 @@ echo "KENSHO_REFRESH_TOKEN=your_refresh_token_here" >> ~/.claude/skills/quinn-aw
 openssl genrsa -out private.pem 2048
 openssl rsa -in private.pem -outform PEM -pubout -out public.pem
 
-# 2. 发送公钥到 support@kensho.com
+# 2. 发送公钥到 REDACTED@example.com
 # 邮件内容:
 # - 附件: public.pem
 # - 请求加入 users_kfinance 组

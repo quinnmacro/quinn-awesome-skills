@@ -7,12 +7,39 @@ description: |
 version: 1.0.0
 author: quinnmacro
 parent: spglobal
+layer: domain. Triggers: "公司简报", "企业概览", "公司介绍".
 ---
 
 # Tear Sheet - 公司简报生成器
 
 使用标普 Capital IQ 实时数据生成格式化的公司简报。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## What is a Tear Sheet?
 
 Tear Sheet（公司简报）是一页式的公司概览文档，用于快速了解公司基本情况。名称来源于纸质时代——分析师从报告中"撕下"(tear off) 一页给客户或同事。

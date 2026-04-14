@@ -7,12 +7,39 @@ description: |
 version: 1.0.0
 author: quinnmacro
 parent: spglobal
+layer: domain. Triggers: "业绩预览", "财报前瞻", "Earnings Preview".
 ---
 
 # Earnings Preview - 业绩预览
 
 使用标普 Capital IQ 数据生成结构化的业绩预览报告。
 
+
+## 一、快速开始
+
+### 1.1 何时使用
+
+- TODO: 添加触发场景
+
+### 1.2 核心步骤
+
+1. TODO: 步骤1
+2. TODO: 步骤2
+
+### 1.3 成功标准
+
+- [ ] TODO: 验证标准
+
+## 四、检查清单
+
+### 执行前
+- [ ] 前置条件检查
+
+### 执行中
+- [ ] 关键步骤验证
+
+### 执行后
+- [ ] 结果验证
 ## What is an Earnings Preview?
 
 Earnings Preview（业绩预览）是财报发布前准备的研究报告，帮助分析师和投资者了解市场预期和关注重点。
