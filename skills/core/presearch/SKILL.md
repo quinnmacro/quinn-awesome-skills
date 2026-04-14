@@ -56,7 +56,15 @@ bash ~/.claude/skills/presearch/scripts/presearch.sh "React" emoji
 ## 依赖
 
 ```bash
-pip install requests pydantic
+pip install requests pydantic pydantic-settings
+```
+
+**注意**: Ubuntu 24.04+ 需要先安装 venv：
+```bash
+apt install python3.12-venv
+cd ~/.claude/skills/presearch
+python3 -m venv venv && source venv/bin/activate
+pip install requests pydantic pydantic-settings
 ```
 
 ## CLI 高级用法

@@ -285,6 +285,44 @@ access_token = client.access_token
 - [investor-distiller](../investor-distiller/) - 投资大师智慧
 - [macro-brief](../macro-brief/) - 宏观经济简报
 
+---
+
+## 检查清单
+
+### 使用前
+
+- [ ] 确认有 Capital IQ Pro 订阅或 Kensho LLM-ready API 访问权限
+- [ ] 确认环境变量已配置（SPGLOBAL_API_KEY 或 Okta 凭据）
+- [ ] 确认 MCP 服务器已配置（config.yaml）
+
+### 数据查询
+
+- [ ] 确认公司标识符正确（IQ ID / 股票代码 / 公司名称）
+- [ ] 确认数据类型在订阅范围内
+- [ ] 确认请求频率未超限
+
+### 报告生成
+
+- [ ] 确认模板已准备（tear-sheet / funding-digest / earnings-preview）
+- [ ] 确认输出格式正确（Word / PowerPoint / Markdown）
+- [ ] 确认数据完整性（标注数据缺口）
+
+### 使用后
+
+- [ ] 验证报告内容准确性
+- [ ] 标注数据来源（S&P Global Capital IQ）
+- [ ] 遵守合规要求（数据使用许可协议）
+
+---
+
+## Quick Reference
+
+| 任务 | 命令 | 输出 |
+|------|------|------|
+| 生成公司简报 | `/tear-sheet <公司名>` | Word 文档 |
+| 生成融资摘要 | `/funding-digest <行业>` | PowerPoint |
+| 生成业绩预览 | `/earnings-preview <公司名>` | 研究报告 |
+
 ## References
 
 - [S&P Global Capital IQ](https://www.spglobal.com/market-intelligence/en/solutions/products/sp-capital-iq-pro)
