@@ -67,23 +67,61 @@ data = json.load(sys.stdin)
 tweet = data.get('tweet', {})
 author = tweet.get('author', {})
 media = tweet.get('media', {})
-text = tweet.get('text', '').encode('utf-8', errors='replace').decode('utf-8')
+article = tweet.get('article', {})
 name = author.get('name', '').encode('utf-8', errors='replace').decode('utf-8')
+screen_name = author.get('screen_name', '')
+
+# Frontmatter
 print('---')
-print(f'title: \"Tweet by @{author.get(\"screen_name\", \"unknown\")}\"')
+print(f'title: \"{article.get(\"title\", \"\") or \"Tweet by @\" + screen_name}\"')
 print(f'author: \"{name}\"')
-print(f'username: \"@{author.get(\"screen_name\", \"\")}\"')
+print(f'username: \"@{screen_name}\"')
 print(f'date: \"{tweet.get(\"created_at\", \"\")}\"')
 print(f'tweet_id: \"{tweet.get(\"id\", \"\")}\"')
 print(f'likes: {tweet.get(\"likes\", 0)}')
 print(f'retweets: {tweet.get(\"retweets\", 0)}')
+print(f'bookmarks: {tweet.get(\"bookmarks\", 0)}')
 print(f'views: {tweet.get(\"views\", 0)}')
 print(f'url: \"{tweet.get(\"url\", \"\")}\"')
+if article:
+    print(f'type: \"article\"')
 print('---')
 print()
-print(f'# Tweet by {name} (@{author.get(\"screen_name\", \"\")})')
+
+# Title
+if article and article.get('title'):
+    print(f'# {article[\"title\"]}')
+else:
+    print(f'# Tweet by {name} (@{screen_name})')
 print()
-print(text)
+
+# Article: parse content.blocks (full long-form content)
+if article and article.get('content', {}).get('blocks'):
+    blocks = article['content']['blocks']
+    for b in blocks:
+        btype = b.get('type', 'unstyled')
+        text = b.get('text', '').strip()
+        if not text or btype == 'atomic':
+            continue
+        if btype == 'header-two':
+            print(f'## {text}')
+        elif btype == 'header-three':
+            print(f'### {text}')
+        elif btype in ('ordered-list-item', 'unordered-list-item'):
+            print(f'- {text}')
+        elif btype == 'code-block':
+            print(f'\`\`\`\n{text}\n\`\`\`')
+        elif btype == 'blockquote':
+            print(f'> {text}')
+        else:
+            print(text)
+        print()
+else:
+    # Regular tweet: just text
+    text = tweet.get('text', '').encode('utf-8', errors='replace').decode('utf-8')
+    print(text)
+
+# Media
 if media.get('videos') or media.get('photos'):
     print()
     for p in media.get('photos', []):
