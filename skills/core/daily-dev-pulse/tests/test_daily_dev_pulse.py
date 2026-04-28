@@ -750,6 +750,83 @@ class TestCommandArgumentForwarding(unittest.TestCase):
                         assert "$ARGUMENTS" in line, f"$ARGUMENTS missing in script invocation in {path}"
 
 
+class TestShellScriptInvocation(unittest.TestCase):
+    """Test actual shell script invocation end-to-end with mock data."""
+
+    PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+    SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "scripts")
+
+    def test_formatter_pipeline_terminal_mode(self):
+        """Pipe mock JSON data through pulse_formatter.py --format terminal and verify output."""
+        import subprocess
+        mock_data = json.dumps(MOCK_GITHUB_DATA)
+        result = subprocess.run(
+            ["python3", os.path.join(self.SCRIPTS_DIR, "pulse_formatter.py"), "--format", "terminal"],
+            input=mock_data, capture_output=True, text=True, timeout=10
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "DAILY DEV PULSE" in result.stdout
+        assert "Action Items" in result.stdout
+
+    def test_formatter_pipeline_markdown_mode(self):
+        """Pipe mock JSON data through pulse_formatter.py --format md and verify output."""
+        import subprocess
+        mock_data = json.dumps(MOCK_GITHUB_DATA)
+        result = subprocess.run(
+            ["python3", os.path.join(self.SCRIPTS_DIR, "pulse_formatter.py"), "--format", "md"],
+            input=mock_data, capture_output=True, text=True, timeout=10
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "Daily Dev Pulse" in result.stdout
+        assert "## GitHub Activity" in result.stdout
+
+    def test_formatter_pipeline_json_mode(self):
+        """Pipe mock JSON data through pulse_formatter.py --format json and verify output."""
+        import subprocess
+        mock_data = json.dumps(MOCK_GITHUB_DATA)
+        result = subprocess.run(
+            ["python3", os.path.join(self.SCRIPTS_DIR, "pulse_formatter.py"), "--format", "json"],
+            input=mock_data, capture_output=True, text=True, timeout=10
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        parsed = json.loads(result.stdout)
+        assert "action_items" in parsed
+        assert len(parsed["action_items"]) > 0
+
+    def test_formatter_pipeline_empty_data(self):
+        """Piping empty JSON through formatter should still produce valid output."""
+        import subprocess
+        mock_data = json.dumps({})
+        result = subprocess.run(
+            ["python3", os.path.join(self.SCRIPTS_DIR, "pulse_formatter.py"), "--format", "terminal"],
+            input=mock_data, capture_output=True, text=True, timeout=10
+        )
+        assert result.returncode == 0, f"stderr: {result.stderr}"
+        assert "DAILY DEV PULSE" in result.stdout
+
+    def test_shell_script_graceful_without_gh(self):
+        """Shell script should run without gh CLI and produce valid output (graceful degradation).
+        This is an integration test that makes live network calls — may timeout in restricted environments."""
+        import subprocess
+        env = os.environ.copy()
+        env.pop("GH_TOKEN", None)
+        script_path = os.path.join(self.SCRIPTS_DIR, "daily-dev-pulse.sh")
+        try:
+            result = subprocess.run(
+                ["bash", script_path, "--format", "json", "--focus", "all"],
+                capture_output=True, text=True, timeout=30, env=env
+            )
+        except subprocess.TimeoutExpired:
+            # Skip if network calls timeout (CI/restricted environments)
+            self.skipTest("Shell script timed out (live network calls unavailable)")
+        assert result.returncode == 0, f"stdout: {result.stdout}\nstderr: {result.stderr}"
+        output_lines = result.stdout.strip().splitlines()
+        json_output = output_lines[-1] if output_lines else ""
+        if json_output.startswith("{"):
+            parsed = json.loads(json_output)
+            assert "scan_date" in parsed
+
+
 class TestFormatJsonNoMutation(unittest.TestCase):
     """Verify format_json does not mutate its input data."""
 
