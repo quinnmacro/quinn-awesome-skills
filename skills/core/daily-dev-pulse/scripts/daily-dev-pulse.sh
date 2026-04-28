@@ -97,11 +97,13 @@ combined = {}
 combined['scan_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
 # Include preferences so formatter can use config-driven thresholds
+# Import config.py to get the full preferences dict automatically — no manual key enumeration needed
+# This ensures any new preference added to DEFAULT_CONFIG flows through without manual updates
 try:
-    sys.path.insert(0, '${MODULES_DIR}')
+    sys.path.insert(0, os.environ.get('PULSE_MODULES_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'modules')))
     from config import load_config, get_preferences
     prefs = get_preferences(load_config())
-    combined['preferences'] = {'stale_pr_days': prefs.get('stale_pr_days', 3), 'format': prefs.get('format', 'terminal'), 'lookback_days': prefs.get('lookback_days', 7), 'security_lookback_days': prefs.get('security_lookback_days', 30), 'nvd_rate_limit': prefs.get('nvd_rate_limit', 6), 'news_sources': prefs.get('news_sources', ['hn', 'devto', 'lobsters']), 'max_issues_per_repo': prefs.get('max_issues_per_repo', 3), 'max_action_items': prefs.get('max_action_items', 10)}
+    combined['preferences'] = prefs
 except Exception:
     combined['preferences'] = {'stale_pr_days': 3, 'format': 'terminal', 'lookback_days': 7, 'security_lookback_days': 30, 'nvd_rate_limit': 6, 'news_sources': ['hn', 'devto', 'lobsters'], 'max_issues_per_repo': 3, 'max_action_items': 10}
 
@@ -115,7 +117,7 @@ for key in ['github', 'security', 'packages', 'news']:
             combined[key] = {'source': key, 'error': 'data_corrupted'}
 
 json.dump(combined, sys.stdout, ensure_ascii=False)
-" PULSE_TMPDIR="${TMPDIR}" > "${TMPDIR}/combined.json"
+" PULSE_MODULES_DIR="${MODULES_DIR}" PULSE_TMPDIR="${TMPDIR}" > "${TMPDIR}/combined.json"
 
 # If --format was not explicitly passed, fall back to config preference
 if [[ -z "${FORMAT}" ]]; then

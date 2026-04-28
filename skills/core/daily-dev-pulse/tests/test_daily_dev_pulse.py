@@ -2555,5 +2555,169 @@ class TestConcurrentHnFetching(unittest.TestCase):
             "news_aggregator should import as_completed from concurrent.futures"
 
 
+class TestPreferencesAutoForwarding(unittest.TestCase):
+    """Regression tests for shell script preferences forwarding using config.py
+    instead of manual key-by-key dict construction.
+
+    The stale-preference pattern (found 6+ times) was caused by manually
+    enumerating preference keys in the shell script. Now config.py is imported
+    and get_preferences(load_config()) returns the full dict automatically.
+    """
+
+    def test_shell_script_uses_config_import_not_manual_dict(self):
+        """Shell script should import config.py to get preferences, not manually construct dict."""
+        script_path = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        # Should import config, not manually enumerate preference keys
+        assert "from config import load_config, get_preferences" in content, \
+            "Shell script should import config.py to get preferences dict"
+        # Should assign the full prefs dict, not construct key-by-key
+        assert "combined['preferences'] = prefs" in content, \
+            "Shell script should assign full preferences dict from config.py, not manually enumerate keys"
+
+    def test_shell_script_no_manual_preference_keys_in_main_path(self):
+        """Shell script's main (try) path should NOT manually enumerate preference keys."""
+        script_path = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        # Find the try block for preferences
+        # The main path should NOT contain manual .get() calls for individual prefs
+        try_block_start = content.find("from config import load_config, get_preferences")
+        try_block_end = content.find("except Exception:", try_block_start)
+        try_block = content[try_block_start:try_block_end]
+        # Should not have manual .get() calls for individual preference keys
+        assert "prefs.get('stale_pr_days'" not in try_block, \
+            "Main path should not manually enumerate stale_pr_days — use prefs dict directly"
+        assert "prefs.get('format'" not in try_block, \
+            "Main path should not manually enumerate format — use prefs dict directly"
+        assert "prefs.get('lookback_days'" not in try_block, \
+            "Main path should not manually enumerate lookback_days — use prefs dict directly"
+
+    def test_shell_script_fallback_preserves_all_keys(self):
+        """Shell script's except (fallback) path should still include all DEFAULT_CONFIG preference keys."""
+        script_path = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        # Find the fallback block
+        except_idx = content.find("except Exception:")
+        fallback_end = content.find("\n\n", except_idx)
+        fallback_block = content[except_idx:fallback_end]
+        # Every key from DEFAULT_CONFIG preferences should appear in the fallback
+        for key in config.DEFAULT_CONFIG["preferences"]:
+            assert key in fallback_block, \
+                f"Fallback preferences should include '{key}' from DEFAULT_CONFIG — missing key means silent config-to-output gap"
+
+    def test_shell_script_passes_modules_dir_as_env_var(self):
+        """Shell script should pass MODULES_DIR via env var, not embed in Python string (injection risk)."""
+        script_path = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        # Should pass MODULES_DIR as environment variable
+        assert "PULSE_MODULES_DIR" in content, \
+            "Shell script should pass MODULES_DIR as env var to avoid path injection in inline Python"
+        # Should use os.environ.get in Python, not ${MODULES_DIR} string interpolation
+        python_block_start = content.find("python3 -c")
+        python_block_end = content.find('"', python_block_start + 5)
+        # Find the second closing quote (end of the Python string)
+        # The Python code should use os.environ.get for MODULES_DIR
+        assert "os.environ.get('PULSE_MODULES_DIR'" in content, \
+            "Python code should read MODULES_DIR from env var, not shell interpolation"
+
+    def test_new_preference_auto_forwarded(self):
+        """Adding a new preference to DEFAULT_CONFIG should automatically flow through shell script."""
+        # Simulate: if we add 'max_prs_display: 5' to DEFAULT_CONFIG,
+        # get_preferences(load_config()) would include it automatically
+        test_config = copy.deepcopy(config.DEFAULT_CONFIG)
+        test_config["preferences"]["max_prs_display"] = 5
+        prefs = config.get_preferences(test_config)
+        assert "max_prs_display" in prefs, \
+            "New preference in config should appear in get_preferences() output"
+        assert prefs["max_prs_display"] == 5, \
+            "New preference value should be preserved through get_preferences()"
+
+    def test_shell_script_main_path_returns_complete_prefs_dict(self):
+        """Verify that get_preferences(load_config()) returns all DEFAULT_CONFIG keys."""
+        test_config = config.load_config()
+        prefs = config.get_preferences(test_config)
+        # Every key from DEFAULT_CONFIG preferences must be in get_preferences output
+        for key in config.DEFAULT_CONFIG["preferences"]:
+            assert key in prefs, \
+                f"get_preferences() must include '{key}' — missing key would be silently dropped in formatter pipeline"
+
+    def test_format_preference_uses_config_fallback_in_shell_script(self):
+        """Shell script should fall back to config preferences for FORMAT when --format not passed."""
+        script_path = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        # Should check for empty FORMAT and fall back to config preference
+        assert "FORMAT" in content, "Shell script should handle FORMAT variable"
+        # Should have a fallback mechanism
+        assert "combined.json" in content, "Shell script should read format from combined JSON"
+
+
+class TestSkillMdDocumentationAccuracyV2(unittest.TestCase):
+    """Regression tests for SKILL.md documentation corrections.
+
+    Iteration 26 fixed 4 documentation-implementation mismatches:
+    1. NVD rate limit: '5 req/min' → '5 req/30s' (factual error)
+    2. Action items: 'package updates with security relevance' → 'CVEs affecting tech stack'
+    3. md mode: removed misleading 'default for skill context' claim
+    4. JSON example: flat keys → nested per-repo structure matching actual output
+    """
+
+    def test_skill_md_nvd_rate_limit_correct(self):
+        """SKILL.md should say '5 req/30s' not '5 req/min' for NVD rate limit."""
+        skill_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+        with open(skill_path) as f:
+            content = f.read()
+        assert "5 req/30s" in content, \
+            "SKILL.md should correctly state NVD rate limit as '5 req/30s'"
+        assert "5 req/min" not in content, \
+            "SKILL.md should NOT incorrectly state NVD rate limit as '5 req/min' — this is a factual error"
+
+    def test_skill_md_action_items_describes_cves_not_package_updates(self):
+        """SKILL.md action items should describe CVEs, not 'package updates with security relevance'."""
+        skill_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+        with open(skill_path) as f:
+            content = f.read()
+        # Should describe CVEs affecting tech stack, not misleading "package updates"
+        assert "CVE" in content, \
+            "SKILL.md action items should mention CVEs affecting tech stack"
+        # The old inaccurate claim should be gone
+        assert "package updates with security relevance" not in content, \
+            "SKILL.md should NOT claim action items include 'package updates with security relevance' — implementation flags CVEs, not package updates"
+
+    def test_skill_md_md_mode_no_false_default_claim(self):
+        """SKILL.md md mode should NOT claim 'default for skill context' (actual default is terminal)."""
+        skill_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+        with open(skill_path) as f:
+            content = f.read()
+        assert "default for skill context" not in content, \
+            "SKILL.md should NOT claim md mode is 'default for skill context' — actual default is 'terminal' per DEFAULT_CONFIG"
+
+    def test_skill_md_json_example_has_nested_structure(self):
+        """SKILL.md JSON example should show nested per-repo structure matching actual output."""
+        skill_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+        with open(skill_path) as f:
+            content = f.read()
+        # JSON example should show per-repo nesting, not flat keys
+        assert '"repos": [{"repo":' in content, \
+            "SKILL.md JSON example should show repos as nested per-repo objects, not flat keys"
+        # Should NOT show flat github structure (commits/prs/issues as top-level keys)
+        # The old example had: "github": { "repos": [...], "commits": [...], "prs": [...] }
+        # which implies flat structure — real output nests inside per-repo objects
+        assert '"scan_date"' in content, \
+            "SKILL.md JSON example should include scan_date field matching actual output"
+
+    def test_skill_md_json_example_has_preferences(self):
+        """SKILL.md JSON example should include preferences field (present in actual output)."""
+        skill_path = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+        with open(skill_path) as f:
+            content = f.read()
+        assert '"preferences"' in content, \
+            "SKILL.md JSON example should include preferences field — actual output always includes it"
+
+
 if __name__ == "__main__":
     unittest.main()
