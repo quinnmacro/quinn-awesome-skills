@@ -6,7 +6,7 @@ Takes combined JSON data and produces formatted output in terminal, markdown, or
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 # ANSI color codes for terminal output
@@ -272,9 +272,11 @@ def format_markdown(data):
 
 
 def format_json(data):
-    """Return data as-is (already JSON). Add action_items field."""
-    data["action_items"] = generate_action_items(data)
-    return json.dumps(data, indent=2, ensure_ascii=False)
+    """Return data as structured JSON with action_items. Does not mutate input."""
+    import copy
+    result = copy.deepcopy(data)
+    result["action_items"] = generate_action_items(data)
+    return json.dumps(result, indent=2, ensure_ascii=False)
 
 
 def generate_action_items(data):
@@ -284,12 +286,15 @@ def generate_action_items(data):
     github = data.get("github", {})
     if github and not github.get("error"):
         for repo in github.get("repos", []):
-            # Stale PRs (open > 3 days)
+            # Stale PRs (open > stale_pr_days threshold)
             for pr in repo.get("open_prs", []):
                 created = pr.get("createdAt", "")
                 if created:
                     try:
-                        days_open = (datetime.now() - datetime.fromisoformat(created.replace("Z", ""))).days
+                        # GitHub returns ISO 8601 with Z suffix (UTC)
+                        # Python 3.11+ handles Z in fromisoformat
+                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                        days_open = (datetime.now(timezone.utc) - created_dt).days
                         if days_open > 3:
                             items.append(f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)")
                     except (ValueError, TypeError):

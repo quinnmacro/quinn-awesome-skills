@@ -7,7 +7,7 @@ import json
 import sys
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import get_preferences, load_config
 
@@ -127,7 +127,7 @@ def aggregate_news(config=None):
     return {
         "source": "news",
         "headlines": all_headlines[:30],
-        "scan_date": datetime.now().isoformat(),
+        "scan_date": datetime.now(timezone.utc).isoformat(),
         "sources_checked": sources,
     }
 

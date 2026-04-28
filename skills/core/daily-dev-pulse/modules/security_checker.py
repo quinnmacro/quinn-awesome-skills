@@ -9,7 +9,7 @@ import sys
 import urllib.request
 import urllib.error
 import urllib.parse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from config import get_tech_stack, load_config
 
@@ -39,7 +39,7 @@ def build_search_terms(tech_stack):
 
 def fetch_cves(product, version="", days=30):
     """Fetch recent CVEs for a product from NVD API."""
-    start_date = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00.000")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00.000")
 
     params = {
         "keywordSearch": product,
@@ -122,7 +122,7 @@ def check_security(config=None, days=30):
     return {
         "source": "security",
         "alerts": unique_alerts[:20],
-        "scan_date": datetime.now().isoformat(),
+        "scan_date": datetime.now(timezone.utc).isoformat(),
         "tech_stack_checked": tech_stack,
     }
 

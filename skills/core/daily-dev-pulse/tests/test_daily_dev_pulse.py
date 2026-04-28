@@ -550,5 +550,119 @@ class TestNewsExceptionHandling(unittest.TestCase):
         assert result == []
 
 
+class TestTimezoneConsistency(unittest.TestCase):
+    """Verify all modules use UTC-aware datetime.now() for API calls and scan_dates."""
+
+    def test_github_scanner_uses_utc(self):
+        """github_scanner.py should import timezone and use datetime.now(timezone.utc)."""
+        import inspect
+        source = inspect.getsource(github_scanner)
+        assert "timezone" in source
+        assert "datetime.now(timezone.utc)" in source
+        # Should NOT use bare datetime.now() for timestamps
+        assert "datetime.now()" not in source.replace("datetime.now(timezone.utc)", "")
+
+    def test_security_checker_uses_utc(self):
+        """security_checker.py should use datetime.now(timezone.utc) for API calls."""
+        import inspect
+        source = inspect.getsource(security_checker)
+        assert "timezone" in source
+        assert "datetime.now(timezone.utc)" in source
+
+    def test_news_aggregator_uses_utc(self):
+        """news_aggregator.py should use datetime.now(timezone.utc) for scan_date."""
+        import inspect
+        source = inspect.getsource(news_aggregator)
+        assert "timezone" in source
+        assert "datetime.now(timezone.utc)" in source
+
+    def test_package_watcher_uses_utc(self):
+        """package_watcher.py should use datetime.now(timezone.utc) for scan_date."""
+        import inspect
+        source = inspect.getsource(package_watcher)
+        assert "timezone" in source
+        assert "datetime.now(timezone.utc)" in source
+
+    def test_pulse_formatter_stale_pr_utc_comparison(self):
+        """Stale PR days calculation should use UTC-aware comparison."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.generate_action_items)
+        assert "timezone.utc" in source
+        assert "datetime.now(timezone.utc)" in source
+        # Should not use bare datetime.now() for the comparison
+        assert "datetime.now()" not in source.replace("datetime.now(timezone.utc)", "")
+
+    def test_stale_pr_days_calculation_correctness(self):
+        """Stale PR detection should calculate days correctly with UTC timestamps."""
+        # A PR created 5 days ago in UTC should be flagged as stale (> 3 days)
+        from datetime import datetime, timezone, timedelta
+        five_days_ago = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": 1, "title": "Test", "createdAt": five_days_ago},
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("stale PR" in item and "5 days" in item for item in items)
+
+    def test_stale_pr_recent_not_flagged(self):
+        """A PR created 1 day ago should NOT be flagged as stale."""
+        from datetime import datetime, timezone, timedelta
+        one_day_ago = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": 2, "title": "Fresh PR", "createdAt": one_day_ago},
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert not any("stale PR" in item for item in items)
+
+
+class TestFormatJsonNoMutation(unittest.TestCase):
+    """Verify format_json does not mutate its input data."""
+
+    def test_format_json_no_mutation(self):
+        """Calling format_json should not modify the original data dict."""
+        original_data = {
+            "github": {"source": "github", "repos": []},
+            "security": {"source": "security", "alerts": []},
+            "packages": {"source": "packages", "updates": []},
+            "news": {"source": "news", "headlines": []},
+        }
+        # Snapshot keys before format_json
+        keys_before = set(original_data.keys())
+        output = pulse_formatter.format_json(original_data)
+        # Input dict should not have action_items added
+        assert "action_items" not in original_data
+        assert set(original_data.keys()) == keys_before
+        # Output JSON should have action_items
+        parsed = json.loads(output)
+        assert "action_items" in parsed
+
+    def test_format_json_called_twice_same_result(self):
+        """Calling format_json twice on the same data should produce identical output."""
+        data = {
+            "github": {"source": "github", "repos": []},
+            "security": {"source": "security", "alerts": []},
+        }
+        first = pulse_formatter.format_json(data)
+        second = pulse_formatter.format_json(data)
+        assert first == second
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -6,7 +6,7 @@ Uses gh CLI to fetch repo activity: commits, PRs, issues, CI status.
 import json
 import subprocess
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from config import get_repos, get_preferences, load_config
 
@@ -30,7 +30,7 @@ def run_gh(args, repo=None, fallback=None):
 def scan_commits(repo_owner, repo_name, days=7):
     """Get recent commits for a repo."""
     repo = f"{repo_owner}/{repo_name}"
-    since = (datetime.now() - timedelta(days=days)).strftime("%Y-%m-%d")
+    since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     commits = run_gh(
         ["api", f"/repos/{repo}/commits?since={since}&per_page=50"],
         fallback=[]
@@ -112,7 +112,7 @@ def scan_all_repos(config=None):
     return {
         "source": "github",
         "repos": results,
-        "scan_date": datetime.now().isoformat(),
+        "scan_date": datetime.now(timezone.utc).isoformat(),
     }
 
 

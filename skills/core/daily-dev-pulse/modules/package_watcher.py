@@ -7,7 +7,7 @@ import json
 import sys
 import urllib.request
 import urllib.error
-from datetime import datetime
+from datetime import datetime, timezone
 
 from config import get_dependencies, load_config
 
@@ -101,7 +101,7 @@ def watch_packages(config=None):
     return {
         "source": "packages",
         "updates": updates,
-        "scan_date": datetime.now().isoformat(),
+        "scan_date": datetime.now(timezone.utc).isoformat(),
     }
 
 
