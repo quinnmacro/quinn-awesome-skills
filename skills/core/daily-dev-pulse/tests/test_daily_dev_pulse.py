@@ -2838,6 +2838,101 @@ class TestTestFileSelfConsistency(unittest.TestCase):
                 f"Slicing fallback should use variable '{var_name}', not an undefined variable"
 
 
+class TestPathInjectionSafety(unittest.TestCase):
+    """Verify that shell script Python code uses env vars instead of shell interpolation.
+
+    Shell variables like ${TMPDIR} interpolated into Python string literals break
+    Python syntax if the path contains single quotes (same bug class fixed for
+    MODULES_DIR in iteration 26 — this class verifies the fix was applied to TMPDIR too).
+    """
+
+    def _read_shell_script(self):
+        script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            return f.read()
+
+    def test_merge_section_no_tmpdir_shell_interpolation(self):
+        """The merge section Python code should not contain bare ${TMPDIR} interpolation."""
+        content = self._read_shell_script()
+        # Find the merge Python section (between "python3 -c" and closing quote)
+        # ${TMPDIR} inside Python string literals is dangerous — paths with single quotes break syntax
+        # The safe approach is os.environ.get('PULSE_TMPDIR') which reads the env var directly
+        # Check that the Python code for tmpdir assignment uses os.environ, not shell interpolation
+        assert "os.environ.get('PULSE_TMPDIR'" in content
+        # Verify no bare ${TMPDIR} inside Python code blocks (shell interpolation into Python strings)
+        # ${TMPDIR} is safe when used in shell redirections (>${TMPDIR}/combined.json) but dangerous
+        # inside Python string literals
+        python_blocks = []
+        in_python = False
+        current_block = []
+        for line in content.split("\n"):
+            if "python3 -c" in line and '"' in line:
+                in_python = True
+                current_block = []
+            if in_python:
+                current_block.append(line)
+                if line.strip() == '"' or line.strip().endswith('"'):
+                    in_python = False
+                    python_blocks.append("\n".join(current_block))
+        for block in python_blocks:
+            assert "${TMPDIR}" not in block, \
+                f"Shell interpolation ${TMPDIR} found inside Python code block — path injection risk"
+
+    def test_format_fallback_no_tmpdir_shell_interpolation(self):
+        """The format fallback Python code should not contain bare ${TMPDIR} interpolation."""
+        content = self._read_shell_script()
+        # The format fallback reads combined.json to determine format preference
+        # It should use os.environ.get('PULSE_TMPDIR') + '/combined.json' instead of
+        # bare ${TMPDIR}/combined.json interpolated into Python's open() call
+        assert "PULSE_TMPDIR" in content.split("FORMAT=$(python3")[1].split("fi")[0] if "FORMAT=$(python3" in content else ""
+        # Verify the format fallback block uses os.environ for the path
+        fallback_section = content[content.find("FORMAT=$(python3"):content.find("fi", content.find("FORMAT=$(python3"))]
+        assert "os.environ.get('PULSE_TMPDIR'" in fallback_section, \
+            "Format fallback must use env var for TMPDIR path, not shell interpolation"
+
+    def test_modules_dir_env_var_used(self):
+        """MODULES_DIR should also be passed via env var, not shell interpolation in Python."""
+        content = self._read_shell_script()
+        # PULSE_MODULES_DIR env var was added in iteration 26 for MODULES_DIR
+        assert "PULSE_MODULES_DIR" in content
+        # Verify no bare ${MODULES_DIR} inside Python code blocks
+        python_blocks = []
+        in_python = False
+        current_block = []
+        for line in content.split("\n"):
+            if "python3 -c" in line and '"' in line:
+                in_python = True
+                current_block = []
+            if in_python:
+                current_block.append(line)
+                if line.strip() == '"' or line.strip().endswith('"'):
+                    in_python = False
+                    python_blocks.append("\n".join(current_block))
+        for block in python_blocks:
+            assert "${MODULES_DIR}" not in block, \
+                f"Shell interpolation ${MODULES_DIR} found inside Python code block — path injection risk"
+
+    def test_env_vars_always_passed(self):
+        """PULSE_TMPDIR and PULSE_MODULES_DIR must be passed on the Python command line."""
+        content = self._read_shell_script()
+        # Both env vars must be explicitly passed alongside the python3 -c invocation
+        # so Python code can read them via os.environ.get()
+        assert "PULSE_TMPDIR=\"${TMPDIR}\"" in content, \
+            "PULSE_TMPDIR must be passed as env var alongside python3 -c merge section"
+        assert "PULSE_MODULES_DIR=\"${MODULES_DIR}\"" in content, \
+            "PULSE_MODULES_DIR must be passed as env var alongside python3 -c merge section"
+
+    def test_no_duplicate_unittest_main(self):
+        """Verify the if __name__ block at the end of the test file has exactly one unittest.main() call."""
+        test_path = os.path.abspath(__file__)
+        with open(test_path) as f:
+            content = f.read()
+        # Find the if __name__ == "__main__" block at the end
+        main_block_start = content.rfind("if __name__")
+        main_block = content[main_block_start:]
+        count = main_block.count("unittest.main()")
+        assert count == 1, f"Found {count} unittest.main() calls in __main__ block — should be exactly 1"
+
+
 if __name__ == "__main__":
-    unittest.main()
     unittest.main()

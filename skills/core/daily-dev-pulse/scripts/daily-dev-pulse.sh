@@ -92,7 +92,7 @@ python3 -c "
 import json, os, sys
 from datetime import datetime, timezone
 
-tmpdir = os.environ.get('PULSE_TMPDIR', '${TMPDIR}')
+tmpdir = os.environ.get('PULSE_TMPDIR', '')
 combined = {}
 combined['scan_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -122,11 +122,11 @@ json.dump(combined, sys.stdout, ensure_ascii=False)
 # If --format was not explicitly passed, fall back to config preference
 if [[ -z "${FORMAT}" ]]; then
     FORMAT=$(python3 -c "
-import json
-with open('${TMPDIR}/combined.json') as f:
+import json, os
+with open(os.environ.get('PULSE_TMPDIR', '') + '/combined.json') as f:
     data = json.load(f)
 print(data.get('preferences', {}).get('format', 'terminal'))
-")
+" PULSE_TMPDIR="${TMPDIR}")
 fi
 
 # Format output
