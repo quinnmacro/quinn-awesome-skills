@@ -5,7 +5,6 @@ Uses gh CLI to fetch repo activity: commits, PRs, issues, CI status.
 
 import json
 import subprocess
-import sys
 from datetime import datetime, timedelta, timezone
 
 from config import get_repos, get_preferences, load_config

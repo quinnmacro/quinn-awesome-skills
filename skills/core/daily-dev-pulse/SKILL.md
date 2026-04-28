@@ -5,7 +5,8 @@ description: |
   package updates, security alerts, trending dev news, and actionable todos.
   Auto-triggers on morning greetings ("good morning", "start my day"),
   time-based context (before 10am), or explicit /daily-dev-pulse command.
-  Integrates with url-fetcher and presearch skills for data collection.
+  Integrates with url-fetcher (fallback content extraction) and presearch
+  (trend discovery) skills for enhanced data collection.
 version: 1.0.0
 author: quinnmacro
 layer: core
@@ -54,12 +55,13 @@ This script orchestrates:
    - Checks CVE databases for configured tech stack
    - Output: JSON with security alerts (severity, CVE ID, description)
 3. **News Aggregator** - `python3 ~/.claude/skills/daily-dev-pulse/modules/news_aggregator.py`
-   - Fetches HN top stories, Dev.to trending, tech RSS feeds
-   - Uses url-fetcher scripts for content extraction
+   - Fetches HN top stories, Dev.to trending, Lobsters
+   - Uses url-fetcher scripts as fallback when direct API fails for a source
    - Output: JSON with headlines and links
 4. **Package Watcher** - `python3 ~/.claude/skills/daily-dev-pulse/modules/package_watcher.py`
    - Checks npm and PyPI for updates to dependency packages
-   - Output: JSON with available updates and changelogs
+   - Uses presearch skill for trend discovery on tech stack frameworks
+   - Output: JSON with available updates and trends
 
 ### Step 3: Format Output
 
@@ -150,10 +152,9 @@ Structured with `##` sections, tables, and checklist items. Used when Claude nee
 
 - **gh CLI** — GitHub API (`brew install gh` or see https://cli.github.com)
 - **python3** — Script execution
-- **curl** — HTTP requests for news/CVE data
 - **PyYAML** — Config file parsing (`pip install pyyaml`)
-- **url-fetcher skill** — Content extraction for news articles
-- **presearch skill** — Package trend discovery
+- **url-fetcher skill** — Fallback content extraction when direct API fails for news sources
+- **presearch skill** — Optional trend discovery for tech stack frameworks
 
 ## Configuration
 
@@ -172,6 +173,10 @@ tech_stack:
   databases: [SQLite]
   libraries: [LangGraph]
 
+dependencies:
+  npm: [next, typescript, tailwindcss]
+  pypi: [fastapi, langgraph, httpx, pydantic, uvicorn, sqlalchemy]
+
 preferences:
   news_sources: [hn, devto, lobsters]
   format: terminal
@@ -185,10 +190,11 @@ preferences:
 
 - If `gh` is not authenticated, GitHub sections will be skipped with a warning
 - CVE checks use public NVD API (no key required, rate-limited to 5 req/min without key)
-- News aggregation uses url-fetcher scripts as fallback when direct API fails
+- News aggregation uses url-fetcher scripts as fallback when direct API (HN, Dev.to, Lobsters) returns no data
+- Package trend discovery uses presearch skill to find alternatives/trends for tech stack frameworks
 - Config is optional — defaults cover the author's repos and tech stack
 
 ## Related Skills
 
-- url-fetcher — Used for fetching news article content
-- presearch — Used for discovering trending packages and alternatives
+- url-fetcher — Used as fallback for news content extraction when direct API fails
+- presearch — Used for discovering trending package alternatives for tech stack frameworks

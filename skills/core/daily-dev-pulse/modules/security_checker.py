@@ -6,7 +6,6 @@ Respects NVD rate limit: 5 requests per 30 seconds without API key.
 """
 
 import json
-import sys
 import time
 import urllib.request
 import urllib.error

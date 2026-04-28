@@ -10,7 +10,6 @@ import sys
 import tempfile
 import unittest
 import urllib.parse
-from io import StringIO
 from unittest.mock import MagicMock, patch
 
 # Add modules and scripts to path
@@ -260,13 +259,15 @@ class TestSecurityChecker(unittest.TestCase):
 class TestNewsAggregator(unittest.TestCase):
     """Test news aggregator."""
 
+    @patch("news_aggregator.fetch_article_via_url_fetcher")
     @patch("news_aggregator.fetch_hn_top")
     @patch("news_aggregator.fetch_devto_top")
     @patch("news_aggregator.fetch_lobsters_top")
-    def test_aggregate_news(self, mock_lobsters, mock_devto, mock_hn):
+    def test_aggregate_news(self, mock_lobsters, mock_devto, mock_hn, mock_url_fetcher):
         mock_hn.return_value = [{"title": "HN Story", "url": "https://hn.test", "score": 100, "source": "hn"}]
         mock_devto.return_value = [{"title": "Dev.to Article", "url": "https://dev.test", "score": 50, "source": "devto"}]
         mock_lobsters.return_value = []
+        mock_url_fetcher.return_value = None  # No fallback needed
 
         result = news_aggregator.aggregate_news(config=config.DEFAULT_CONFIG)
         assert len(result["headlines"]) == 2
@@ -1622,3 +1623,274 @@ class TestNvdRateLimitInCombinedJson(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestUnusedImportsRemoved(unittest.TestCase):
+    """Verify unused imports were removed from module files."""
+
+    MODULES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
+
+    def test_github_scanner_no_unused_sys_import(self):
+        """github_scanner.py should not import sys (it's unused)."""
+        with open(os.path.join(self.MODULES_DIR, "github_scanner.py")) as f:
+            content = f.read()
+        # 'import sys' should not appear as a standalone import line
+        for line in content.split("\n"):
+            if line.strip() == "import sys":
+                assert False, "github_scanner.py should not have unused 'import sys'"
+
+    def test_news_aggregator_no_unused_sys_import(self):
+        """news_aggregator.py should not import sys (it's unused)."""
+        with open(os.path.join(self.MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        for line in content.split("\n"):
+            if line.strip() == "import sys":
+                assert False, "news_aggregator.py should not have unused 'import sys'"
+
+    def test_package_watcher_no_unused_sys_import(self):
+        """package_watcher.py should not import sys (it's unused)."""
+        with open(os.path.join(self.MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        for line in content.split("\n"):
+            if line.strip() == "import sys":
+                assert False, "package_watcher.py should not have unused 'import sys'"
+
+    def test_security_checker_no_unused_sys_import(self):
+        """security_checker.py should not import sys (it's unused)."""
+        with open(os.path.join(self.MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        for line in content.split("\n"):
+            if line.strip() == "import sys":
+                assert False, "security_checker.py should not have unused 'import sys'"
+
+    def test_test_file_no_unused_stringio_import(self):
+        """test file should not import StringIO (it's unused)."""
+        with open(__file__) as f:
+            content = f.read()
+        # Check the import section (first 20 lines) for the specific import
+        import_lines = [l for l in content.split("\n")[:20] if l.strip().startswith("from ") or l.strip().startswith("import ")]
+        for line in import_lines:
+            # Construct the pattern dynamically to avoid the literal string in the file
+            parts = line.strip().split()
+            if len(parts) >= 4 and parts[0] == "from" and parts[1] == "io" and parts[2] == "import" and parts[3] == "StringIO":
+                assert False, "test file imports section should not include StringIO from io module"
+
+
+class TestImportCopyModuleLevel(unittest.TestCase):
+    """Verify import copy is at module level in pulse_formatter.py, not inside format_json."""
+
+    SCRIPTS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
+    def test_import_copy_at_module_level(self):
+        """import copy should be at the top of pulse_formatter.py, not inside format_json."""
+        with open(os.path.join(self.SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        # 'import copy' should appear in the import block at the top
+        import_block_end = 0
+        for i, line in enumerate(content.split("\n")):
+            stripped = line.strip()
+            if stripped.startswith("import ") or stripped.startswith("from ") and not stripped.startswith("#"):
+                import_block_end = i
+        # Find the import copy line
+        for i, line in enumerate(content.split("\n")):
+            if line.strip() == "import copy":
+                assert i <= import_block_end + 1, \
+                    f"import copy should be in module-level import block (line {i}), not inside a function"
+                break
+        else:
+            assert False, "import copy must exist in pulse_formatter.py"
+
+    def test_import_copy_not_inside_format_json(self):
+        """format_json function body should not contain 'import copy'."""
+        with open(os.path.join(self.SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        # Find format_json function
+        in_func = False
+        for line in content.split("\n"):
+            if line.startswith("def format_json"):
+                in_func = True
+            elif in_func and line.startswith("def "):
+                break  # next function starts
+            elif in_func and line.strip() == "import copy":
+                assert False, "import copy should not be inside format_json function body"
+
+
+class TestUrlFetcherIntegration(unittest.TestCase):
+    """Test url-fetcher integration in news_aggregator.py."""
+
+    MODULES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
+
+    def test_fetch_article_via_url_fetcher_function_exists(self):
+        """news_aggregator.py should have fetch_article_via_url_fetcher function."""
+        with open(os.path.join(self.MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        assert "def fetch_article_via_url_fetcher" in content, \
+            "news_aggregator.py should have fetch_article_via_url_fetcher function"
+
+    def test_find_url_fetcher_script_function_exists(self):
+        """news_aggregator.py should have _find_url_fetcher_script helper."""
+        with open(os.path.join(self.MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        assert "def _find_url_fetcher_script" in content, \
+            "news_aggregator.py should have _find_url_fetcher_script helper"
+
+    def test_url_fetcher_fallback_in_aggregate_news(self):
+        """aggregate_news should attempt url-fetcher fallback when direct API fails."""
+        # Mock all direct API fetchers to return empty, and mock url-fetcher to return data
+        with patch.object(news_aggregator, 'fetch_hn_top', return_value=[]), \
+             patch.object(news_aggregator, 'fetch_devto_top', return_value=[]), \
+             patch.object(news_aggregator, 'fetch_lobsters_top', return_value=[]), \
+             patch.object(news_aggregator, 'fetch_article_via_url_fetcher', return_value={
+                 "title": "HN Fallback", "content_summary": "some content",
+                 "source_url": "https://news.ycombinator.com", "extraction_method": "url-fetcher"
+             }):
+            result = news_aggregator.aggregate_news(config={"preferences": {"news_sources": ["hn"]}})
+            assert len(result["headlines"]) > 0, \
+                "aggregate_news should return fallback headlines when direct API fails"
+            assert result["url_fetcher_used"] is True, \
+                "aggregate_news should flag url_fetcher_used when fallback is used"
+
+    def test_url_fetcher_not_used_when_direct_api_succeeds(self):
+        """url_fetcher_used should be False when direct API returns data."""
+        mock_hn = [{"id": "1", "title": "Test", "url": "http://t.co", "score": 10, "source": "hn"}]
+        with patch.object(news_aggregator, 'fetch_hn_top', return_value=mock_hn), \
+             patch.object(news_aggregator, 'fetch_article_via_url_fetcher') as mock_fetch:
+            result = news_aggregator.aggregate_news(config={"preferences": {"news_sources": ["hn"]}})
+            assert result["url_fetcher_used"] is False, \
+                "url_fetcher_used should be False when direct API succeeds"
+            mock_fetch.assert_not_called(), \
+                "fetch_article_via_url_fetcher should not be called when direct API succeeds"
+
+    def test_url_fetcher_returns_none_when_script_missing(self):
+        """fetch_article_via_url_fetcher should return None when fetch.sh is not found."""
+        with patch.object(news_aggregator, '_find_url_fetcher_script', return_value=None):
+            result = news_aggregator.fetch_article_via_url_fetcher("https://example.com")
+            assert result is None, "Should return None when url-fetcher script not found"
+
+    def test_url_fetcher_returns_none_on_subprocess_failure(self):
+        """fetch_article_via_url_fetcher should return None when subprocess fails."""
+        with patch.object(news_aggregator, '_find_url_fetcher_script', return_value="/fake/fetch.sh"), \
+             patch('subprocess.run', side_effect=FileNotFoundError):
+            result = news_aggregator.fetch_article_via_url_fetcher("https://example.com")
+            assert result is None, "Should return None on subprocess failure"
+
+    def test_url_fetcher_used_field_in_output(self):
+        """aggregate_news output should include url_fetcher_used field."""
+        result = news_aggregator.aggregate_news(config={"preferences": {"news_sources": ["hn"]}})
+        assert "url_fetcher_used" in result, \
+            "aggregate_news output should include url_fetcher_used field"
+
+
+class TestPresearchIntegration(unittest.TestCase):
+    """Test presearch integration in package_watcher.py."""
+
+    MODULES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
+
+    def test_search_package_trends_via_presearch_function_exists(self):
+        """package_watcher.py should have search_package_trends_via_presearch function."""
+        with open(os.path.join(self.MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        assert "def search_package_trends_via_presearch" in content, \
+            "package_watcher.py should have search_package_trends_via_presearch function"
+
+    def test_find_presearch_script_function_exists(self):
+        """package_watcher.py should have _find_presearch_script helper."""
+        with open(os.path.join(self.MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        assert "def _find_presearch_script" in content, \
+            "package_watcher.py should have _find_presearch_script helper"
+
+    def test_presearch_returns_none_when_script_missing(self):
+        """search_package_trends_via_presearch should return None when script not found."""
+        with patch.object(package_watcher, '_find_presearch_script', return_value=None):
+            result = package_watcher.search_package_trends_via_presearch("fastapi alternative")
+            assert result is None, "Should return None when presearch script not found"
+
+    def test_presearch_returns_none_on_subprocess_failure(self):
+        """search_package_trends_via_presearch should return None when subprocess fails."""
+        with patch.object(package_watcher, '_find_presearch_script', return_value="/fake/presearch.sh"), \
+             patch('subprocess.run', side_effect=FileNotFoundError):
+            result = package_watcher.search_package_trends_via_presearch("fastapi alternative")
+            assert result is None, "Should return None on subprocess failure"
+
+    def test_watch_packages_includes_trends_field(self):
+        """watch_packages output should include trends field."""
+        with patch.object(package_watcher, '_find_presearch_script', return_value=None), \
+             patch.object(package_watcher, 'fetch_npm_info', return_value={"package": "next", "registry": "npm", "latest_version": "15.0.0"}), \
+             patch.object(package_watcher, 'fetch_pypi_info', return_value={"package": "fastapi", "registry": "pypi", "latest_version": "0.115.0"}):
+            result = package_watcher.watch_packages(config={
+                "dependencies": {"npm": ["next"], "pypi": ["fastapi"]},
+                "tech_stack": {"frameworks": ["FastAPI"]},
+            })
+            assert "trends" in result, "watch_packages output should include trends field"
+            assert "presearch_used" in result, "watch_packages output should include presearch_used field"
+
+    def test_watch_packages_marks_presearch_used_when_trends_found(self):
+        """presearch_used should be True when presearch returns trend data."""
+        mock_trend = {"query": "FastAPI", "trends": [{"summary": "trending"}], "extraction_method": "presearch"}
+        with patch.object(package_watcher, '_find_presearch_script', return_value="/fake/presearch.sh"), \
+             patch('subprocess.run', return_value=MagicMock(returncode=0, stdout=json.dumps(mock_trend))), \
+             patch.object(package_watcher, 'fetch_npm_info', return_value={"package": "next", "registry": "npm", "latest_version": "15.0.0"}), \
+             patch.object(package_watcher, 'fetch_pypi_info', return_value={"package": "fastapi", "registry": "pypi", "latest_version": "0.115.0"}):
+            result = package_watcher.watch_packages(config={
+                "dependencies": {"npm": ["next"], "pypi": ["fastapi"]},
+                "tech_stack": {"frameworks": ["FastAPI"]},
+            })
+            assert result["presearch_used"] is True, \
+                "presearch_used should be True when presearch returns data"
+
+
+class TestSkillMdDocumentationAccuracy(unittest.TestCase):
+    """Verify SKILL.md accurately reflects the implementation."""
+
+    SKILL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+
+    def test_skill_md_no_curl_dependency(self):
+        """SKILL.md Dependencies section should not claim curl dependency."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # Find the Dependencies section
+        in_deps = False
+        for line in content.split("\n"):
+            if line.strip().startswith("## Dependencies"):
+                in_deps = True
+            elif in_deps and line.strip().startswith("##"):
+                break
+            elif in_deps and "curl" in line.lower():
+                assert False, \
+                    "SKILL.md should not list curl as a dependency (code uses urllib, not curl)"
+
+    def test_skill_md_config_example_has_dependencies(self):
+        """SKILL.md config example should include dependencies section."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # Find the config yaml block
+        in_yaml = False
+        yaml_content = []
+        for line in content.split("\n"):
+            if line.strip() == "```yaml" and "repos:" in content[content.find(line):content.find(line)+200]:
+                in_yaml = True
+            elif in_yaml and line.strip() == "```":
+                in_yaml = False
+            elif in_yaml:
+                yaml_content.append(line)
+        yaml_text = "\n".join(yaml_content)
+        assert "dependencies:" in yaml_text, \
+            "SKILL.md config example should include dependencies section"
+
+    def test_skill_md_url_fetcher_description_accurate(self):
+        """SKILL.md should describe url-fetcher as fallback, not primary."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # The Dependencies section should say "fallback" for url-fetcher
+        deps_section = content.split("## Dependencies")[1].split("##")[0] if "## Dependencies" in content else ""
+        assert "fallback" in deps_section.lower(), \
+            "url-fetcher should be described as fallback in Dependencies section"
+
+    def test_skill_md_news_step_describes_fallback(self):
+        """SKILL.md Step 2 News Aggregator should mention fallback behavior."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # Find the News Aggregator step
+        assert "url-fetcher" in content and "fallback" in content.lower(), \
+            "SKILL.md should mention url-fetcher fallback for news aggregation"

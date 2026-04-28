@@ -1,10 +1,12 @@
 """News aggregator for Daily Dev Pulse.
 
 Fetches top stories from HN, Dev.to, Lobsters, and other dev news sources.
+Uses url-fetcher skill for article content extraction as a fallback.
 """
 
 import json
-import sys
+import os
+import subprocess
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone
@@ -14,6 +16,79 @@ from config import get_preferences, load_config
 HN_API = "https://hacker-news.firebaseio.com/v0"
 DEVTO_API = "https://dev.to/api/articles"
 LOBSTERS_API = "https://lobste.rs/latest.json"
+
+
+def _find_url_fetcher_script():
+    """Locate url-fetcher's fetch.sh script."""
+    candidates = [
+        os.path.expanduser("~/.claude/skills/url-fetcher/scripts/fetch.sh"),
+        os.path.expanduser("~/.agent/skills/url-fetcher/scripts/fetch.sh"),
+    ]
+    # Also try relative to this skill's directory
+    skill_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    candidates.append(os.path.join(skill_dir, "..", "url-fetcher", "scripts", "fetch.sh"))
+
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def fetch_article_via_url_fetcher(url):
+    """Fetch article content via url-fetcher's fetch.sh as a fallback.
+
+    Returns a dict with title and content summary, or None on failure.
+    """
+    fetch_script = _find_url_fetcher_script()
+    if not fetch_script:
+        return None
+
+    try:
+        result = subprocess.run(
+            ["bash", fetch_script, url],
+            capture_output=True, text=True, timeout=15
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+
+        content = result.stdout.strip()
+        # Extract title from markdown frontmatter or first line
+        lines = content.split("\n")
+        title = ""
+        for line in lines:
+            if line.startswith("title:"):
+                title = line.split("title:", 1)[1].strip().strip('"').strip("'")
+                break
+
+        if not title:
+            # Try first # heading
+            for line in lines:
+                if line.startswith("# ") and not line.startswith("# #"):
+                    title = line.lstrip("# ").strip()
+                    break
+
+        # Summary: first 3 non-empty, non-frontmatter content lines
+        summary_lines = []
+        in_frontmatter = False
+        for line in lines:
+            if line.strip() == "---":
+                in_frontmatter = not in_frontmatter
+                continue
+            if in_frontmatter:
+                continue
+            if line.strip():
+                summary_lines.append(line.strip())
+            if len(summary_lines) >= 3:
+                break
+
+        return {
+            "title": title or url,
+            "content_summary": " ".join(summary_lines)[:200],
+            "source_url": url,
+            "extraction_method": "url-fetcher",
+        }
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
 
 
 def fetch_hn_top(limit=10):
@@ -105,21 +180,71 @@ def fetch_lobsters_top(limit=10):
 
 
 def aggregate_news(config=None):
-    """Aggregate news from all configured sources."""
+    """Aggregate news from all configured sources.
+
+    Uses url-fetcher as fallback when direct API fails for a source.
+    """
     cfg = config or load_config()
     prefs = get_preferences(cfg)
     sources = prefs.get("news_sources", ["hn", "devto", "lobsters"])
 
     all_headlines = []
+    url_fetcher_used = False
 
     if "hn" in sources:
-        all_headlines.extend(fetch_hn_top(10))
+        hn_headlines = fetch_hn_top(10)
+        if hn_headlines:
+            all_headlines.extend(hn_headlines)
+        else:
+            # Fallback: use url-fetcher to fetch HN front page content
+            fallback = fetch_article_via_url_fetcher("https://news.ycombinator.com")
+            if fallback:
+                all_headlines.append({
+                    "id": "hn-fallback",
+                    "title": fallback["title"],
+                    "url": "https://news.ycombinator.com",
+                    "score": 0,
+                    "comments": 0,
+                    "source": "hn",
+                    "content_summary": fallback.get("content_summary", ""),
+                })
+                url_fetcher_used = True
 
     if "devto" in sources:
-        all_headlines.extend(fetch_devto_top(10))
+        devto_headlines = fetch_devto_top(10)
+        if devto_headlines:
+            all_headlines.extend(devto_headlines)
+        else:
+            fallback = fetch_article_via_url_fetcher("https://dev.to/trending")
+            if fallback:
+                all_headlines.append({
+                    "id": "devto-fallback",
+                    "title": fallback["title"],
+                    "url": "https://dev.to/trending",
+                    "score": 0,
+                    "comments": 0,
+                    "source": "devto",
+                    "content_summary": fallback.get("content_summary", ""),
+                })
+                url_fetcher_used = True
 
     if "lobsters" in sources:
-        all_headlines.extend(fetch_lobsters_top(10))
+        lobsters_headlines = fetch_lobsters_top(10)
+        if lobsters_headlines:
+            all_headlines.extend(lobsters_headlines)
+        else:
+            fallback = fetch_article_via_url_fetcher("https://lobste.rs")
+            if fallback:
+                all_headlines.append({
+                    "id": "lobsters-fallback",
+                    "title": fallback["title"],
+                    "url": "https://lobste.rs",
+                    "score": 0,
+                    "comments": 0,
+                    "source": "lobsters",
+                    "content_summary": fallback.get("content_summary", ""),
+                })
+                url_fetcher_used = True
 
     # Sort by score descending across all sources
     all_headlines.sort(key=lambda x: x.get("score", 0), reverse=True)
@@ -129,6 +254,7 @@ def aggregate_news(config=None):
         "headlines": all_headlines[:30],
         "scan_date": datetime.now(timezone.utc).isoformat(),
         "sources_checked": sources,
+        "url_fetcher_used": url_fetcher_used,
     }
 
 

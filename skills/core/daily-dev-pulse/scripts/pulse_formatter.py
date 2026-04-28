@@ -4,6 +4,7 @@ Takes combined JSON data and produces formatted output in terminal, markdown, or
 """
 
 import argparse
+import copy
 import json
 import sys
 from datetime import datetime, timezone
@@ -286,7 +287,6 @@ def format_markdown(data):
 
 def format_json(data):
     """Return data as structured JSON with action_items. Does not mutate input."""
-    import copy
     result = copy.deepcopy(data)
     result["action_items"] = generate_action_items(data)
     return json.dumps(result, indent=2, ensure_ascii=False)
