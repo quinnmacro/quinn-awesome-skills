@@ -1116,7 +1116,7 @@ class TestTerminalBoxHeaderWidth(unittest.TestCase):
         box_top = lines[0]
         # Count the ═ characters to determine width
         horiz_count = box_top.count("═")
-        width = horiz_count + 2  # +2 for ╔ and ╚
+        width = horiz_count + 2  # +2 for ╔ and ╝
 
         # Find the header line (║ content ║)
         header_line = lines[1]
@@ -1125,6 +1125,54 @@ class TestTerminalBoxHeaderWidth(unittest.TestCase):
 
         # Verify the header contains the date and DAILY DEV PULSE text
         assert "DAILY DEV PULSE" in header_line
+
+
+class TestTerminalBoxCharacters(unittest.TestCase):
+    """Verify terminal box uses correct Unicode box-drawing characters."""
+
+    def test_box_top_line_has_correct_corners(self):
+        """Box top line should start with ╔ and end with ╗ (not ╚)."""
+        data = {}
+        output = pulse_formatter.format_terminal(data)
+        lines = output.split("\n")
+        box_top = lines[0]
+        assert box_top.startswith("╔"), f"Box top should start with ╔, got {box_top[0]}"
+        assert box_top.endswith("╗"), f"Box top should end with ╗, got {box_top[-1]}"
+
+    def test_box_bottom_line_has_correct_corners(self):
+        """Box bottom line should start with ╚ and end with ╝ (not ╚)."""
+        data = {}
+        output = pulse_formatter.format_terminal(data)
+        lines = output.split("\n")
+        box_bottom = lines[2]
+        assert box_bottom.startswith("╚"), f"Box bottom should start with ╚, got {box_bottom[0]}"
+        assert box_bottom.endswith("╝"), f"Box bottom should end with ╝, got {box_bottom[-1]}"
+
+    def test_box_side_is_vertical_bar(self):
+        """Header line should use ║ as side characters."""
+        data = {}
+        output = pulse_formatter.format_terminal(data)
+        lines = output.split("\n")
+        header_line = lines[1]
+        # Strip ANSI codes to check visible characters
+        import re
+        visible = re.sub(r'\033\[[0-9;]*m', '', header_line)
+        assert visible.startswith("║"), f"Header should start with ║"
+        assert visible.rstrip().endswith("║"), f"Header should end with ║"
+
+    def test_colors_class_has_four_corner_chars(self):
+        """Colors class should define TL, TR, BL, BR corner characters (not TOP/BOT reused)."""
+        assert hasattr(pulse_formatter.Colors, "BOX_TL")
+        assert hasattr(pulse_formatter.Colors, "BOX_TR")
+        assert hasattr(pulse_formatter.Colors, "BOX_BL")
+        assert hasattr(pulse_formatter.Colors, "BOX_BR")
+        assert pulse_formatter.Colors.BOX_TL == "╔"
+        assert pulse_formatter.Colors.BOX_TR == "╗"
+        assert pulse_formatter.Colors.BOX_BL == "╚"
+        assert pulse_formatter.Colors.BOX_BR == "╝"
+        # Should NOT have old BOX_TOP/BOX_BOT constants
+        assert not hasattr(pulse_formatter.Colors, "BOX_TOP")
+        assert not hasattr(pulse_formatter.Colors, "BOX_BOT")
 
 
 if __name__ == "__main__":

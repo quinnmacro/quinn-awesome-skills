@@ -20,8 +20,10 @@ class Colors:
     MAGENTA = "\033[95m"
     CYAN = "\033[96m"
     DIM = "\033[2m"
-    BOX_TOP = "╔"
-    BOX_BOT = "╚"
+    BOX_TL = "╔"
+    BOX_TR = "╗"
+    BOX_BL = "╚"
+    BOX_BR = "╝"
     BOX_SIDE = "║"
     BOX_HORIZ = "═"
     BAR_CHAR = "█"
@@ -68,9 +70,9 @@ def format_terminal(data):
     visible_prefix_len = len("   ") + 2 + len(" DAILY DEV PULSE — ")  # 3+2+18=23
     padding = width - visible_prefix_len - len(today) - header_suffix_len
 
-    lines.append(f"{Colors.BOX_TOP}{Colors.BOX_HORIZ * width}{Colors.BOX_BOT}")
+    lines.append(f"{Colors.BOX_TL}{Colors.BOX_HORIZ * width}{Colors.BOX_TR}")
     lines.append(f"{Colors.BOX_SIDE}{Colors.BOLD}{Colors.CYAN}{header_prefix}{today}{Colors.RESET}{' ' * padding}{Colors.BOX_SIDE}")
-    lines.append(f"{Colors.BOX_BOT}{Colors.BOX_HORIZ * width}{Colors.BOX_BOT}")
+    lines.append(f"{Colors.BOX_BL}{Colors.BOX_HORIZ * width}{Colors.BOX_BR}")
     lines.append("")
 
     # GitHub Activity
