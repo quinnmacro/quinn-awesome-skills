@@ -185,6 +185,7 @@ preferences:
   security_lookback_days: 30
   stale_pr_days: 3
   nvd_rate_limit: 6
+  max_issues_per_repo: 3
 ```
 
 ## Notes

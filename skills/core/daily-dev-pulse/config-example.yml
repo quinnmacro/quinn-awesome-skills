@@ -64,3 +64,6 @@ preferences:
   # Seconds between NVD API calls (rate limit: 5 req/30s without key)
   # Set to 0 for testing or with an API key
   nvd_rate_limit: 6
+
+  # Max open issues flagged per repo in action items (only recent issues within lookback_days)
+  max_issues_per_repo: 3

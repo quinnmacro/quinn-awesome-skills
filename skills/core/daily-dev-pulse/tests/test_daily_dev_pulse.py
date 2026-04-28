@@ -11,6 +11,7 @@ import tempfile
 import unittest
 import urllib.parse
 from unittest.mock import MagicMock, patch
+from datetime import datetime, timedelta, timezone
 
 # Add modules and scripts to path
 MODULES_DIR = os.path.join(os.path.dirname(__file__), "..", "modules")
@@ -25,6 +26,15 @@ import security_checker
 import news_aggregator
 import package_watcher
 import pulse_formatter
+
+# Helper functions for dynamic date generation in test data
+def _recent_date_str():
+    """ISO timestamp for a date within default lookback_days (7)."""
+    return (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+def _old_date_str():
+    """ISO timestamp for a date well beyond default lookback_days (7)."""
+    return (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 MOCK_GITHUB_DATA = {
@@ -42,7 +52,8 @@ MOCK_GITHUB_DATA = {
                     {"number": 42, "title": "Add daily dev pulse", "createdAt": "2025-04-20T10:00:00Z", "author": "quinnmacro"},
                 ],
                 "open_issues": [
-                    {"number": 15, "title": "Bug in url fetcher", "createdAt": "2025-04-25T08:00:00Z", "author": "contributor"},
+                    {"number": 15, "title": "Bug in url fetcher", "createdAt": _recent_date_str(), "author": "contributor"},
+                    {"number": 16, "title": "Old stale issue", "createdAt": _old_date_str(), "author": "contributor"},
                 ],
                 "ci_runs": [
                     {"name": "CI", "status": "completed", "conclusion": "failure", "headBranch": "main"},
@@ -461,14 +472,15 @@ class TestPulseFormatter(unittest.TestCase):
         assert any("open issue" in item for item in items)
 
     def test_generate_action_items_flags_open_issues(self):
-        """Action items should include open issues from GitHub data."""
+        """Action items should include open issues from GitHub data — only recent ones within lookback_days."""
+        recent = _recent_date_str()
         data = {
             "github": {
                 "repos": [{
                     "repo": "test/repo",
                     "open_prs": [],
                     "open_issues": [
-                        {"number": 99, "title": "Critical bug in auth module"},
+                        {"number": 99, "title": "Critical bug in auth module", "createdAt": recent},
                     ],
                     "ci_runs": [],
                 }],
@@ -2124,3 +2136,186 @@ class TestPyYamlGracefulDegradation(unittest.TestCase):
         main_block = content[main_block_start:]
         assert "YAML_AVAILABLE" in main_block or "json.dumps" in main_block, \
             "config.py __main__ should have yaml fallback (JSON output when yaml unavailable)"
+
+
+class TestIssueDateFiltering(unittest.TestCase):
+    """Test that generate_action_items only flags open issues created within lookback_days."""
+
+    def test_recent_issue_flagged(self):
+        """Issues created within lookback_days should be flagged."""
+        recent = _recent_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": 10, "title": "Recent issue", "createdAt": recent},
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 7, "stale_pr_days": 3, "max_issues_per_repo": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("open issue" in item and "#10" in item for item in items)
+
+    def test_old_issue_not_flagged(self):
+        """Issues created beyond lookback_days should NOT be flagged."""
+        old = _old_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": 20, "title": "Old stale issue", "createdAt": old},
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 7, "stale_pr_days": 3, "max_issues_per_repo": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert not any("#20" in item for item in items)
+
+    def test_issue_without_created_at_skipped(self):
+        """Issues without createdAt field should be skipped (not flagged)."""
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": 30, "title": "No date issue"},
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 7, "stale_pr_days": 3, "max_issues_per_repo": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert not any("#30" in item for item in items)
+
+    def test_custom_lookback_days_overrides_default(self):
+        """Custom lookback_days should allow flagging older issues."""
+        old = _old_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": 40, "title": "Old issue", "createdAt": old},
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 60, "stale_pr_days": 3, "max_issues_per_repo": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("#40" in item for item in items)
+
+    def test_mixed_recent_and_old_issues(self):
+        """Only recent issues should be flagged when both recent and old issues exist."""
+        recent = _recent_date_str()
+        old = _old_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": 1, "title": "Recent", "createdAt": recent},
+                        {"number": 2, "title": "Old", "createdAt": old},
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 7, "stale_pr_days": 3, "max_issues_per_repo": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("#1" in item for item in items)
+        assert not any("#2" in item for item in items)
+
+
+class TestMaxIssuesPerRepo(unittest.TestCase):
+    """Test max_issues_per_repo preference caps flagged issues per repo."""
+
+    def test_max_issues_per_repo_in_default_config(self):
+        """max_issues_per_repo should be present in DEFAULT_CONFIG preferences."""
+        assert "max_issues_per_repo" in config.DEFAULT_CONFIG["preferences"]
+        assert config.DEFAULT_CONFIG["preferences"]["max_issues_per_repo"] == 3
+
+    def test_max_issues_caps_flagged_count(self):
+        """Only max_issues_per_repo issues per repo should be flagged, even if more exist."""
+        recent = _recent_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": i, "title": "Issue " + str(i), "createdAt": recent}
+                        for i in range(1, 8)  # 7 recent issues
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 7, "stale_pr_days": 3, "max_issues_per_repo": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        issue_items = [i for i in items if "open issue" in i]
+        assert len(issue_items) == 3
+
+    def test_custom_max_issues_per_repo_override(self):
+        """Custom max_issues_per_repo should override default cap."""
+        recent = _recent_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": i, "title": "Issue " + str(i), "createdAt": recent}
+                        for i in range(1, 6)  # 5 recent issues
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"lookback_days": 7, "stale_pr_days": 3, "max_issues_per_repo": 5},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        issue_items = [i for i in items if "open issue" in i]
+        assert len(issue_items) == 5
+
+    def test_shell_script_includes_max_issues_per_repo_in_preferences(self):
+        """Shell script combined JSON preferences should include max_issues_per_repo."""
+        content = self._read_shell_script()
+        assert "max_issues_per_repo" in content, \
+            "Shell script should include max_issues_per_repo in preferences"
+
+    def test_config_example_includes_max_issues_per_repo(self):
+        """config-example.yml should include max_issues_per_repo preference."""
+        config_example_path = os.path.join(os.path.dirname(__file__), "..", "config-example.yml")
+        if os.path.exists(config_example_path):
+            content = open(config_example_path).read()
+            assert "max_issues_per_repo" in content, \
+                "config-example.yml should include max_issues_per_repo preference"
+
+    def test_skill_md_includes_max_issues_per_repo(self):
+        """SKILL.md config section should include max_issues_per_repo."""
+        skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+        content = open(skill_md_path).read()
+        assert "max_issues_per_repo" in content, \
+            "SKILL.md should include max_issues_per_repo preference"
+
+    def _read_shell_script(self):
+        """Read the shell script content for inspection."""
+        script_path = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            return f.read()
+
+
+if __name__ == "__main__":
+    unittest.main()

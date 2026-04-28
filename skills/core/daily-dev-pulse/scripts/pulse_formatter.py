@@ -296,6 +296,8 @@ def generate_action_items(data):
     """Generate personalized action items from collected data."""
     items = []
     stale_threshold = data.get("preferences", {}).get("stale_pr_days", 3)
+    lookback_days = data.get("preferences", {}).get("lookback_days", 7)
+    max_issues_per_repo = data.get("preferences", {}).get("max_issues_per_repo", 3)
 
     github = data.get("github", {})
     if github and not github.get("error"):
@@ -319,10 +321,22 @@ def generate_action_items(data):
                 if run.get("conclusion") == "failure":
                     items.append(f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})")
 
-            # Open issues
+            # Open issues — only flag recently created ones (within lookback_days)
+            flagged_issues = 0
             for issue in repo.get("open_issues", []):
-                title = (issue.get("title", "") or "")[:40]
-                items.append(f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}")
+                if flagged_issues >= max_issues_per_repo:
+                    break
+                created = issue.get("createdAt", "")
+                if created:
+                    try:
+                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                        days_since = (datetime.now(timezone.utc) - created_dt).days
+                        if days_since <= lookback_days:
+                            title = (issue.get("title", "") or "")[:40]
+                            items.append(f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}")
+                            flagged_issues += 1
+                    except (ValueError, TypeError):
+                        pass
 
     # Security-related updates
     security = data.get("security", {})
