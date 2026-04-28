@@ -2,10 +2,12 @@
 
 Checks public CVE databases for vulnerabilities in configured tech stack.
 Uses NVD API (National Vulnerability Database) — no key required (rate-limited).
+Respects NVD rate limit: 5 requests per 30 seconds without API key.
 """
 
 import json
 import sys
+import time
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -103,8 +105,14 @@ def check_security(config=None, days=30):
     tech_stack = get_tech_stack(cfg)
     terms = build_search_terms(tech_stack)
 
+    # Rate limit from config or default
+    rate_limit = cfg.get("preferences", {}).get("nvd_rate_limit", NVD_RATE_LIMIT_SECONDS)
+
     all_alerts = []
-    for term in terms:
+    for i, term in enumerate(terms):
+        # Sleep between consecutive NVD API calls to respect rate limit
+        if i > 0 and rate_limit > 0:
+            time.sleep(rate_limit)
         cves = fetch_cves(term["product"], term.get("version", ""), days)
         all_alerts.extend(cves)
 

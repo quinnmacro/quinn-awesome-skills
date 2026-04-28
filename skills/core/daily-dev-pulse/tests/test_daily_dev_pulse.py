@@ -3,6 +3,7 @@
 Uses mock data to test without requiring live API access.
 """
 
+import copy
 import json
 import os
 import sys
@@ -974,6 +975,62 @@ class TestFormatJsonNoMutation(unittest.TestCase):
         first = pulse_formatter.format_json(data)
         second = pulse_formatter.format_json(data)
         assert first == second
+
+
+class TestNvdRateLimiting(unittest.TestCase):
+    """Verify NVD API rate limiting is applied between consecutive calls."""
+
+    def test_rate_limiting_applied_in_check_security(self):
+        """check_security should call time.sleep between consecutive NVD API calls."""
+        import inspect
+        source = inspect.getsource(security_checker.check_security)
+        assert "time.sleep" in source
+        assert "rate_limit" in source
+
+    @patch("security_checker.fetch_cves")
+    @patch("time.sleep")
+    def test_rate_limiting_calls_sleep_between_products(self, mock_sleep, mock_fetch):
+        """check_security should sleep between consecutive fetch_cves calls."""
+        mock_fetch.return_value = [{"cve_id": "CVE-2025-0001", "product": "test", "severity": "HIGH", "score": 7.5, "description": "test"}]
+        # Use config with rate_limit > 0 to ensure sleep is called
+        cfg = copy.deepcopy(config.DEFAULT_CONFIG)
+        cfg["preferences"]["nvd_rate_limit"] = 6
+        result = security_checker.check_security(config=cfg)
+        # fetch_cves is called once per search term (5 terms in default config)
+        assert mock_fetch.call_count > 0
+        # time.sleep should be called between consecutive fetches (not before the first one)
+        assert mock_sleep.call_count == mock_fetch.call_count - 1
+        # Each sleep should use the configured rate limit value
+        for call in mock_sleep.call_args_list:
+            assert call[0][0] == 6
+
+    @patch("security_checker.fetch_cves")
+    @patch("time.sleep")
+    def test_rate_limiting_disabled_with_zero(self, mock_sleep, mock_fetch):
+        """check_security should NOT sleep when nvd_rate_limit is 0."""
+        mock_fetch.return_value = []
+        cfg = copy.deepcopy(config.DEFAULT_CONFIG)
+        cfg["preferences"]["nvd_rate_limit"] = 0
+        result = security_checker.check_security(config=cfg)
+        # No sleep calls when rate limit is 0
+        assert mock_sleep.call_count == 0
+
+    def test_rate_limit_in_default_config(self):
+        """DEFAULT_CONFIG should include nvd_rate_limit preference."""
+        assert "nvd_rate_limit" in config.DEFAULT_CONFIG["preferences"]
+        assert config.DEFAULT_CONFIG["preferences"]["nvd_rate_limit"] == 6
+
+    @patch("security_checker.fetch_cves")
+    @patch("time.sleep")
+    def test_rate_limiting_configurable_via_merge(self, mock_sleep, mock_fetch):
+        """Custom nvd_rate_limit in user config should override default."""
+        mock_fetch.return_value = []
+        user_config = {"preferences": {"nvd_rate_limit": 2}}
+        merged = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        result = security_checker.check_security(config=merged)
+        # Sleep calls should use the custom value (2 seconds)
+        for call in mock_sleep.call_args_list:
+            assert call[0][0] == 2
 
 
 if __name__ == "__main__":

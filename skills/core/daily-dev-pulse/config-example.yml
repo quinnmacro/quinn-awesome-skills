@@ -57,3 +57,7 @@ preferences:
 
   # PRs open longer than this are flagged as stale
   stale_pr_days: 3
+
+  # Seconds between NVD API calls (rate limit: 5 req/30s without key)
+  # Set to 0 for testing or with an API key
+  nvd_rate_limit: 6
