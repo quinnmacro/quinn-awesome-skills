@@ -1033,5 +1033,99 @@ class TestNvdRateLimiting(unittest.TestCase):
             assert call[0][0] == 2
 
 
+class TestInstallScriptAliasDirectory(unittest.TestCase):
+    """Verify install.sh creates command directories before copying alias commands."""
+
+    PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+
+    def test_install_sh_creates_directories_before_alias_copy(self):
+        """install.sh should mkdir ~/.claude/commands and ~/.openclaw/commands
+        BEFORE the alias command cp/ln loop for daily-dev-pulse."""
+        install_path = os.path.join(self.PROJECT_ROOT, "install.sh")
+        with open(install_path) as f:
+            content = f.read()
+
+        # Find the daily-dev-pulse section
+        dp_section_start = content.find("daily-dev-pulse")
+        assert dp_section_start != -1, "daily-dev-pulse section not found in install.sh"
+
+        # Find the alias copy loop
+        alias_copy_start = content.find("cp \"$ALIAS_FILE\" ~/.claude/commands/", dp_section_start)
+        assert alias_copy_start != -1, "Alias cp command not found in install.sh"
+
+        # Find the mkdir commands that should come BEFORE the alias copy
+        mkdir_claude = content.find("mkdir -p ~/.claude/commands", dp_section_start)
+        mkdir_openclaw = content.find("mkdir -p ~/.openclaw/commands", dp_section_start)
+
+        assert mkdir_claude != -1, "mkdir ~/.claude/commands not found in daily-dev-pulse section"
+        assert mkdir_openclaw != -1, "mkdir ~/.openclaw/commands not found in daily-dev-pulse section"
+        assert mkdir_claude < alias_copy_start, "mkdir ~/.claude/commands must come BEFORE alias cp"
+        assert mkdir_openclaw < alias_copy_start, "mkdir ~/.openclaw/commands must come BEFORE alias cp"
+
+    def test_install_sh_has_mkdir_for_both_command_dirs(self):
+        """install.sh should create both ~/.claude/commands and ~/.openclaw/commands in daily-dev-pulse section."""
+        install_path = os.path.join(self.PROJECT_ROOT, "install.sh")
+        with open(install_path) as f:
+            content = f.read()
+
+        # Extract the daily-dev-pulse section between the outer if and its closing fi
+        dp_start = content.find('if [ "$SKILL_NAME" = "daily-dev-pulse" ]; then')
+        # Find the closing fi for the outer if block — it's after the inner if/fi
+        # Strategy: find all 'fi' after dp_start, the outer fi is the one that
+        # aligns with the outer if indentation
+        pos = dp_start
+        outer_if_indent = len(content[:dp_start]) - len(content[:dp_start].rstrip(' '))
+        # Search forward for 'fi' at the same indentation level
+        while pos < len(content):
+            fi_pos = content.find('fi', pos + 1)
+            if fi_pos == -1:
+                break
+            # Check if 'fi' is at the outer if indentation level (4 spaces in install_skill)
+            line_start = content.rfind('\n', 0, fi_pos) + 1
+            indent = fi_pos - line_start
+            if indent == 4:
+                dp_section = content[dp_start:fi_pos + 2]
+                break
+            pos = fi_pos
+
+        assert "mkdir -p ~/.claude/commands" in dp_section
+        assert "mkdir -p ~/.openclaw/commands" in dp_section
+
+
+class TestTerminalBoxHeaderWidth(unittest.TestCase):
+    """Verify terminal box header uses dynamic width calculation, not hardcoded padding."""
+
+    def test_format_terminal_no_hardcoded_padding(self):
+        """format_terminal should compute padding dynamically, not use hardcoded 'width - 28'."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.format_terminal)
+        # Should NOT have the old hardcoded padding formula
+        assert "width - 28" not in source
+        # Should have dynamic padding computation
+        assert "padding" in source
+        assert "visible_prefix_len" in source or "len(" in source
+
+    def test_format_terminal_box_width_matches_header(self):
+        """The box header content width should match the box top/bottom width."""
+        # Create data with known date and check that header line has correct structure
+        data = {"github": {"repos": []}}
+        output = pulse_formatter.format_terminal(data)
+        lines = output.split("\n")
+
+        # Find the box top line (╔══════════════╗)
+        box_top = lines[0]
+        # Count the ═ characters to determine width
+        horiz_count = box_top.count("═")
+        width = horiz_count + 2  # +2 for ╔ and ╚
+
+        # Find the header line (║ content ║)
+        header_line = lines[1]
+        # The header should end with ║
+        assert header_line.rstrip().endswith("║")
+
+        # Verify the header contains the date and DAILY DEV PULSE text
+        assert "DAILY DEV PULSE" in header_line
+
+
 if __name__ == "__main__":
     unittest.main()

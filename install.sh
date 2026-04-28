@@ -114,6 +114,10 @@ install_skill() {
             echo -e "  ${YELLOW}⚠️ 配置已存在 ~/.quinn-skills/pulse-config.yml，保留现有配置${NC}"
         fi
 
+        # Ensure command directories exist before copying alias commands
+        mkdir -p ~/.claude/commands
+        mkdir -p ~/.openclaw/commands
+
         # Install alias commands: morning-brief and dev-pulse
         for alias_cmd in morning-brief dev-pulse; do
             local ALIAS_FILE="$COMMANDS_DIR/$alias_cmd.md"

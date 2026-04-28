@@ -60,8 +60,16 @@ def format_terminal(data):
     width = 48
 
     lines = []
+    # Compute padding dynamically based on visible content width
+    # ANSI escape sequences have 0 visible width, so only count actual chars
+    header_prefix = "   🌅 DAILY DEV PULSE — "
+    header_suffix_len = 1  # BOX_SIDE
+    # 🌅 emoji renders as 2 columns in most terminals
+    visible_prefix_len = len("   ") + 2 + len(" DAILY DEV PULSE — ")  # 3+2+18=23
+    padding = width - visible_prefix_len - len(today) - header_suffix_len
+
     lines.append(f"{Colors.BOX_TOP}{Colors.BOX_HORIZ * width}{Colors.BOX_BOT}")
-    lines.append(f"{Colors.BOX_SIDE}{Colors.BOLD}{Colors.CYAN}   🌅 DAILY DEV PULSE — {today}{Colors.RESET}{' ' * (width - 28)}{Colors.BOX_SIDE}")
+    lines.append(f"{Colors.BOX_SIDE}{Colors.BOLD}{Colors.CYAN}{header_prefix}{today}{Colors.RESET}{' ' * padding}{Colors.BOX_SIDE}")
     lines.append(f"{Colors.BOX_BOT}{Colors.BOX_HORIZ * width}{Colors.BOX_BOT}")
     lines.append("")
 
