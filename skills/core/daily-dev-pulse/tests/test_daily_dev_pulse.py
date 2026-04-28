@@ -2446,5 +2446,114 @@ class TestSkillMdStep4Accuracy(unittest.TestCase):
             "SKILL.md Step 4 should mention max_issues_per_repo cap"
 
 
+class TestConcurrentHnFetching(unittest.TestCase):
+    """Test concurrent HN story fetching and partial failure handling."""
+
+    def test_fetch_hn_item_exists(self):
+        """_fetch_hn_item helper function should exist in news_aggregator."""
+        assert hasattr(news_aggregator, "_fetch_hn_item"), \
+            "news_aggregator should have _fetch_hn_item helper function for concurrent fetching"
+
+    def test_fetch_hn_item_returns_story_dict(self):
+        """_fetch_hn_item should return a properly structured story dict on success."""
+        mock_item = {"type": "story", "title": "Test Story", "url": "https://test.com", "score": 42, "descendants": 5}
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps(mock_item).encode()
+            mock_urlopen.return_value.__enter__ = MagicMock(return_value=mock_resp)
+            mock_urlopen.return_value.__exit__ = MagicMock(return_value=False)
+            result = news_aggregator._fetch_hn_item(12345)
+            assert result is not None
+            assert result["id"] == 12345
+            assert result["title"] == "Test Story"
+            assert result["score"] == 42
+            assert result["source"] == "hn"
+
+    def test_fetch_hn_item_returns_none_on_error(self):
+        """_fetch_hn_item should return None when the API call fails."""
+        with patch("urllib.request.urlopen", side_effect=Exception("network error")):
+            result = news_aggregator._fetch_hn_item(99999)
+            assert result is None
+
+    def test_fetch_hn_item_returns_none_for_non_story(self):
+        """_fetch_hn_item should return None for non-story items (e.g., comments)."""
+        mock_item = {"type": "comment", "text": "This is a comment"}
+        with patch("urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps(mock_item).encode()
+            mock_urlopen.return_value.__enter__ = MagicMock(return_value=mock_resp)
+            mock_urlopen.return_value.__exit__ = MagicMock(return_value=False)
+            result = news_aggregator._fetch_hn_item(12345)
+            assert result is None
+
+    def test_fetch_hn_top_uses_threadpool(self):
+        """fetch_hn_top should use ThreadPoolExecutor for concurrent fetching."""
+        import inspect
+        source = inspect.getsource(news_aggregator.fetch_hn_top)
+        assert "ThreadPoolExecutor" in source, \
+            "fetch_hn_top should use ThreadPoolExecutor for concurrent API calls"
+
+    def test_fetch_hn_top_preserves_order(self):
+        """fetch_hn_top should preserve original story ID order after concurrent fetch."""
+        story_ids = [100, 200, 300]
+        mock_results = [
+            {"id": 100, "title": "Story 100", "url": "https://100.com", "score": 10, "comments": 1, "source": "hn"},
+            {"id": 200, "title": "Story 200", "url": "https://200.com", "score": 20, "comments": 2, "source": "hn"},
+            {"id": 300, "title": "Story 300", "url": "https://300.com", "score": 30, "comments": 3, "source": "hn"},
+        ]
+
+        with patch("news_aggregator._fetch_hn_item", side_effect=mock_results):
+            with patch("urllib.request.urlopen") as mock_top:
+                mock_top_resp = MagicMock()
+                mock_top_resp.read.return_value = json.dumps(story_ids).encode()
+                mock_top.return_value.__enter__ = MagicMock(return_value=mock_top_resp)
+                mock_top.return_value.__exit__ = MagicMock(return_value=False)
+                result = news_aggregator.fetch_hn_top(3)
+
+            # Results should be in original ID order: 100, 200, 300
+            assert len(result) == 3
+            assert result[0]["id"] == 100
+            assert result[1]["id"] == 200
+            assert result[2]["id"] == 300
+
+    def test_fetch_hn_top_handles_partial_failure(self):
+        """fetch_hn_top should return successfully fetched stories even if some fail."""
+        story_ids = [100, 200, 300]
+        mock_results = [
+            {"id": 100, "title": "Story 100", "url": "https://100.com", "score": 10, "comments": 1, "source": "hn"},
+            None,  # Story 200 fetch fails
+            {"id": 300, "title": "Story 300", "url": "https://300.com", "score": 30, "comments": 3, "source": "hn"},
+        ]
+
+        with patch("news_aggregator._fetch_hn_item", side_effect=mock_results):
+            with patch("urllib.request.urlopen") as mock_top:
+                mock_top_resp = MagicMock()
+                mock_top_resp.read.return_value = json.dumps(story_ids).encode()
+                mock_top.return_value.__enter__ = MagicMock(return_value=mock_top_resp)
+                mock_top.return_value.__exit__ = MagicMock(return_value=False)
+                result = news_aggregator.fetch_hn_top(3)
+
+        # Should have 2 stories (partial failure gracefully handled)
+        assert len(result) == 2
+        assert result[0]["id"] == 100
+        assert result[1]["id"] == 300
+
+    def test_fetch_hn_top_max_workers_capped(self):
+        """ThreadPoolExecutor max_workers should be capped at 5 to avoid overwhelming HN API."""
+        import inspect
+        source = inspect.getsource(news_aggregator.fetch_hn_top)
+        assert "max_workers=min" in source, \
+            "ThreadPoolExecutor should cap max_workers to avoid excessive concurrent requests"
+
+    def test_concurrent_futures_imported(self):
+        """news_aggregator should import concurrent.futures for ThreadPoolExecutor."""
+        import inspect
+        source = inspect.getsource(news_aggregator)
+        assert "ThreadPoolExecutor" in source, \
+            "news_aggregator should import ThreadPoolExecutor from concurrent.futures"
+        assert "as_completed" in source, \
+            "news_aggregator should import as_completed from concurrent.futures"
+
+
 if __name__ == "__main__":
     unittest.main()

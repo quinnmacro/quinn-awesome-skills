@@ -9,6 +9,7 @@ import os
 import subprocess
 import urllib.request
 import urllib.error
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 from config import get_preferences, load_config
@@ -91,8 +92,31 @@ def fetch_article_via_url_fetcher(url):
         return None
 
 
+def _fetch_hn_item(sid):
+    """Fetch a single HN story item by ID. Returns story dict or None."""
+    try:
+        item_req = urllib.request.Request(
+            f"{HN_API}/item/{sid}.json",
+            headers={"User-Agent": "daily-dev-pulse/1.0"}
+        )
+        with urllib.request.urlopen(item_req, timeout=5) as item_resp:
+            item = json.loads(item_resp.read().decode())
+        if item and item.get("type") == "story":
+            return {
+                "id": sid,
+                "title": item.get("title", ""),
+                "url": item.get("url", f"https://news.ycombinator.com/item?id={sid}"),
+                "score": item.get("score", 0),
+                "comments": item.get("descendants", 0),
+                "source": "hn",
+            }
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+        pass
+    return None
+
+
 def fetch_hn_top(limit=10):
-    """Fetch top stories from Hacker News."""
+    """Fetch top stories from Hacker News using concurrent requests."""
     try:
         req = urllib.request.Request(
             f"{HN_API}/topstories.json",
@@ -102,25 +126,16 @@ def fetch_hn_top(limit=10):
             story_ids = json.loads(resp.read().decode())[:limit]
 
         stories = []
-        for sid in story_ids:
-            try:
-                item_req = urllib.request.Request(
-                    f"{HN_API}/item/{sid}.json",
-                    headers={"User-Agent": "daily-dev-pulse/1.0"}
-                )
-                with urllib.request.urlopen(item_req, timeout=5) as item_resp:
-                    item = json.loads(item_resp.read().decode())
-                if item and item.get("type") == "story":
-                    stories.append({
-                        "id": sid,
-                        "title": item.get("title", ""),
-                        "url": item.get("url", f"https://news.ycombinator.com/item?id={sid}"),
-                        "score": item.get("score", 0),
-                        "comments": item.get("descendants", 0),
-                        "source": "hn",
-                    })
-            except (urllib.error.URLError, json.JSONDecodeError):
-                continue
+        with ThreadPoolExecutor(max_workers=min(limit, 5)) as executor:
+            futures = {executor.submit(_fetch_hn_item, sid): sid for sid in story_ids}
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    stories.append(result)
+
+        # Preserve original order by sorting by story_id position
+        id_order = {sid: i for i, sid in enumerate(story_ids)}
+        stories.sort(key=lambda s: id_order.get(s["id"], 0))
 
         return stories
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
