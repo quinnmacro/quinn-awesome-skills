@@ -89,19 +89,21 @@ def format_terminal(data):
                 bar = ascii_bar(count, max(max_commits, 1), 20)
                 lines.append(f"  {Colors.GREEN}{name:20s}{Colors.RESET} {bar} {Colors.BOLD}{count}{Colors.RESET} commits")
 
-            # CI Status
-            lines.append("")
-            lines.append(f"{Colors.BOLD}{Colors.BLUE}🔄 CI Status{Colors.RESET}")
-            for repo in repos:
-                name = repo["repo"].split("/")[-1]
-                ci_runs = repo.get("ci_runs", [])
-                if ci_runs:
-                    latest = ci_runs[0] if ci_runs else {}
-                    status = latest.get("status", "unknown")
-                    conclusion = latest.get("conclusion", "unknown")
-                    emoji = CI_EMOJI.get(conclusion, CI_EMOJI.get(status, CI_EMOJI["unknown"]))
-                    lines.append(f"  {emoji} {name}: {conclusion} ({latest.get('name', 'unknown')})")
-            lines.append("")
+            # CI Status (only show heading if at least one repo has CI runs)
+            has_ci = any(repo.get("ci_runs") for repo in repos)
+            if has_ci:
+                lines.append("")
+                lines.append(f"{Colors.BOLD}{Colors.BLUE}🔄 CI Status{Colors.RESET}")
+                for repo in repos:
+                    name = repo["repo"].split("/")[-1]
+                    ci_runs = repo.get("ci_runs", [])
+                    if ci_runs:
+                        latest = ci_runs[0] if ci_runs else {}
+                        status = latest.get("status", "unknown")
+                        conclusion = latest.get("conclusion", "unknown")
+                        emoji = CI_EMOJI.get(conclusion, CI_EMOJI.get(status, CI_EMOJI["unknown"]))
+                        lines.append(f"  {emoji} {name}: {conclusion} ({latest.get('name', 'unknown')})")
+                lines.append("")
 
     # GitHub error
     if github.get("error"):
@@ -111,8 +113,8 @@ def format_terminal(data):
     # Open PRs & Issues
     if github and not github.get("error"):
         repos = github.get("repos", [])
-        has_prs = any(r.get("open_prs") for r in repos)
-        has_issues = any(r.get("open_issues") for r in repos)
+        has_prs = any(isinstance(r.get("open_prs"), list) and len(r["open_prs"]) > 0 for r in repos)
+        has_issues = any(isinstance(r.get("open_issues"), list) and len(r["open_issues"]) > 0 for r in repos)
 
         if has_prs or has_issues:
             lines.append(f"{Colors.BOLD}{Colors.BLUE}🔍 Open PRs & Issues{Colors.RESET}")
@@ -120,13 +122,17 @@ def format_terminal(data):
             lines.append(f"  │{'Repo':^30}│{'Type':^8}│{'Title':^30}│")
             lines.append(f"  ├{'─' * 30}┼{'─' * 8}┼{'─' * 30}┤")
             for repo in repos:
-                name = repo["repo"].split("/")[-1]
-                for pr in repo.get("open_prs", [])[:5]:
-                    title = (pr.get("title", "") or "")[:28]
-                    lines.append(f"  │{name:^30}│{'PR':^8}│{title:^30}│")
-                for issue in repo.get("open_issues", [])[:5]:
-                    title = (issue.get("title", "") or "")[:28]
-                    lines.append(f"  │{name:^30}│{'Issue':^8}│{title:^30}│")
+                name = repo["repo"].split("/")[-1][:30]
+                open_prs = repo.get("open_prs", [])
+                if isinstance(open_prs, list):
+                    for pr in open_prs[:5]:
+                        title = (pr.get("title", "") or "")[:30]
+                        lines.append(f"  │{name:^30}│{'PR':^8}│{title:^30}│")
+                open_issues = repo.get("open_issues", [])
+                if isinstance(open_issues, list):
+                    for issue in open_issues[:5]:
+                        title = (issue.get("title", "") or "")[:30]
+                        lines.append(f"  │{name:^30}│{'Issue':^8}│{title:^30}│")
             lines.append(f"  └{'─' * 30}┴{'─' * 8}┴{'─' * 30}┘")
             lines.append("")
 
@@ -210,8 +216,10 @@ def format_markdown(data):
         # PRs
         all_prs = []
         for repo in (github.get("repos", [])):
-            for pr in repo.get("open_prs", []):
-                all_prs.append((repo["repo"], pr))
+            open_prs = repo.get("open_prs", [])
+            if isinstance(open_prs, list):
+                for pr in open_prs:
+                    all_prs.append((repo["repo"], pr))
         if all_prs:
             lines.append("### Open PRs")
             lines.append("")
@@ -222,8 +230,10 @@ def format_markdown(data):
         # Issues
         all_issues = []
         for repo in (github.get("repos", [])):
-            for issue in repo.get("open_issues", []):
-                all_issues.append((repo["repo"], issue))
+            open_issues = repo.get("open_issues", [])
+            if isinstance(open_issues, list):
+                for issue in open_issues:
+                    all_issues.append((repo["repo"], issue))
         if all_issues:
             lines.append("### Open Issues")
             lines.append("")
@@ -308,47 +318,53 @@ def generate_action_items(data):
     if github and not github.get("error"):
         for repo in github.get("repos", []):
             # Stale PRs (open > stale_pr_days threshold from config)
-            for pr in repo.get("open_prs", []):
-                created = pr.get("createdAt", "")
-                if created:
-                    try:
-                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                        days_open = (datetime.now(timezone.utc) - created_dt).days
-                        if days_open > stale_threshold:
-                            text = f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)"
-                            if text not in seen:
-                                seen.add(text)
-                                items.append(text)
-                    except (ValueError, TypeError):
-                        pass
+            open_prs = repo.get("open_prs", [])
+            if isinstance(open_prs, list):
+                for pr in open_prs:
+                    created = pr.get("createdAt", "")
+                    if created:
+                        try:
+                            created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                            days_open = (datetime.now(timezone.utc) - created_dt).days
+                            if days_open > stale_threshold:
+                                text = f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)"
+                                if text not in seen:
+                                    seen.add(text)
+                                    items.append(text)
+                        except (ValueError, TypeError):
+                            pass
 
             # Failing CI
-            for run in repo.get("ci_runs", []):
-                if run.get("conclusion") == "failure":
-                    text = f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})"
-                    if text not in seen:
-                        seen.add(text)
-                        items.append(text)
+            ci_runs = repo.get("ci_runs", [])
+            if isinstance(ci_runs, list):
+                for run in ci_runs:
+                    if run.get("conclusion") == "failure":
+                        text = f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})"
+                        if text not in seen:
+                            seen.add(text)
+                            items.append(text)
 
             # Open issues — only flag recently created ones (within lookback_days)
-            flagged_issues = 0
-            for issue in repo.get("open_issues", []):
-                if flagged_issues >= max_issues_per_repo:
-                    break
-                created = issue.get("createdAt", "")
-                if created:
-                    try:
-                        created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                        days_since = (datetime.now(timezone.utc) - created_dt).days
-                        if days_since <= lookback_days:
-                            title = (issue.get("title", "") or "")[:40]
-                            text = f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}"
-                            if text not in seen:
-                                seen.add(text)
-                                items.append(text)
-                                flagged_issues += 1
-                    except (ValueError, TypeError):
-                        pass
+            open_issues = repo.get("open_issues", [])
+            if isinstance(open_issues, list):
+                flagged_issues = 0
+                for issue in open_issues:
+                    if flagged_issues >= max_issues_per_repo:
+                        break
+                    created = issue.get("createdAt", "")
+                    if created:
+                        try:
+                            created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                            days_since = (datetime.now(timezone.utc) - created_dt).days
+                            if days_since <= lookback_days:
+                                title = (issue.get("title", "") or "")[:40]
+                                text = f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}"
+                                if text not in seen:
+                                    seen.add(text)
+                                    items.append(text)
+                                    flagged_issues += 1
+                        except (ValueError, TypeError):
+                            pass
 
     # Security-related updates
     security = data.get("security", {})

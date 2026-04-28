@@ -2934,5 +2934,165 @@ class TestPathInjectionSafety(unittest.TestCase):
         assert count == 1, f"Found {count} unittest.main() calls in __main__ block — should be exactly 1"
 
 
+class TestCiStatusBranchParam(unittest.TestCase):
+    """Regression tests: scan_ci_status branch param must be passed to gh CLI."""
+
+    @patch("github_scanner.run_gh")
+    def test_branch_param_passed_to_gh(self, mock_run_gh):
+        """--branch must appear in the gh run list command args."""
+        mock_run_gh.return_value = []
+        github_scanner.scan_ci_status("quinnmacro", "test-repo", branch="develop")
+        call_args = mock_run_gh.call_args[0][0]
+        assert "--branch" in call_args, f"--branch not in gh args: {call_args}"
+        branch_idx = call_args.index("--branch")
+        assert call_args[branch_idx + 1] == "develop", f"branch value is not 'develop': {call_args}"
+
+    @patch("github_scanner.run_gh")
+    def test_default_branch_is_main(self, mock_run_gh):
+        """Default branch parameter should be 'main'."""
+        mock_run_gh.return_value = []
+        github_scanner.scan_ci_status("quinnmacro", "test-repo")
+        call_args = mock_run_gh.call_args[0][0]
+        assert "--branch" in call_args, f"--branch not in gh args: {call_args}"
+        branch_idx = call_args.index("--branch")
+        assert call_args[branch_idx + 1] == "main", f"default branch value is not 'main': {call_args}"
+
+    def test_scan_ci_status_source_has_branch_arg(self):
+        """Verify github_scanner.py source contains --branch in the gh args."""
+        scanner_path = os.path.join(MODULES_DIR, "github_scanner.py")
+        with open(scanner_path) as f:
+            content = f.read()
+        assert '"--branch"' in content or "'--branch'" in content, \
+            "github_scanner.py must include '--branch' in scan_ci_status gh args"
+        # Verify the branch parameter is not dead code by checking it's referenced
+        func_start = content.find("def scan_ci_status")
+        func_end = content.find("\ndef ", func_start + 1)
+        func_body = content[func_start:func_end]
+        assert "branch" in func_body, "branch param must be used in scan_ci_status function body"
+
+
+class TestRemoveprefixUsage(unittest.TestCase):
+    """Regression tests: news_aggregator uses removeprefix, not lstrip, for heading extraction."""
+
+    def test_source_uses_removeprefix(self):
+        """news_aggregator.py must use removeprefix('# ') not lstrip('# ')."""
+        agg_path = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(agg_path) as f:
+            content = f.read()
+        assert "removeprefix" in content, "news_aggregator must use removeprefix for heading extraction"
+        # Verify lstrip('# ') is NOT used for heading extraction
+        heading_section_start = content.find("Try first # heading")
+        if heading_section_start > 0:
+            heading_section_end = content.find("break", heading_section_start) + 10
+            section = content[heading_section_start:heading_section_end]
+            assert 'lstrip("# ")' not in section and "lstrip('# ')" not in section, \
+                "lstrip('# ') should not be used for heading extraction — use removeprefix"
+
+    def test_no_fragile_startswith_guard(self):
+        """The fragile 'not line.startswith(\"# #\")' guard should be removed since removeprefix handles it."""
+        agg_path = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(agg_path) as f:
+            content = f.read()
+        # The '# #' guard was needed because lstrip would over-strip; removeprefix doesn't need it
+        assert "not line.startswith(\"# #\")" not in content and \
+               "not line.startswith('# #')" not in content, \
+            "The fragile '# #' guard should be removed — removeprefix handles it correctly"
+
+
+class TestCiStatusEmptyHeading(unittest.TestCase):
+    """Regression tests: CI Status heading only shown when at least one repo has CI runs."""
+
+    def test_ci_status_heading_skipped_when_no_runs(self):
+        """format_terminal must not print CI Status heading when all repos have empty ci_runs."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        for repo in data["github"]["repos"]:
+            repo["ci_runs"] = []
+        output = pulse_formatter.format_terminal(data)
+        assert "CI Status" not in output, "CI Status heading should not appear when no repos have CI runs"
+
+    def test_ci_status_heading_present_when_has_runs(self):
+        """format_terminal must print CI Status heading when at least one repo has CI runs."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        output = pulse_formatter.format_terminal(data)
+        assert "CI Status" in output, "CI Status heading must appear when at least one repo has CI runs"
+
+    def test_ci_status_heading_partial_runs(self):
+        """CI Status heading shown when only some repos have CI runs."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"][0]["ci_runs"] = [
+            {"name": "CI", "status": "completed", "conclusion": "success", "headBranch": "main"}
+        ]
+        data["github"]["repos"][1]["ci_runs"] = []
+        output = pulse_formatter.format_terminal(data)
+        assert "CI Status" in output, "CI Status heading must appear with partial CI data"
+
+    def test_ci_status_no_empty_section_with_empty_repos_list(self):
+        """No CI Status heading when github repos list is empty."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"] = []
+        output = pulse_formatter.format_terminal(data)
+        assert "CI Status" not in output, "No CI heading when repos list is empty"
+
+
+class TestTableColumnOverflow(unittest.TestCase):
+    """Regression tests: repo name and title are truncated to fit fixed-width table columns."""
+
+    def test_repo_name_truncated_in_table(self):
+        """Repo names >30 chars must be truncated, not overflow the table column."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        long_name = "quinnmacro/quinn-awesome-skills-with-a-very-long-name-that-exceeds"
+        data["github"]["repos"][0]["repo"] = long_name
+        data["github"]["repos"][0]["open_prs"] = [
+            {"number": 1, "title": "Test PR", "createdAt": _recent_date_str(), "author": "dev"}
+        ]
+        output = pulse_formatter.format_terminal(data)
+        # Find any line with │ that contains the repo short name
+        for line in output.split("\n"):
+            if "│" in line and "PR" in line:
+                # Count characters between the first two │ separators
+                parts = line.split("│")
+                # The repo column is between 2nd and 3rd │
+                if len(parts) >= 4:
+                    repo_col = parts[2].strip()
+                    assert len(repo_col) <= 30, f"Repo column '{repo_col}' exceeds 30 chars: len={len(repo_col)}"
+
+    def test_title_truncated_in_table(self):
+        """Titles must be truncated to 30 chars to fit table column, not 28."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        long_title = "A very long pull request title that exceeds thirty characters easily"
+        data["github"]["repos"][0]["open_prs"] = [
+            {"number": 1, "title": long_title, "createdAt": _recent_date_str(), "author": "dev"}
+        ]
+        output = pulse_formatter.format_terminal(data)
+        for line in output.split("\n"):
+            if "│" in line and "PR" in line:
+                parts = line.split("│")
+                if len(parts) >= 5:
+                    title_col = parts[3].strip()
+                    assert len(title_col) <= 30, f"Title column '{title_col}' exceeds 30 chars: len={len(title_col)}"
+
+    def test_prs_issues_truthiness_requires_list_type(self):
+        """has_prs/has_issues must check isinstance(list) + len>0, not bare truthiness."""
+        formatter_path = os.path.join(SCRIPTS_DIR, "pulse_formatter.py")
+        with open(formatter_path) as f:
+            content = f.read()
+        # Must use isinstance check, not bare any(r.get("open_prs"))
+        assert "isinstance(r.get(\"open_prs\"), list)" in content or \
+               "isinstance(r.get('open_prs'), list)" in content, \
+            "has_prs must verify open_prs is a list, not just truthy"
+        assert "isinstance(r.get(\"open_issues\"), list)" in content or \
+               "isinstance(r.get('open_issues'), list)" in content, \
+            "has_issues must verify open_issues is a list, not just truthy"
+
+    def test_format_terminal_with_string_open_prs(self):
+        """If open_prs is a non-list value (e.g. error string), table should not be printed."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"][0]["open_prs"] = "scan_failed"  # Not a list
+        data["github"]["repos"][0]["open_issues"] = []
+        output = pulse_formatter.format_terminal(data)
+        # Should not produce a table with garbage rows
+        assert "scan_failed" not in output, "Non-list open_prs should not appear in table output"
+
+
 if __name__ == "__main__":
     unittest.main()

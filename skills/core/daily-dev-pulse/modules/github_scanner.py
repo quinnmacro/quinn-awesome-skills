@@ -74,7 +74,7 @@ def scan_ci_status(repo_owner, repo_name, branch="main"):
     """Get recent CI/GitHub Actions run status."""
     repo = f"{repo_owner}/{repo_name}"
     runs = run_gh(
-        ["run", "list", "--repo", repo, "--limit", "5", "--json",
+        ["run", "list", "--repo", repo, "--branch", branch, "--limit", "5", "--json",
          "name,status,conclusion,createdAt,headBranch"],
         fallback=[]
     )

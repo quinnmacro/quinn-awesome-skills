@@ -64,8 +64,8 @@ def fetch_article_via_url_fetcher(url):
         if not title:
             # Try first # heading
             for line in lines:
-                if line.startswith("# ") and not line.startswith("# #"):
-                    title = line.lstrip("# ").strip()
+                if line.startswith("# "):
+                    title = line.removeprefix("# ").strip()
                     break
 
         # Summary: first 3 non-empty, non-frontmatter content lines
