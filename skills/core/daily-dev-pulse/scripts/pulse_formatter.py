@@ -293,8 +293,12 @@ def format_json(data):
 
 
 def generate_action_items(data):
-    """Generate personalized action items from collected data."""
+    """Generate personalized action items from collected data.
+
+    Deduplicates identical item text to avoid repetition (e.g. same CI name on same repo).
+    """
     items = []
+    seen = set()
     stale_threshold = data.get("preferences", {}).get("stale_pr_days", 3)
     lookback_days = data.get("preferences", {}).get("lookback_days", 7)
     max_issues_per_repo = data.get("preferences", {}).get("max_issues_per_repo", 3)
@@ -308,19 +312,23 @@ def generate_action_items(data):
                 created = pr.get("createdAt", "")
                 if created:
                     try:
-                        # GitHub returns ISO 8601 with Z suffix (UTC)
-                        # Python 3.11+ handles Z in fromisoformat
                         created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
                         days_open = (datetime.now(timezone.utc) - created_dt).days
                         if days_open > stale_threshold:
-                            items.append(f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)")
+                            text = f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)"
+                            if text not in seen:
+                                seen.add(text)
+                                items.append(text)
                     except (ValueError, TypeError):
                         pass
 
             # Failing CI
             for run in repo.get("ci_runs", []):
                 if run.get("conclusion") == "failure":
-                    items.append(f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})")
+                    text = f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})"
+                    if text not in seen:
+                        seen.add(text)
+                        items.append(text)
 
             # Open issues — only flag recently created ones (within lookback_days)
             flagged_issues = 0
@@ -334,8 +342,11 @@ def generate_action_items(data):
                         days_since = (datetime.now(timezone.utc) - created_dt).days
                         if days_since <= lookback_days:
                             title = (issue.get("title", "") or "")[:40]
-                            items.append(f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}")
-                            flagged_issues += 1
+                            text = f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}"
+                            if text not in seen:
+                                seen.add(text)
+                                items.append(text)
+                                flagged_issues += 1
                     except (ValueError, TypeError):
                         pass
 
@@ -345,7 +356,10 @@ def generate_action_items(data):
         for alert in security.get("alerts", [])[:5]:
             sev = alert.get("severity", "")
             if sev in ("CRITICAL", "HIGH"):
-                items.append(f"Update {alert.get('product', '')} — {alert.get('cve_id', '')} ({sev})")
+                text = f"Update {alert.get('product', '')} — {alert.get('cve_id', '')} ({sev})"
+                if text not in seen:
+                    seen.add(text)
+                    items.append(text)
 
     return items[:max_action_items]
 

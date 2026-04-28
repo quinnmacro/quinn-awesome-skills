@@ -1633,10 +1633,6 @@ class TestNvdRateLimitInCombinedJson(unittest.TestCase):
             "Shell script fallback preferences should include nvd_rate_limit default of 6"
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestUnusedImportsRemoved(unittest.TestCase):
     """Verify unused imports were removed from module files."""
 
@@ -2123,7 +2119,7 @@ class TestPyYamlGracefulDegradation(unittest.TestCase):
         # Verify config.py doesn't sys.exit on import (the fix)
         config_content = self._read_module_file("config.py")
         import_section_end = config_content.find("def load_config")
-        import_section = config_content[:import_section_end] if import_section_end > 0 else content[:500]
+        import_section = config_content[:import_section_end] if import_section_end > 0 else config_content[:500]
         assert "sys.exit(1)" not in import_section, \
             "config.py import section should NOT contain sys.exit — yaml failure should be deferred"
 
@@ -2719,5 +2715,129 @@ class TestSkillMdDocumentationAccuracyV2(unittest.TestCase):
             "SKILL.md JSON example should include preferences field — actual output always includes it"
 
 
+class TestActionItemDeduplication(unittest.TestCase):
+    """Verify generate_action_items deduplicates identical item text."""
+
+    def test_duplicate_ci_failures_deduplicated(self):
+        """Two CI runs with the same name on the same repo should produce only one action item."""
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [],
+                    "ci_runs": [
+                        {"name": "CI", "conclusion": "failure", "headBranch": "main"},
+                        {"name": "CI", "conclusion": "failure", "headBranch": "dev"},
+                    ],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        ci_items = [i for i in items if "Fix failing CI" in i]
+        assert len(ci_items) == 1, \
+            "Same CI name on same repo should produce only one action item, not duplicates"
+
+    def test_different_ci_names_not_deduplicated(self):
+        """CI runs with different names on same repo should produce separate action items."""
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [],
+                    "ci_runs": [
+                        {"name": "CI", "conclusion": "failure", "headBranch": "main"},
+                        {"name": "Lint", "conclusion": "failure", "headBranch": "main"},
+                    ],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        ci_items = [i for i in items if "Fix failing CI" in i]
+        assert len(ci_items) == 2, \
+            "Different CI names should produce separate action items"
+
+    def test_duplicate_security_cves_deduplicated(self):
+        """Same CVE appearing multiple times should produce only one action item."""
+        data = {
+            "security": {
+                "alerts": [
+                    {"cve_id": "CVE-2025-1234", "product": "fastapi", "severity": "HIGH", "score": 8.5, "description": "Auth bypass"},
+                    {"cve_id": "CVE-2025-1234", "product": "fastapi", "severity": "HIGH", "score": 8.5, "description": "Auth bypass again"},
+                ],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        cve_items = [i for i in items if "CVE-2025-1234" in i]
+        assert len(cve_items) == 1, \
+            "Same CVE ID and severity should produce only one action item"
+
+    def test_stale_prs_unique_per_number(self):
+        """Different stale PRs should each produce unique action items."""
+        from datetime import datetime, timezone, timedelta
+        five_days_ago = (datetime.now(timezone.utc) - timedelta(days=5)).isoformat()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": 10, "title": "PR A", "createdAt": five_days_ago},
+                        {"number": 20, "title": "PR B", "createdAt": five_days_ago},
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        stale_items = [i for i in items if "stale PR" in i]
+        assert len(stale_items) == 2, \
+            "Different PR numbers should each produce a unique action item"
+
+    def test_seen_set_used_in_generate_action_items(self):
+        """generate_action_items should use a seen set for deduplication."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.generate_action_items)
+        assert "seen" in source, \
+            "generate_action_items should use a 'seen' set for deduplication"
+        assert "if text not in seen" in source, \
+            "generate_action_items should check 'if text not in seen' before appending"
+
+
+class TestTestFileSelfConsistency(unittest.TestCase):
+    """Verify the test file itself doesn't have latent bugs."""
+
+    def test_no_undefined_variable_references_in_test_shell_script_merge_handler(self):
+        """test_shell_script_merge_handles_missing_yaml should not reference a variable
+        different from the one used to store the file content."""
+        with open(__file__) as f:
+            file_content = f.read()
+        # Find the method
+        method_start = file_content.find("def test_shell_script_merge_handles_missing_yaml")
+        if method_start == -1:
+            return
+        method_end = file_content.find("\n    def ", method_start + 1)
+        if method_end == -1:
+            method_end = file_content.find("\nclass ", method_start + 1)
+        method_body = file_content[method_start:method_end] if method_end > method_start else file_content[method_start:]
+        # Find which variable name stores the config.py content in this method
+        # It should be config_content (from self._read_module_file("config.py"))
+        config_var_line = None
+        for line in method_body.split("\n"):
+            if "_read_module_file" in line and "config.py" in line:
+                config_var_line = line.strip()
+                break
+        if config_var_line:
+            # Extract the variable name (e.g. "config_content = self._read_module_file...")
+            var_name = config_var_line.split("=")[0].strip()
+            # The slicing fallback should use the same variable name, not a different one
+            # e.g. if var_name is "config_content", then "config_content[:500]" is correct
+            # but "content[:500]" would be a NameError
+            assert var_name + "[:500]" in method_body or var_name + "[:import_section_end]" in method_body, \
+                f"Slicing fallback should use variable '{var_name}', not an undefined variable"
+
+
 if __name__ == "__main__":
+    unittest.main()
     unittest.main()
