@@ -11,9 +11,9 @@ from pathlib import Path
 
 try:
     import yaml
+    YAML_AVAILABLE = True
 except ImportError:
-    print("Error: PyYAML required. Install with: pip install pyyaml", file=sys.stderr)
-    sys.exit(1)
+    YAML_AVAILABLE = False
 
 CONFIG_PATH = Path(os.environ.get(
     "PULSE_CONFIG_PATH",
@@ -55,6 +55,9 @@ def load_config(config_path=None):
     path = Path(config_path) if config_path else CONFIG_PATH
 
     if path.exists():
+        if not YAML_AVAILABLE:
+            print("Error: PyYAML required to load config file. Install with: pip install pyyaml", file=sys.stderr)
+            sys.exit(1)
         with open(path) as f:
             user_config = yaml.safe_load(f) or {}
         result = merge_config(DEFAULT_CONFIG, user_config)
@@ -125,4 +128,8 @@ def get_preferences(config=None):
 
 if __name__ == "__main__":
     config = load_config()
-    print(yaml.dump(config, default_flow_style=False))
+    if YAML_AVAILABLE:
+        print(yaml.dump(config, default_flow_style=False))
+    else:
+        import json
+        print(json.dumps(config, indent=2))

@@ -2030,3 +2030,97 @@ class TestSkillMdConfigExampleMatchesDefaults(unittest.TestCase):
         # DEFAULT_CONFIG pypi: [fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests]
         assert "fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests" in content, \
             "SKILL.md pypi deps should match DEFAULT_CONFIG (fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests)"
+
+
+class TestPyYamlGracefulDegradation(unittest.TestCase):
+    """Verify config.py works without PyYAML when no user config file exists."""
+
+    MODULES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
+    SCRIPTS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+
+    def _read_module_file(self, filename):
+        with open(os.path.join(self.MODULES_DIR, filename)) as f:
+            return f.read()
+
+    def _read_shell_script(self):
+        with open(os.path.join(self.SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            return f.read()
+
+    def test_config_has_yaml_available_flag(self):
+        """config.py should define YAML_AVAILABLE flag instead of sys.exit on import."""
+        content = self._read_module_file("config.py")
+        assert "YAML_AVAILABLE" in content, "config.py should have YAML_AVAILABLE flag"
+        # Verify no sys.exit in the import section (before the first function definition)
+        import_section_end = content.find("def load_config")
+        import_section = content[:import_section_end] if import_section_end > 0 else content[:500]
+        assert "sys.exit(1)" not in import_section, \
+            "config.py import section should NOT contain sys.exit — yaml failure should be deferred"
+
+    def test_config_works_without_yaml_no_config_file(self):
+        """load_config should work without yaml when no config file exists (uses defaults)."""
+        # Remove yaml from sys.modules to simulate missing PyYAML
+        yaml_mod = sys.modules.get("yaml")
+        sys.modules["yaml"] = None
+        try:
+            import importlib
+            config_mod = importlib.import_module("config")
+            importlib.reload(config_mod)
+            assert config_mod.YAML_AVAILABLE is False
+            cfg = config_mod.load_config(config_path="/nonexistent/path.yml")
+            assert "repos" in cfg
+            assert len(cfg["repos"]) == 6
+        finally:
+            if yaml_mod is not None:
+                sys.modules["yaml"] = yaml_mod
+            else:
+                del sys.modules["yaml"]
+            importlib.reload(config)
+
+    def test_config_fails_without_yaml_when_config_file_exists(self):
+        """load_config should sys.exit when yaml missing AND user config file exists."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            f.write("repos:\n  - name: test-repo\n    owner: test-owner\n")
+            config_path = f.name
+        try:
+            yaml_mod = sys.modules.get("yaml")
+            sys.modules["yaml"] = None
+            try:
+                import importlib
+                config_mod = importlib.import_module("config")
+                importlib.reload(config_mod)
+                with self.assertRaises(SystemExit):
+                    config_mod.load_config(config_path=config_path)
+            finally:
+                if yaml_mod is not None:
+                    sys.modules["yaml"] = yaml_mod
+                else:
+                    del sys.modules["yaml"]
+                importlib.reload(config)
+        finally:
+            os.unlink(config_path)
+
+    def test_shell_script_merge_handles_missing_yaml(self):
+        """Shell script merge section should produce valid combined JSON even when
+        config.py can't load yaml (no user config file → uses defaults)."""
+        shell_content = self._read_shell_script()
+        # The merge section has try/except that catches Exception
+        # SystemExit is NOT caught by except Exception, so config.py must NOT sys.exit
+        # when yaml is unavailable and no config file exists
+        assert "except Exception" in shell_content, \
+            "Shell script merge should have Exception catch for config import failure"
+        # Verify config.py doesn't sys.exit on import (the fix)
+        config_content = self._read_module_file("config.py")
+        import_section_end = config_content.find("def load_config")
+        import_section = config_content[:import_section_end] if import_section_end > 0 else content[:500]
+        assert "sys.exit(1)" not in import_section, \
+            "config.py import section should NOT contain sys.exit — yaml failure should be deferred"
+
+    def test_config_main_block_graceful_without_yaml(self):
+        """config.py __main__ block should work without yaml (JSON fallback)."""
+        content = self._read_module_file("config.py")
+        main_block_start = content.find("if __name__")
+        if main_block_start == -1:
+            return  # No __main__ block
+        main_block = content[main_block_start:]
+        assert "YAML_AVAILABLE" in main_block or "json.dumps" in main_block, \
+            "config.py __main__ should have yaml fallback (JSON output when yaml unavailable)"

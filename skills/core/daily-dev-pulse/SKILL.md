@@ -153,7 +153,7 @@ Structured with `##` sections, tables, and checklist items. Used when Claude nee
 
 - **gh CLI** — GitHub API (`brew install gh` or see https://cli.github.com)
 - **python3** — Script execution
-- **PyYAML** — Config file parsing (`pip install pyyaml`)
+- **PyYAML** — Config file parsing (`pip install pyyaml`; only required when using custom config file — defaults work without it)
 - **url-fetcher skill** — Fallback content extraction when direct API fails for news sources
 - **presearch skill** — Optional trend discovery for tech stack frameworks
 
