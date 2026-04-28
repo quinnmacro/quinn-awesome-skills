@@ -118,6 +118,64 @@ class TestConfig(unittest.TestCase):
         assert "python" in stack
         assert "FastAPI" in stack["frameworks"]
 
+    def test_env_override_lookback_days(self):
+        """PULSE_LOOKBACK_DAYS env var should override config lookback_days."""
+        original = os.environ.get("PULSE_LOOKBACK_DAYS")
+        os.environ["PULSE_LOOKBACK_DAYS"] = "30"
+        cfg = config.load_config(config_path="/nonexistent/path.yml")
+        assert cfg["preferences"]["lookback_days"] == 30
+        if original is None:
+            os.environ.pop("PULSE_LOOKBACK_DAYS", None)
+        else:
+            os.environ["PULSE_LOOKBACK_DAYS"] = original
+
+    def test_env_override_lookback_days_invalid(self):
+        """Invalid PULSE_LOOKBACK_DAYS should be ignored."""
+        original = os.environ.get("PULSE_LOOKBACK_DAYS")
+        os.environ["PULSE_LOOKBACK_DAYS"] = "not-a-number"
+        cfg = config.load_config(config_path="/nonexistent/path.yml")
+        assert cfg["preferences"]["lookback_days"] == 7  # default
+        if original is None:
+            os.environ.pop("PULSE_LOOKBACK_DAYS", None)
+        else:
+            os.environ["PULSE_LOOKBACK_DAYS"] = original
+
+    def test_env_override_repos_full_path(self):
+        """PULSE_REPOS with owner/name format should filter repos."""
+        original = os.environ.get("PULSE_REPOS")
+        os.environ["PULSE_REPOS"] = "quinnmacro/gnhf,quinnmacro/weather-cli"
+        cfg = config.load_config(config_path="/nonexistent/path.yml")
+        assert len(cfg["repos"]) == 2
+        assert cfg["repos"][0]["name"] == "gnhf"
+        assert cfg["repos"][1]["name"] == "weather-cli"
+        if original is None:
+            os.environ.pop("PULSE_REPOS", None)
+        else:
+            os.environ["PULSE_REPOS"] = original
+
+    def test_env_override_repos_by_name(self):
+        """PULSE_REPOS with just repo name should match from defaults."""
+        original = os.environ.get("PULSE_REPOS")
+        os.environ["PULSE_REPOS"] = "gnhf"
+        cfg = config.load_config(config_path="/nonexistent/path.yml")
+        assert len(cfg["repos"]) == 1
+        assert cfg["repos"][0]["name"] == "gnhf"
+        if original is None:
+            os.environ.pop("PULSE_REPOS", None)
+        else:
+            os.environ["PULSE_REPOS"] = original
+
+    def test_env_override_repos_all(self):
+        """PULSE_REPOS=all should keep all default repos."""
+        original = os.environ.get("PULSE_REPOS")
+        os.environ["PULSE_REPOS"] = "all"
+        cfg = config.load_config(config_path="/nonexistent/path.yml")
+        assert len(cfg["repos"]) == 6
+        if original is None:
+            os.environ.pop("PULSE_REPOS", None)
+        else:
+            os.environ["PULSE_REPOS"] = original
+
 
 class TestGithubScanner(unittest.TestCase):
     """Test GitHub scanner with mock gh output."""

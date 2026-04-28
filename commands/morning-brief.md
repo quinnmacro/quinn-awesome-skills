@@ -1,0 +1,23 @@
+---
+description: 开发者早报（别名）— 与 /daily-dev-pulse 相同
+allowed-tools: Bash(gh *), Bash(curl *), Bash(bash *), Bash(python3 *), Bash(mkdir *), Bash(cat *)
+---
+
+# /morning-brief
+
+`/morning-brief` 是 `/daily-dev-pulse` 的别名，生成个性化开发者早报。
+
+## 用法
+
+与 `/daily-dev-pulse` 完全相同：
+
+```
+/morning-brief                  # 完整早报 (默认)
+/morning-brief --focus security # 只看安全警报
+/morning-brief --format md      # Markdown 输出
+/morning-brief --days 30        # 30天活动回顾
+```
+
+## 工作流
+
+运行 `bash ~/.claude/skills/daily-dev-pulse/scripts/daily-dev-pulse.sh --format md`

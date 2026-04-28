@@ -1,8 +1,10 @@
 """Configuration loader for Daily Dev Pulse.
 
 Reads ~/.quinn-skills/pulse-config.yml or falls back to defaults.
+Supports env var overrides for CLI arguments (--days, --repos).
 """
 
+import copy
 import os
 import sys
 from pathlib import Path
@@ -47,15 +49,39 @@ DEFAULT_CONFIG = {
 
 
 def load_config(config_path=None):
-    """Load configuration from YAML file or return defaults."""
+    """Load configuration from YAML file or return defaults, with env var overrides."""
     path = Path(config_path) if config_path else CONFIG_PATH
 
     if path.exists():
         with open(path) as f:
             user_config = yaml.safe_load(f) or {}
-        return merge_config(DEFAULT_CONFIG, user_config)
+        result = merge_config(DEFAULT_CONFIG, user_config)
+    else:
+        result = copy.deepcopy(DEFAULT_CONFIG)
 
-    return DEFAULT_CONFIG.copy()
+    # Apply CLI overrides from environment variables
+    lookback_days = os.environ.get("PULSE_LOOKBACK_DAYS")
+    if lookback_days:
+        try:
+            result["preferences"]["lookback_days"] = int(lookback_days)
+        except ValueError:
+            pass
+
+    repos_filter = os.environ.get("PULSE_REPOS")
+    if repos_filter and repos_filter != "all":
+        requested = []
+        for entry in repos_filter.split(","):
+            parts = entry.strip().split("/")
+            if len(parts) == 2:
+                requested.append({"owner": parts[0], "name": parts[1]})
+            elif len(parts) == 1:
+                for r in result.get("repos", []):
+                    if r["name"] == parts[0].strip():
+                        requested.append(r)
+        if requested:
+            result["repos"] = requested
+
+    return result
 
 
 def merge_config(default, user):

@@ -42,8 +42,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Export config path for Python modules
+# Export config path and CLI overrides for Python modules
 export PULSE_CONFIG_PATH="${CONFIG_PATH}"
+export PULSE_LOOKBACK_DAYS="${DAYS}"
+export PULSE_REPOS="${REPOS}"
 
 # Check gh CLI availability
 GH_AVAILABLE=false
