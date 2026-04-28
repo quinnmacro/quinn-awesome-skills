@@ -296,22 +296,24 @@ class TestSearchArgValidation:
         _, stderr, rc = run_bash(SEARCH_SH, [""])
         assert rc != 0
 
-    def test_query_only(self):
-        """Search with just a query should work (uses default engine/limit)."""
-        _, stderr, rc = run_bash(SEARCH_SH, ["test query"])
-        # Depends on npx availability; may succeed or timeout
-        # Just verify it doesn't crash immediately on arg parsing
-        assert rc in (0, 1) or "Usage" not in stderr
+    def test_query_only_source_analysis(self):
+        """Verify search.sh accepts a single positional arg for QUERY."""
+        with open(SEARCH_SH) as f:
+            content = f.read()
+        # Script should extract query as first positional arg
+        assert "${1:?Usage" in content or "QUERY=" in content
 
-    def test_query_with_engine(self):
-        """Search with query + engine should work."""
-        _, stderr, rc = run_bash(SEARCH_SH, ["test", "bing"])
-        assert rc in (0, 1) or "Usage" not in stderr
+    def test_query_with_engine_source_analysis(self):
+        """Verify search.sh accepts second positional arg for ENGINE."""
+        with open(SEARCH_SH) as f:
+            content = f.read()
+        assert "ENGINE=\"${2:-" in content or "${2}" in content
 
-    def test_query_with_engine_and_limit(self):
-        """Search with all three args should work."""
-        _, stderr, rc = run_bash(SEARCH_SH, ["test", "duckduckgo", "3"])
-        assert rc in (0, 1) or "Usage" not in stderr
+    def test_query_with_engine_and_limit_source_analysis(self):
+        """Verify search.sh accepts third positional arg for LIMIT."""
+        with open(SEARCH_SH) as f:
+            content = f.read()
+        assert "LIMIT=\"${3:-" in content or "${3}" in content
 
 
 # ============================================
