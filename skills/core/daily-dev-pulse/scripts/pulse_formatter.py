@@ -107,7 +107,7 @@ def format_terminal(data):
 
     # GitHub error
     if github.get("error"):
-        lines.append(f"{Colors.YELLOW}⚠️ GitHub: {github['error']}{Colors.RESET}")
+        lines.append(f"{Colors.YELLOW}⚠️ GitHub: {github.get('error')}{Colors.RESET}")
         lines.append("")
 
     # Open PRs & Issues
@@ -394,7 +394,11 @@ def main():
                         help="Output format")
     args = parser.parse_args()
 
-    data = json.load(sys.stdin)
+    try:
+        data = json.load(sys.stdin)
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Error: Invalid JSON input — {e}", file=sys.stderr)
+        sys.exit(1)
 
     if args.format == "terminal":
         print(format_terminal(data))

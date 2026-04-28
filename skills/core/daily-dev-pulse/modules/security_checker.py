@@ -79,13 +79,14 @@ def fetch_cves(product, version="", days=30):
         score = 0.0
 
         cvss_v31 = metrics.get("cvssMetricV31", [])
-        if cvss_v31:
+        if isinstance(cvss_v31, list) and cvss_v31:
             severity = (cvss_v31[0].get("cvssData", {}).get("baseSeverity") or "unknown")
             score = cvss_v31[0].get("cvssData", {}).get("baseScore") or 0.0
-        elif metrics.get("cvssMetricV30"):
-            cvss_v30 = metrics.get("cvssMetricV30")
-            severity = (cvss_v30[0].get("cvssData", {}).get("baseSeverity") or "unknown")
-            score = cvss_v30[0].get("cvssData", {}).get("baseScore") or 0.0
+        else:
+            cvss_v30 = metrics.get("cvssMetricV30", [])
+            if isinstance(cvss_v30, list) and cvss_v30:
+                severity = (cvss_v30[0].get("cvssData", {}).get("baseSeverity") or "unknown")
+                score = cvss_v30[0].get("cvssData", {}).get("baseScore") or 0.0
 
         results.append({
             "cve_id": cve_id,
@@ -114,7 +115,7 @@ def check_security(config=None):
         # Sleep between consecutive NVD API calls to respect rate limit
         if i > 0 and rate_limit > 0:
             time.sleep(rate_limit)
-        cves = fetch_cves(term["product"], term.get("version", ""), days)
+        cves = fetch_cves(term.get("product") or "", term.get("version", ""), days)
         all_alerts.extend(cves)
 
     # Sort by severity score descending
@@ -124,8 +125,8 @@ def check_security(config=None):
     seen = set()
     unique_alerts = []
     for alert in all_alerts:
-        if alert["cve_id"] not in seen:
-            seen.add(alert["cve_id"])
+        if alert.get("cve_id") not in seen:
+            seen.add(alert.get("cve_id"))
             unique_alerts.append(alert)
 
     return {

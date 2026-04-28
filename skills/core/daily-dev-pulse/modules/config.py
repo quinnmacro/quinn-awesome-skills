@@ -83,7 +83,7 @@ def load_config(config_path=None):
                 requested.append({"owner": parts[0], "name": parts[1]})
             elif len(parts) == 1:
                 for r in result.get("repos", []):
-                    if r["name"] == parts[0].strip():
+                    if r.get("name") == parts[0].strip():
                         requested.append(r)
         if requested:
             result["repos"] = requested

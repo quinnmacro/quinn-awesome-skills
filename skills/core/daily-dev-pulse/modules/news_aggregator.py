@@ -216,7 +216,7 @@ def aggregate_news(config=None):
             if fallback:
                 all_headlines.append({
                     "id": "hn-fallback",
-                    "title": fallback["title"],
+                    "title": fallback.get("title") or "",
                     "url": "https://news.ycombinator.com",
                     "score": 0,
                     "comments": 0,
@@ -234,7 +234,7 @@ def aggregate_news(config=None):
             if fallback:
                 all_headlines.append({
                     "id": "devto-fallback",
-                    "title": fallback["title"],
+                    "title": fallback.get("title") or "",
                     "url": "https://dev.to/trending",
                     "score": 0,
                     "comments": 0,
@@ -252,7 +252,7 @@ def aggregate_news(config=None):
             if fallback:
                 all_headlines.append({
                     "id": "lobsters-fallback",
-                    "title": fallback["title"],
+                    "title": fallback.get("title") or "",
                     "url": "https://lobste.rs",
                     "score": 0,
                     "comments": 0,

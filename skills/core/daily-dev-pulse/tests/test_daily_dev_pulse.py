@@ -2295,14 +2295,16 @@ class TestMaxIssuesPerRepo(unittest.TestCase):
         """config-example.yml should include max_issues_per_repo preference."""
         config_example_path = os.path.join(os.path.dirname(__file__), "..", "config-example.yml")
         if os.path.exists(config_example_path):
-            content = open(config_example_path).read()
+            with open(config_example_path) as f:
+                content = f.read()
             assert "max_issues_per_repo" in content, \
                 "config-example.yml should include max_issues_per_repo preference"
 
     def test_skill_md_includes_max_issues_per_repo(self):
         """SKILL.md config section should include max_issues_per_repo."""
         skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
-        content = open(skill_md_path).read()
+        with open(skill_md_path) as f:
+            content = f.read()
         assert "max_issues_per_repo" in content, \
             "SKILL.md should include max_issues_per_repo preference"
 
@@ -2386,7 +2388,8 @@ class TestMaxActionItems(unittest.TestCase):
 
     def test_shell_script_includes_max_action_items_in_preferences(self):
         """Shell script combined JSON preferences should include max_action_items."""
-        content = open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")).read()
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
         assert "max_action_items" in content, \
             "Shell script should include max_action_items in preferences"
 
@@ -2394,14 +2397,16 @@ class TestMaxActionItems(unittest.TestCase):
         """config-example.yml should include max_action_items preference."""
         config_example_path = os.path.join(os.path.dirname(__file__), "..", "config-example.yml")
         if os.path.exists(config_example_path):
-            content = open(config_example_path).read()
+            with open(config_example_path) as f:
+                content = f.read()
             assert "max_action_items" in content, \
                 "config-example.yml should include max_action_items preference"
 
     def test_skill_md_includes_max_action_items(self):
         """SKILL.md config section should include max_action_items."""
         skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
-        content = open(skill_md_path).read()
+        with open(skill_md_path) as f:
+            content = f.read()
         assert "max_action_items" in content, \
             "SKILL.md should include max_action_items preference"
 
@@ -2412,7 +2417,8 @@ class TestSkillMdStep4Accuracy(unittest.TestCase):
     def test_step4_mentions_stale_pr_days_configurable(self):
         """Step 4 should describe stale PR threshold as configurable, not hardcoded."""
         skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
-        content = open(skill_md_path).read()
+        with open(skill_md_path) as f:
+            content = f.read()
         # Should NOT say "open > 3 days" (hardcoded threshold)
         assert "open > 3 days" not in content, \
             "SKILL.md Step 4 should not hardcode stale PR threshold as '3 days'"
@@ -2423,21 +2429,24 @@ class TestSkillMdStep4Accuracy(unittest.TestCase):
     def test_step4_does_not_claim_assigned_issues(self):
         """Step 4 should NOT claim 'assigned to you' — implementation flags recently created issues."""
         skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
-        content = open(skill_md_path).read()
+        with open(skill_md_path) as f:
+            content = f.read()
         assert "assigned to you" not in content, \
             "SKILL.md Step 4 should not claim 'assigned to you' — implementation flags recently created issues within lookback_days"
 
     def test_step4_mentions_lookback_days_for_issues(self):
         """Step 4 should mention lookback_days as the issue filtering criterion."""
         skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
-        content = open(skill_md_path).read()
+        with open(skill_md_path) as f:
+            content = f.read()
         assert "lookback_days" in content, \
             "SKILL.md Step 4 should mention lookback_days as the criterion for flagging issues"
 
     def test_step4_mentions_max_issues_per_repo(self):
         """Step 4 should mention max_issues_per_repo cap."""
         skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
-        content = open(skill_md_path).read()
+        with open(skill_md_path) as f:
+            content = f.read()
         assert "max_issues_per_repo" in content, \
             "SKILL.md Step 4 should mention max_issues_per_repo cap"
 
@@ -3121,7 +3130,8 @@ class TestDictGetNoneVsDefault(unittest.TestCase):
 
     def test_github_scanner_date_none_safe(self):
         """date field must use (or "")[:10] pattern."""
-        source = open(os.path.join(MODULES_DIR, "github_scanner.py")).read()
+        with open(os.path.join(MODULES_DIR, "github_scanner.py")) as f:
+            source = f.read()
         assert '.get("date", "")[:10]' not in source, \
             "date must use (or '')[:10] pattern, not .get('date', '')[:10]"
         assert '.get("date") or ""' in source, \
@@ -3211,13 +3221,15 @@ class TestDictGetNoneVsDefault(unittest.TestCase):
         """When commit dict has sha=None, (or '')[:7] returns ''[:7]='' (not TypeError)."""
         result = github_scanner.scan_commits.__code__.co_consts
         # Verify the function definition exists and uses safe patterns
-        source = open(os.path.join(MODULES_DIR, "github_scanner.py")).read()
+        with open(os.path.join(MODULES_DIR, "github_scanner.py")) as f:
+            source = f.read()
         assert "(c.get(\"sha\") or \"\")[:7]" in source, \
             "github_scanner must use safe None-handling pattern for sha"
 
     def test_pulse_formatter_action_items_repo_name_safe(self):
         """Action items must use repo.get('repo') or 'unknown', not repo['repo']."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         # All repo['repo'] should be replaced with .get('repo') or 'unknown'
         assert "repo[\"repo\"]" not in source and "repo['repo']" not in source, \
             "generate_action_items must use repo.get('repo') pattern, not direct key access"
@@ -3229,51 +3241,59 @@ class TestIsinstanceGuardsComplete(unittest.TestCase):
 
     def test_repos_isinstance_guard_in_format_terminal(self):
         """repos must have isinstance(list) guard before iteration."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         # In format_terminal, the repos check should include isinstance
         assert "isinstance(repos, list) and repos" in source, \
             "format_terminal must check isinstance(repos, list) before iterating"
 
     def test_alerts_isinstance_guard_in_format_terminal(self):
         """alerts must have isinstance(list) guard before iteration."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         assert "isinstance(alerts, list) and alerts" in source, \
             "format_terminal Security Alerts must check isinstance(alerts, list)"
 
     def test_updates_isinstance_guard_in_format_terminal(self):
         """updates must have isinstance(list) guard before iteration."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         assert "isinstance(updates, list) and updates" in source, \
             "format_terminal Package Updates must check isinstance(updates, list)"
 
     def test_headlines_isinstance_guard_in_format_terminal(self):
         """headlines must have isinstance(list) guard before iteration."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         assert "isinstance(headlines, list) and headlines" in source, \
             "format_terminal News must check isinstance(headlines, list)"
 
     def test_repos_isinstance_guard_in_format_markdown(self):
         """repos must have isinstance guard in markdown format too."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         # format_markdown should also have isinstance(repos, list) check
         self.assertIn("isinstance(repos, list)", source)
 
     def test_action_items_repos_isinstance_guard(self):
         """generate_action_items must have isinstance(repos, list) guard."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         assert "isinstance(repos, list)" in source, \
             "generate_action_items must guard repos with isinstance(list)"
 
     def test_action_items_alerts_isinstance_guard(self):
         """generate_action_items must have isinstance(alerts, list) guard."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         # The alerts section in action items must use isinstance
         assert "isinstance(alerts, list)" in source, \
             "generate_action_items must guard alerts with isinstance(list)"
 
     def test_ci_runs_isinstance_guard_in_terminal(self):
         """ci_runs in terminal format must use isinstance(list) guard."""
-        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            source = f.read()
         # The CI section should use isinstance(ci_runs, list) check
         assert "isinstance(ci_runs, list) and ci_runs" in source, \
             "format_terminal CI Status must check isinstance(ci_runs, list)"
@@ -3378,3 +3398,135 @@ class TestShellScriptArgumentValidation(unittest.TestCase):
         # Should store cvss_v30 = metrics.get("cvssMetricV30") and reuse it
         assert "cvss_v30 = metrics.get" in content, \
             "cvssMetricV30 should be stored in a variable to avoid double lookup"
+
+
+class TestDirectDictKeyAccessRemoved(unittest.TestCase):
+    """Verify that direct dict['key'] access patterns are replaced with .get() across all modules."""
+
+    def test_github_scanner_repo_key_access_safe(self):
+        """github_scanner must use repo.get('owner')/.get('name'), not repo['owner']/repo['name']."""
+        with open(os.path.join(MODULES_DIR, "github_scanner.py")) as f:
+            content = f.read()
+        # Should NOT have direct key access for owner or name
+        assert 'repo["owner"]' not in content and "repo['owner']" not in content, \
+            "github_scanner must use repo.get('owner'), not repo['owner']"
+        assert 'repo["name"]' not in content and "repo['name']" not in content, \
+            "github_scanner must use repo.get('name'), not repo['name']"
+        # Should skip repos with missing owner/name
+        assert "continue" in content, \
+            "github_scanner must skip repos with missing owner/name fields"
+
+    def test_config_repo_name_safe_access(self):
+        """config.py must use r.get('name'), not r['name'] for repo name matching."""
+        with open(os.path.join(MODULES_DIR, "config.py")) as f:
+            content = f.read()
+        # The repo name match in PULSE_REPOS env override must use .get()
+        assert 'r["name"]' not in content and "r['name']" not in content, \
+            "config.py must use r.get('name'), not r['name'] for repo name matching"
+
+    def test_security_checker_product_safe_access(self):
+        """security_checker must use term.get('product'), not term['product']."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert 'term["product"]' not in content and "term['product']" not in content, \
+            "security_checker must use term.get('product'), not term['product']"
+
+    def test_security_checker_cve_id_safe_in_dedup(self):
+        """security_checker dedup must use alert.get('cve_id'), not alert['cve_id']."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert 'alert["cve_id"]' not in content and "alert['cve_id']" not in content, \
+            "security_checker must use alert.get('cve_id'), not alert['cve_id']"
+
+    def test_security_checker_cvss_v30_isinstance_guard(self):
+        """cvssMetricV30 access must have isinstance(list) guard before [0] indexing."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "isinstance(cvss_v30, list)" in content, \
+            "security_checker must guard cvss_v30 with isinstance(list) before indexing"
+
+    def test_package_watcher_sort_key_safe_access(self):
+        """package_watcher sort must use .get() not direct key access."""
+        with open(os.path.join(MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        assert 'x["registry"]' not in content and "x['registry']" not in content, \
+            "package_watcher sort must use x.get('registry'), not x['registry']"
+
+    def test_news_aggregator_fallback_title_safe_access(self):
+        """news_aggregator must use fallback.get('title'), not fallback['title']."""
+        with open(os.path.join(MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        assert 'fallback["title"]' not in content and "fallback['title']" not in content, \
+            "news_aggregator must use fallback.get('title'), not fallback['title']"
+
+    def test_pulse_formatter_error_safe_access(self):
+        """pulse_formatter must use github.get('error'), not github['error']."""
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        # The line that prints the error should use .get() consistently
+        assert "github['error']" not in content and "github[\"error\"]" not in content, \
+            "pulse_formatter must use github.get('error'), not github['error']"
+
+    def test_pulse_formatter_stdin_error_handling(self):
+        """pulse_formatter must handle invalid JSON on stdin gracefully."""
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        assert "json.JSONDecodeError" in content, \
+            "pulse_formatter must handle json.JSONDecodeError on stdin"
+        assert "sys.exit(1)" in content, \
+            "pulse_formatter must exit with error code on invalid input"
+
+
+class TestPackageWatcherFrameworksNoneSafe(unittest.TestCase):
+    """Verify that tech_stack frameworks slicing is None-safe."""
+
+    def test_frameworks_none_safe_slicing(self):
+        """tech_stack.get('frameworks') must use (or [])[:2] pattern, not .get(key, [])[:2]."""
+        with open(os.path.join(MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        assert '.get("frameworks", [])[:2]' not in content, \
+            "frameworks must use (or [])[:2] pattern, not .get('frameworks', [])[:2]"
+        assert '(tech_stack.get("frameworks") or [])[:2]' in content or \
+               "(tech_stack.get('frameworks') or [])[:2]" in content, \
+            "frameworks must use (tech_stack.get('frameworks') or [])[:2] pattern"
+
+    def test_scan_all_repos_skips_malformed_repo(self):
+        """scan_all_repos must skip repos with missing owner or name."""
+        # Verify that malformed repos are skipped, not crash with KeyError
+        with patch.object(github_scanner, "scan_commits", return_value=[]), \
+             patch.object(github_scanner, "scan_prs", return_value=[]), \
+             patch.object(github_scanner, "scan_issues", return_value=[]), \
+             patch.object(github_scanner, "scan_ci_status", return_value=[]):
+            # Config with a repo missing 'owner' key
+            bad_config = copy.deepcopy(config.DEFAULT_CONFIG)
+            bad_config["repos"].append({"name": "orphanned-repo"})  # Missing 'owner'
+            bad_config["repos"].append({"owner": "ghost"})  # Missing 'name'
+            result = github_scanner.scan_all_repos(bad_config)
+            # Should not crash and should only include valid repos
+            assert isinstance(result, dict), "scan_all_repos must return dict"
+            assert "repos" in result, "scan_all_repos must include repos key"
+            # Only well-formed repos should appear in results
+            repo_names = [r.get("repo") for r in result.get("repos", [])]
+            assert "quinnmacro/quinnpm" in repo_names, \
+                "Valid repos should still be scanned"
+
+
+class TestResourceWarningPrevention(unittest.TestCase):
+    """Verify no bare open().read() patterns remain in test file (causing ResourceWarnings)."""
+
+    def test_no_bare_open_read_in_test_file(self):
+        """Check for bare open-read calls in test code (ResourceWarning source)."""
+        with open(__file__) as f:
+            content = f.read()
+        # Find any assignment line with open(...).read() not preceded by 'with'
+        for line in content.split("\n"):
+            stripped = line.strip()
+            # Skip docstrings and comments
+            if stripped.startswith('"') or stripped.startswith("'") or stripped.startswith("#"):
+                continue
+            # Skip lines inside string literals (triple-quoted)
+            if stripped.startswith('"""') or stripped.startswith("'''"):
+                continue
+            # Check for assignment pattern: content = open(...).read()
+            if "= open(" in stripped and ".read()" in stripped and "with open" not in stripped:
+                assert False, f"Bare open-read found: {stripped}"

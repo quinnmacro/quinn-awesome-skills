@@ -156,14 +156,14 @@ def watch_packages(config=None):
         updates.append(fetch_pypi_info(package))
 
     # Trend discovery: search for alternatives/trends for tech stack categories
-    for framework in tech_stack.get("frameworks", [])[:2]:
+    for framework in (tech_stack.get("frameworks") or [])[:2]:
         trend = search_package_trends_via_presearch(f"{framework} alternative framework trending")
         if trend:
             trends.append(trend)
             presearch_used = True
 
     # Sort: npm first, then pypi, alphabetically within each group
-    updates.sort(key=lambda x: (x["registry"], x["package"]))
+    updates.sort(key=lambda x: (x.get("registry") or "", x.get("package") or ""))
 
     return {
         "source": "packages",

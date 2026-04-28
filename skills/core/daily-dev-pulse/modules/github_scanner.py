@@ -90,8 +90,10 @@ def scan_all_repos(config=None):
 
     results = []
     for repo in repos:
-        owner = repo["owner"]
-        name = repo["name"]
+        owner = repo.get("owner") or ""
+        name = repo.get("name") or ""
+        if not owner or not name:
+            continue
         full_name = f"{owner}/{name}"
 
         commits = scan_commits(owner, name, days)
