@@ -2,8 +2,9 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills Count](https://img.shields.io/badge/skills-8-brightgreen)
-![Commands](https://img.shields.io/badge/commands-8-blue)
+![Skills Count](https://img.shields.io/badge/skills-2-brightgreen)
+![Commands](https://img.shields.io/badge/commands-2-blue)
+![External Prompts](https://img.shields.io/badge/external_prompts-7-orange)
 ![MCP Ready](https://img.shields.io/badge/MCP-ready-purple)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-compatible-orange)
 
@@ -39,23 +40,18 @@ quinn-awesome-skills/
 │   ├── core/                  # Core utilities
 │   │   ├── url-fetcher/       # URL → Markdown converter
 │   │   └── presearch/         # Developer resource search
-│   ├── investment/            # Investment analysis
-│   │   ├── investor-distiller/    # Investment wisdom extraction
-│   │   ├── macro-brief/           # Macroeconomic analysis
-│   │   └── earnings-analyzer/     # Financial statement analysis
-│   └── creative/              # Creative tools
-│       ├── creative-prompt/       # Ideation assistant
-│       ├── dev-joke/              # Developer humor
-│       └── code-poet/             # Code poetry
+│   └── external/              # External data source prompts
+│       ├── bloomberg/         # Bloomberg AI (ASKB) prompts
+│       │   ├── company/       # Company perspective (4 templates)
+│       │   ├── sector/        # Sector perspective (1 template)
+│       │   ├── event/         # Event perspective (1 template)
+│       │   └── market/        # Market perspective (1 template)
+│       └── wind/              # Wind prompts (placeholder)
 ├── commands/                  # Slash commands (explicit triggers)
 │   ├── url-fetcher.md
 │   ├── presearch.md
 │   └── ...
-├── connectors/                # MCP data connectors
-│   └── mcp-servers.json       # Data provider configurations
 └── scripts/                   # Shared utilities
-    ├── llm_agent.py           # LLM integration
-    └── llm.sh                 # Shell wrapper
 ```
 
 ### Three-Layer Architecture
@@ -84,21 +80,27 @@ This separation means:
 | [url-fetcher](skills/core/url-fetcher/) | Fetch any URL as clean Markdown. WeChat, Feishu, PDF, Web search. | `/url-fetcher` | ✅ Production |
 | [presearch](skills/core/presearch/) | Search developer resources. GitHub, npm, PyPI, Docker Hub, arXiv. | `/presearch` | ✅ Production |
 
-#### Investment Skills
+#### External Skills — Bloomberg AI Prompts
 
-| Skill | Description | Command | Status |
-|-------|-------------|---------|--------|
-| [investor-distiller](skills/investment/investor-distiller/) | Extract investment wisdom from legendary investors. | `/investor-distiller` | ✅ Production |
-| [macro-brief](skills/investment/macro-brief/) | Generate macroeconomic briefs and market analysis. | `/macro-brief` | ✅ Production |
-| [earnings-analyzer](skills/investment/earnings-analyzer/) | Analyze financial statements and earnings reports. | `/earnings-analyzer` | ✅ Production |
+Structured prompts for Bloomberg Terminal `{AKSB <GO>}` AI assistant.
 
-#### Creative Skills
+| Perspective | Template | Use Case |
+|------------|----------|----------|
+| **Company** | [trends-analysis](skills/external/bloomberg/company/trends-analysis/) | Stock + financial + operational trends |
+| **Company** | [management-governance](skills/external/bloomberg/company/management-governance/) | Governance assessment, N=4 periods |
+| **Company** | [company-snapshot](skills/external/bloomberg/company/company-snapshot/) | Investment thesis primer |
+| **Company** | [performance-tracker](skills/external/bloomberg/company/performance-tracker/) | Quarterly financial tracking (N+5) |
+| **Sector** | [sector-snapshot](skills/external/bloomberg/sector/sector-snapshot/) | Industry + peer analysis |
+| **Event** | [breaking-event](skills/external/bloomberg/event/breaking-event/) | 24-96 hour event analysis |
+| **Market** | [credit-strategy](skills/external/bloomberg/market/credit-strategy/) | Credit market morning briefing |
 
-| Skill | Description | Command | Status |
-|-------|-------------|---------|--------|
-| [creative-prompt](skills/creative/creative-prompt/) | Generate creative prompts for writing and design. | `/creative-prompt` | ✅ Production |
-| [dev-joke](skills/creative/dev-joke/) | Developer jokes and coding humor. | `/dev-joke` | ✅ Production |
-| [code-poet](skills/creative/code-poet/) | Transform code into poetry. | `/code-poet` | ✅ Production |
+**Usage**: Copy template content → Bloomberg Terminal `{AKSB <GO>}` → Replace `{Company/Ticker}` variables.
+
+See [skills/external/bloomberg/README.md](skills/external/bloomberg/README.md) for full documentation.
+
+#### External Skills — Wind (Placeholder)
+
+Future support for Wind AI prompts. See [skills/external/wind/README.md](skills/external/wind/README.md).
 
 ### Detailed Features
 
@@ -146,36 +148,9 @@ Before building, search existing solutions:
 /presearch "machine learning library" poetry # Poetic description
 ```
 
-#### Investment Skills — Professional Financial Analysis
+### Detailed Features
 
-| Skill | Use Case | Output |
-|-------|----------|--------|
-| **investor-distiller** | Extract mental models from Buffett, Munger, Dalio | Investment frameworks, decision trees |
-| **macro-brief** | Daily/weekly economic briefings | Economic indicators, market trends |
-| **earnings-analyzer** | Company financial analysis | Key metrics, trends, investment insights |
-
-```bash
-/investor-distiller 巴菲特              # Buffett's investment philosophy
-/macro-brief weekly                     # Weekly macro summary
-/earnings-analyzer Apple 2024Q4         # Apple earnings analysis
-```
-
-### MCP Data Connectors
-
-All connectors use [Model Context Protocol](https://modelcontextprotocol.io/) for secure, standardized data access:
-
-| Provider | MCP Server | Skills Using |
-|----------|------------|--------------|
-| [GitHub](https://github.com/) | `mcp-github` | presearch, url-fetcher |
-| [Brave Search](https://search.brave.com/) | `mcp-brave-search` | presearch, url-fetcher |
-| arXiv | `mcp-arxiv` | presearch |
-| Playwright | `mcp-playwright` | url-fetcher |
-| Fetch | `mcp-fetch` | url-fetcher |
-| Yahoo Finance | `yahoo-finance` | earnings-analyzer, macro-brief |
-| Alpha Vantage | `alpha-vantage` | earnings-analyzer |
-| FRED | `fred-api` | macro-brief |
-
-### Installation
+#### URL Fetcher — Universal Content Extraction
 
 #### Prerequisites
 
@@ -222,21 +197,6 @@ bash install.sh url-fetcher   # Install only url-fetcher
 /url-fetcher "search query"           # Web search
 /presearch "React framework"
 /presearch "Python async" emoji       # Fun format
-
-# Investment
-/investor-distiller 巴菲特
-/investor-distiller Dalio
-/macro-brief daily
-/macro-brief weekly
-/earnings-analyzer AAPL
-/earnings-analyzer 苹果 2024Q4
-
-# Creative
-/creative-prompt "sci-fi story"
-/dev-joke python
-/dev-joke "debugging"
-/code-poet "quick sort"
-/code-poet --style haiku "recursion"
 ```
 
 #### Skill Auto-Trigger
@@ -247,9 +207,6 @@ Skills automatically activate based on context:
 |-----------------|-----------------|
 | URL in message | url-fetcher |
 | "找库", "找轮子", "有没有现成的" | presearch |
-| "财报分析", "财务报表" | earnings-analyzer |
-| "投资大师", "巴菲特" | investor-distiller |
-| "宏观经济", "市场分析" | macro-brief |
 
 ### Dependencies
 
@@ -298,21 +255,27 @@ FRED_API_KEY=your_key
 | [url-fetcher](skills/core/url-fetcher/) | 将任意 URL 转为 Markdown。微信公众号、飞书、PDF、网页搜索。 | `/url-fetcher` | ✅ 生产可用 |
 | [presearch](skills/core/presearch/) | 开发前搜索现有方案。GitHub、npm、PyPI、Docker Hub、arXiv。 | `/presearch` | ✅ 生产可用 |
 
-#### 投资技能
+#### 外部技能 — Bloomberg AI Prompts
 
-| 技能 | 描述 | 命令 | 状态 |
-|------|------|------|------|
-| [investor-distiller](skills/investment/investor-distiller/) | 蒸馏投资大师的投资哲学和方法论。 | `/investor-distiller` | ✅ 生产可用 |
-| [macro-brief](skills/investment/macro-brief/) | 生成宏观经济简报和市场分析。 | `/macro-brief` | ✅ 生产可用 |
-| [earnings-analyzer](skills/investment/earnings-analyzer/) | 分析上市公司财务报表。 | `/earnings-analyzer` | ✅ 生产可用 |
+Bloomberg 终端 `{AKSB <GO>}` AI 助手的结构化 prompts。
 
-#### 创意技能
+| 视角 | 模板 | 用途 |
+|------|------|------|
+| **公司** | [trends-analysis](skills/external/bloomberg/company/trends-analysis/) | 股价+财务+运营趋势 |
+| **公司** | [management-governance](skills/external/bloomberg/company/management-governance/) | 治理评估 (N=4) |
+| **公司** | [company-snapshot](skills/external/bloomberg/company/company-snapshot/) | 投资概览手册 |
+| **公司** | [performance-tracker](skills/external/bloomberg/company/performance-tracker/) | 季度财务追踪 (N+5) |
+| **行业** | [sector-snapshot](skills/external/bloomberg/sector/sector-snapshot/) | 行业+同行分析 |
+| **事件** | [breaking-event](skills/external/bloomberg/event/breaking-event/) | 突发事件分析 |
+| **市场** | [credit-strategy](skills/external/bloomberg/market/credit-strategy/) | 信用市场早报 |
 
-| 技能 | 描述 | 命令 | 状态 |
-|------|------|------|------|
-| [creative-prompt](skills/creative/creative-prompt/) | 生成创意提示，用于写作和设计。 | `/creative-prompt` | ✅ 生产可用 |
-| [dev-joke](skills/creative/dev-joke/) | 开发者笑话和编程幽默。 | `/dev-joke` | ✅ 生产可用 |
-| [code-poet](skills/creative/code-poet/) | 将代码转化为诗歌。 | `/code-poet` | ✅ 生产可用 |
+**使用方法**: 复制模板 → Bloomberg 终端 `{AKSB <GO>}` → 替换 `{公司/代码}` 变量。
+
+详见 [skills/external/bloomberg/README.md](skills/external/bloomberg/README.md)。
+
+#### 外部技能 — Wind (预留)
+
+未来支持 Wind AI prompts。详见 [skills/external/wind/README.md](skills/external/wind/README.md)。
 
 ### 详细功能
 
@@ -345,18 +308,6 @@ FRED_API_KEY=your_key
 
 **输出格式**: `default` | `emoji` | `meme` | `poetry`
 
-### MCP 数据连接器
-
-所有连接器使用 [Model Context Protocol](https://modelcontextprotocol.io/) 实现安全、标准化的数据访问：
-
-| 提供商 | MCP 服务器 | 使用技能 |
-|--------|-----------|----------|
-| GitHub | `mcp-github` | presearch, url-fetcher |
-| Brave Search | `mcp-brave-search` | presearch, url-fetcher |
-| arXiv | `mcp-arxiv` | presearch |
-| Playwright | `mcp-playwright` | url-fetcher |
-| Yahoo Finance | `yahoo-finance` | earnings-analyzer, macro-brief |
-
 ### 安装
 
 ```bash
@@ -375,15 +326,6 @@ bash install.sh presearch
 # 核心
 /url-fetcher https://mp.weixin.qq.com/s/xxx
 /presearch "Python web framework" emoji
-
-# 投资
-/investor-distiller 巴菲特
-/macro-brief weekly
-/earnings-analyzer 苹果
-
-# 创意
-/dev-joke python
-/code-poet "递归"
 ```
 
 ### 环境配置
@@ -443,23 +385,18 @@ quinn-awesome-skills/
 │   ├── core/                  # 核心技能
 │   │   ├── url-fetcher/       # URL 抓取
 │   │   └── presearch/         # 开发前搜索
-│   ├── investment/            # 投资技能
-│   │   ├── investor-distiller/
-│   │   ├── macro-brief/
-│   │   └── earnings-analyzer/
-│   └── creative/              # 创意技能
-│       ├── creative-prompt/
-│       ├── dev-joke/
-│       └── code-poet/
+│   └── external/              # 外部数据源 prompts
+│       ├── bloomberg/         # Bloomberg AI prompts
+│       │   ├── company/       # 公司视角
+│       │   ├── sector/        # 行业视角
+│       │   ├── event/         # 事件视角
+│       │   └── market/        # 市场视角
+│       └── wind/              # Wind prompts (预留)
 ├── commands/                  # 斜杠命令（独立文件）
 │   ├── url-fetcher.md
 │   ├── presearch.md
 │   └── ...
-├── connectors/                # MCP 连接器配置
-│   └── mcp-servers.json
 ├── scripts/                   # 公共脚本
-│   ├── llm_agent.py          # LLM Agent
-│   └── llm.sh                # LLM 包装脚本
 ├── templates/                 # 模板文件
 ├── .claude/commands/         # 自定义命令
 ├── README.md                  # 项目文档（双语）
