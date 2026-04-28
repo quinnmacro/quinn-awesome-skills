@@ -3750,3 +3750,234 @@ class TestNewsAggregatorIsinstanceGuards(unittest.TestCase):
         assert "isinstance(s.get(\"tags\"), list)" in content or \
                "isinstance(s.get('tags'), list)" in content, \
             "Lobsters tags must have isinstance(list) guard"
+
+
+class TestFrontmatterParsing(unittest.TestCase):
+    """Test that frontmatter parsing correctly handles --- horizontal rules in content."""
+
+    def test_no_toggle_pattern(self):
+        """The old in_frontmatter = not in_frontmatter toggle must not exist."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        # The toggle pattern is fragile — it treats every --- as a frontmatter boundary
+        assert "in_frontmatter = not in_frontmatter" not in content, \
+            "Must not use toggle pattern for frontmatter boundaries"
+
+    def test_frontmatter_closed_state_variable(self):
+        """Frontmatter parsing must use frontmatter_closed state variable."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        assert "frontmatter_closed" in content, \
+            "Must use frontmatter_closed state variable to stop toggling after frontmatter closes"
+
+    def test_frontmatter_only_closes_once(self):
+        """After frontmatter closes, subsequent --- must be treated as content."""
+        # Simulate markdown with frontmatter + horizontal rule in body
+        lines = [
+            "---",
+            "title: Test Article",
+            "date: 2026-04-29",
+            "---",
+            "## Introduction",
+            "",
+            "This is the first content paragraph.",
+            "",
+            "---",
+            "This line after a horizontal rule must appear in summary.",
+            "",
+            "Another content line here.",
+        ]
+        # Apply the new frontmatter parsing logic
+        summary_lines = []
+        frontmatter_closed = False
+        in_frontmatter = False
+        for line in lines:
+            if line.strip() == "---":
+                if not frontmatter_closed:
+                    if not in_frontmatter:
+                        in_frontmatter = True
+                    else:
+                        in_frontmatter = False
+                        frontmatter_closed = True
+                continue
+            if in_frontmatter:
+                continue
+            if line.strip():
+                summary_lines.append(line.strip())
+            if len(summary_lines) >= 3:
+                break
+
+        # The summary should contain content lines, including the one after the --- horizontal rule
+        assert len(summary_lines) > 0, "Summary must contain content lines"
+        assert "Introduction" in summary_lines[0], "First summary line should be heading"
+        assert "first content paragraph" in summary_lines[1], "Second summary line should be paragraph"
+        # The third --- is a horizontal rule, not frontmatter — content after it must be captured
+        assert any("horizontal rule" in s for s in summary_lines), \
+            "Content after --- horizontal rule in body must be in summary"
+
+    def test_no_frontmatter_all_content(self):
+        """Markdown without frontmatter: all lines are content."""
+        lines = [
+            "# Plain Markdown File",
+            "",
+            "No frontmatter here at all.",
+            "",
+            "Just content lines.",
+        ]
+        summary_lines = []
+        frontmatter_closed = False
+        in_frontmatter = False
+        for line in lines:
+            if line.strip() == "---":
+                if not frontmatter_closed:
+                    if not in_frontmatter:
+                        in_frontmatter = True
+                    else:
+                        in_frontmatter = False
+                        frontmatter_closed = True
+                continue
+            if in_frontmatter:
+                continue
+            if line.strip():
+                summary_lines.append(line.strip())
+            if len(summary_lines) >= 3:
+                break
+
+        assert len(summary_lines) == 3, "All content lines must be captured"
+        assert "Plain Markdown File" in summary_lines[0]
+
+    def test_empty_frontmatter(self):
+        """Empty frontmatter (just two --- lines) must be handled."""
+        lines = [
+            "---",
+            "---",
+            "Content starts here.",
+            "More content follows.",
+        ]
+        summary_lines = []
+        frontmatter_closed = False
+        in_frontmatter = False
+        for line in lines:
+            if line.strip() == "---":
+                if not frontmatter_closed:
+                    if not in_frontmatter:
+                        in_frontmatter = True
+                    else:
+                        in_frontmatter = False
+                        frontmatter_closed = True
+                continue
+            if in_frontmatter:
+                continue
+            if line.strip():
+                summary_lines.append(line.strip())
+            if len(summary_lines) >= 3:
+                break
+
+        assert len(summary_lines) == 2, "Content after empty frontmatter must be captured"
+        assert "Content starts here" in summary_lines[0]
+
+    def test_old_toggle_pattern_would_fail_with_horizontal_rule(self):
+        """Verify the old toggle pattern would incorrectly skip content after --- in body."""
+        lines = [
+            "---",
+            "title: Test",
+            "---",
+            "First content line.",
+            "---",
+            "This line must be in summary but toggle pattern skips it.",
+        ]
+        # Old toggle pattern (in_frontmatter = not in_frontmatter)
+        summary_old = []
+        in_fm_old = False
+        for line in lines:
+            if line.strip() == "---":
+                in_fm_old = not in_fm_old
+                continue
+            if in_fm_old:
+                continue
+            if line.strip():
+                summary_old.append(line.strip())
+            if len(summary_old) >= 3:
+                break
+
+        # Old pattern: after the body --- toggles in_fm_old back to True,
+        # so the last line is skipped as "frontmatter"
+        assert "This line must be in summary but toggle pattern skips it" not in summary_old, \
+            "Old toggle pattern incorrectly skips content after body horizontal rule"
+
+
+class TestFetchArticleTitleExtraction(unittest.TestCase):
+    """Test title extraction from url-fetcher fallback content parsing."""
+
+    def test_title_from_frontmatter(self):
+        """Title extraction must find title: in frontmatter."""
+        lines = ["---", "title: My Article Title", "date: 2026-04-29", "---", "# Content"]
+        title = ""
+        for line in lines:
+            if line.startswith("title:"):
+                title = line.split("title:", 1)[1].strip().strip('"').strip("'")
+                break
+        assert title == "My Article Title", "Must extract title from frontmatter title: line"
+
+    def test_title_from_heading_fallback(self):
+        """When no title: in frontmatter, first # heading must be used."""
+        lines = ["---", "date: 2026-04-29", "---", "# Heading Title", "Content here"]
+        title = ""
+        for line in lines:
+            if line.startswith("title:"):
+                title = line.split("title:", 1)[1].strip().strip('"').strip("'")
+                break
+        if not title:
+            for line in lines:
+                if line.startswith("# "):
+                    title = line.removeprefix("# ").strip()
+                    break
+        assert title == "Heading Title", "Must use # heading as title fallback"
+
+
+class TestSkillMdJsonExampleFieldNames(unittest.TestCase):
+    """Verify SKILL.md JSON example uses actual output field names, not incorrect names."""
+
+    SKILL_PATH = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+
+    def test_json_example_uses_open_prs_not_prs(self):
+        """SKILL.md JSON example must use open_prs (actual field) not prs."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # The actual github_scanner.py output uses open_prs, not prs
+        assert '"open_prs"' in content or "'open_prs'" in content, \
+            "SKILL.md JSON example must use open_prs (matching github_scanner.py output)"
+        assert '"prs":' not in content, \
+            "SKILL.md must not use incorrect 'prs' field name in JSON example"
+
+    def test_json_example_uses_open_issues_not_issues(self):
+        """SKILL.md JSON example must use open_issues (actual field) not issues."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert '"open_issues"' in content or "'open_issues'" in content, \
+            "SKILL.md JSON example must use open_issues (matching github_scanner.py output)"
+        assert '"issues":' not in content, \
+            "SKILL.md must not use incorrect 'issues' field name in JSON example"
+
+    def test_json_example_includes_commit_count(self):
+        """SKILL.md JSON example must include commit_count field."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert '"commit_count"' in content or "'commit_count'" in content, \
+            "SKILL.md JSON example must include commit_count (matching github_scanner.py output)"
+
+    def test_json_example_includes_ci_runs(self):
+        """SKILL.md JSON example must include ci_runs field."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert '"ci_runs"' in content or "'ci_runs'" in content, \
+            "SKILL.md JSON example must include ci_runs (matching github_scanner.py output)"
+
+    def test_json_example_includes_security_lookback_days(self):
+        """SKILL.md JSON example preferences must include security_lookback_days."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert '"security_lookback_days"' in content or "'security_lookback_days'" in content, \
+            "SKILL.md JSON example must include security_lookback_days in preferences"

@@ -91,7 +91,7 @@ The formatter automatically creates a todo section based on:
 
 ```
 ╔══════════════════════════════════════════════╗
-║   🌅 DAILY DEV PULSE — 2025-04-28          ║
+║   🌅 DAILY DEV PULSE — 2026-04-28          ║
 ╚══════════════════════════════════════════════╝
 
 📊 GitHub Activity (Last 7 Days)
@@ -130,12 +130,12 @@ Structured with `##` sections, tables, and checklist items. Used when Claude nee
 
 ```json
 {
-  "scan_date": "2025-04-28T09:00:00Z",
-  "github": { "source": "github", "repos": [{"repo": "quinnmacro/quinn-awesome-skills", "commits": [...], "prs": [...], "issues": [...]}] },
+  "scan_date": "2026-04-28T09:00:00Z",
+  "github": { "source": "github", "repos": [{"repo": "quinnmacro/quinn-awesome-skills", "commit_count": 8, "commits": [...], "open_prs": [...], "open_issues": [...], "ci_runs": [...]}] },
   "security": { "source": "security", "alerts": [...] },
   "news": { "source": "news", "headlines": [...] },
   "packages": { "source": "packages", "updates": [...] },
-  "preferences": { "lookback_days": 7, "stale_pr_days": 3, ... },
+  "preferences": { "lookback_days": 7, "stale_pr_days": 3, "security_lookback_days": 30, ... },
   "action_items": [...]
 }
 ```

@@ -69,11 +69,19 @@ def fetch_article_via_url_fetcher(url):
                     break
 
         # Summary: first 3 non-empty, non-frontmatter content lines
+        # Frontmatter: first --- opens, second --- closes, subsequent --- are content (horizontal rules)
         summary_lines = []
+        frontmatter_closed = False
         in_frontmatter = False
         for line in lines:
             if line.strip() == "---":
-                in_frontmatter = not in_frontmatter
+                if not frontmatter_closed:
+                    if not in_frontmatter:
+                        in_frontmatter = True
+                    else:
+                        in_frontmatter = False
+                        frontmatter_closed = True
+                # After frontmatter is closed, --- is just a horizontal rule (content)
                 continue
             if in_frontmatter:
                 continue
