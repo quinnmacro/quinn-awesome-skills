@@ -80,7 +80,7 @@ def format_terminal(data):
     if github and not github.get("error"):
         repos = github.get("repos", [])
         if repos:
-            lines.append(f"{Colors.BOLD}{Colors.BLUE}📊 GitHub Activity (Last {data.get('github', {}).get('lookback_days', 7)} Days){Colors.RESET}")
+            lines.append(f"{Colors.BOLD}{Colors.BLUE}📊 GitHub Activity (Last {data.get('preferences', {}).get('lookback_days', data.get('github', {}).get('lookback_days', 7))} Days){Colors.RESET}")
             max_commits = max(r.get("commit_count", 0) for r in repos) if repos else 1
             for repo in repos:
                 name = repo["repo"].split("/")[-1]

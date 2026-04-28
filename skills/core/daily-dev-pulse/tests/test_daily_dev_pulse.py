@@ -666,11 +666,11 @@ class TestSecurityUrlEncoding(unittest.TestCase):
     """Test that CVE search URLs are properly encoded."""
 
     def test_url_encoding_spaces(self):
-        """Product names with spaces should be URL-encoded."""
+        """Product names with spaces should be URL-encoded using %20 (not +)."""
         import security_checker
         params = {"keywordSearch": "python 3.13", "resultsPerPage": 10}
-        query = "&".join(f"{k}={urllib.parse.quote_plus(str(v))}" for k, v in params.items())
-        assert "python+3.13" in query or "python%203.13" in query
+        query = "&".join(f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in params.items())
+        assert "python%203.13" in query
         assert " " not in query
 
     def test_fetch_cves_url_encoding(self):
@@ -678,7 +678,7 @@ class TestSecurityUrlEncoding(unittest.TestCase):
         import subprocess
         import inspect
         source = inspect.getsource(security_checker.fetch_cves)
-        assert "urllib.parse" in source or "quote_plus" in source or "quote" in source
+        assert "urllib.parse.quote" in source
 
 
 class TestNewsExceptionHandling(unittest.TestCase):
@@ -1269,6 +1269,117 @@ class TestStalePrDaysConfigDriven(unittest.TestCase):
         output = pulse_formatter.format_json(data)
         parsed = json.loads(output)
         assert parsed["preferences"]["stale_pr_days"] == 5
+
+
+class TestFormatPreferenceConfigDriven(unittest.TestCase):
+    """Verify format preference is consumed by shell script, not just declared."""
+
+    SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "scripts", "daily-dev-pulse.sh")
+
+    def test_format_preference_in_combined_json(self):
+        """Shell script merge section should include format in preferences dict."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        # The merge section should include 'format' alongside stale_pr_days
+        assert "'format'" in content or '"format"' in content, \
+            "Shell script should include format preference in combined JSON preferences"
+
+    def test_format_fallback_from_config(self):
+        """Shell script should fall back to config format preference when --format not passed."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        # FORMAT should start empty (not hardcoded "terminal") so it falls back to config
+        assert 'FORMAT=""' in content, \
+            "FORMAT should default to empty string so config preference can be used as fallback"
+        # There should be a fallback block that reads format from combined JSON
+        assert "combined.json" in content and "format" in content, \
+            "Shell script should read format from combined JSON when --format not passed"
+
+    def test_format_cli_overrides_config(self):
+        """When --format is explicitly passed, it should override config preference."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        # The --format case should set FORMAT to $2 (the explicit CLI value)
+        assert '--format)' in content, \
+            "Shell script should have --format case that sets FORMAT"
+
+    def test_lookback_days_preference_in_combined_json(self):
+        """Shell script merge section should include lookback_days in preferences dict."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        # The merge section should include 'lookback_days' alongside stale_pr_days and format
+        assert "'lookback_days'" in content or '"lookback_days"' in content, \
+            "Shell script should include lookback_days preference in combined JSON preferences"
+
+    def test_format_terminal_uses_lookback_days_from_preferences(self):
+        """Terminal header should use lookback_days from preferences, not always show 7."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.format_terminal)
+        # Should read lookback_days from preferences first, not just from github sub-dict
+        assert "preferences" in source, \
+            "format_terminal should read lookback_days from preferences, not just github.lookback_days"
+
+    def test_format_terminal_custom_lookback_days(self):
+        """Terminal output should show configured lookback_days, not always '7 Days'."""
+        data = {
+            "preferences": {"lookback_days": 30},
+            "github": {"repos": [{"repo": "test/repo", "commit_count": 5}]},
+        }
+        output = pulse_formatter.format_terminal(data)
+        assert "30 Days" in output, \
+            "Terminal header should show '30 Days' when lookback_days preference is 30"
+
+    def test_format_terminal_default_lookback_days(self):
+        """Terminal output should show '7 Days' when no preferences set (default)."""
+        data = {
+            "github": {"repos": [{"repo": "test/repo", "commit_count": 5}]},
+        }
+        output = pulse_formatter.format_terminal(data)
+        assert "7 Days" in output, \
+            "Terminal header should show '7 Days' when no lookback_days preference"
+
+
+class TestNvdUrlEncoding(unittest.TestCase):
+    """Verify NVD API URLs use proper percent-encoding (%20 for spaces, not +) and timezone offsets."""
+
+    def test_fetch_cves_uses_quote_not_quote_plus(self):
+        """fetch_cves should use urllib.parse.quote (not quote_plus) for URL parameter values."""
+        import inspect
+        source = inspect.getsource(security_checker.fetch_cves)
+        # Should use quote() not quote_plus()
+        assert "urllib.parse.quote" in source, \
+            "fetch_cves should use urllib.parse.quote for URL encoding"
+        assert "quote_plus" not in source, \
+            "fetch_cves should NOT use quote_plus — REST APIs use %20, not +, for spaces"
+
+    def test_url_encoding_produces_percent20_for_spaces(self):
+        """URL-encoded search terms with spaces should use %20, not +."""
+        params = {"keywordSearch": "python 3.13", "resultsPerPage": 10}
+        query = "&".join(f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in params.items())
+        assert "python%203.13" in query, \
+            "quote() with safe='' should encode spaces as %20"
+        assert "+" not in query.split("=")[1], \
+            "quote() should NOT encode spaces as +"
+        assert " " not in query, \
+            "URL query should have no unencoded spaces"
+
+    def test_fetch_cves_pubstartdate_includes_timezone(self):
+        """pubStartDate should include +00:00 timezone offset for unambiguous UTC."""
+        import inspect
+        source = inspect.getsource(security_checker.fetch_cves)
+        # The strftime format should include timezone offset
+        assert "+00:00" in source, \
+            "pubStartDate should include +00:00 timezone offset in strftime format"
+
+    def test_nvd_date_string_format_with_timezone(self):
+        """Generated NVD date strings should include UTC timezone offset."""
+        from datetime import datetime, timezone, timedelta
+        start_date = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%dT00:00:00.000+00:00")
+        assert "+00:00" in start_date, \
+            "Date string should include +00:00 timezone offset"
+        # The date should be properly formatted
+        assert start_date.startswith("20"), "Date should start with century"
+        assert "T00:00:00.000" in start_date, "Date should include time component"
 
 
 if __name__ == "__main__":

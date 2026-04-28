@@ -6,8 +6,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MODULES_DIR="${SCRIPT_DIR}/../modules"
 
-# Parse arguments
-FORMAT="terminal"
+# Parse arguments — format defaults to empty so we can fall back to config preference
+FORMAT=""
 REPOS="all"
 FOCUS="all"
 DAYS="7"
@@ -87,7 +87,7 @@ fi
 
 # Merge all collected JSON files into combined output using Python
 # (shell string concatenation is fragile with JSON data)
-# Also include preferences (stale_pr_days) so the formatter uses config thresholds
+# Also include preferences (format, stale_pr_days, lookback_days) so the formatter uses config thresholds
 python3 -c "
 import json, os, sys
 from datetime import datetime, timezone
@@ -101,9 +101,9 @@ try:
     sys.path.insert(0, '${MODULES_DIR}')
     from config import load_config, get_preferences
     prefs = get_preferences(load_config())
-    combined['preferences'] = {'stale_pr_days': prefs.get('stale_pr_days', 3)}
+    combined['preferences'] = {'stale_pr_days': prefs.get('stale_pr_days', 3), 'format': prefs.get('format', 'terminal'), 'lookback_days': prefs.get('lookback_days', 7)}
 except Exception:
-    combined['preferences'] = {'stale_pr_days': 3}
+    combined['preferences'] = {'stale_pr_days': 3, 'format': 'terminal', 'lookback_days': 7}
 
 for key in ['github', 'security', 'packages', 'news']:
     fpath = os.path.join(tmpdir, key + '.json')
@@ -116,6 +116,16 @@ for key in ['github', 'security', 'packages', 'news']:
 
 json.dump(combined, sys.stdout, ensure_ascii=False)
 " PULSE_TMPDIR="${TMPDIR}" > "${TMPDIR}/combined.json"
+
+# If --format was not explicitly passed, fall back to config preference
+if [[ -z "${FORMAT}" ]]; then
+    FORMAT=$(python3 -c "
+import json
+with open('${TMPDIR}/combined.json') as f:
+    data = json.load(f)
+print(data.get('preferences', {}).get('format', 'terminal'))
+")
+fi
 
 # Format output
 echo "Formatting output (${FORMAT})..." >&2

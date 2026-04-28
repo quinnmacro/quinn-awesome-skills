@@ -41,7 +41,7 @@ def build_search_terms(tech_stack):
 
 def fetch_cves(product, version="", days=30):
     """Fetch recent CVEs for a product from NVD API."""
-    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00.000")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00.000+00:00")
 
     params = {
         "keywordSearch": product,
@@ -52,7 +52,7 @@ def fetch_cves(product, version="", days=30):
     if version:
         params["keywordSearch"] = f"{product} {version}"
 
-    query = "&".join(f"{k}={urllib.parse.quote_plus(str(v))}" for k, v in params.items())
+    query = "&".join(f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in params.items())
     url = f"{NVD_API_BASE}?{query}"
 
     try:
