@@ -237,7 +237,8 @@ main() {
     echo "测试命令:"
     echo "  /url-fetcher https://example.com"
     echo "  /presearch \"React framework\""
-    echo "  /investor-distiller 巴菲特"
+    echo "  /daily-dev-pulse"
+    echo "  /daily-dev-pulse --focus security"
 }
 
 # 运行主程序

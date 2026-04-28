@@ -217,6 +217,9 @@ bash install.sh url-fetcher   # Install only url-fetcher
 /url-fetcher "search query"           # Web search
 /presearch "React framework"
 /presearch "Python async" emoji       # Fun format
+/daily-dev-pulse                      # Full morning briefing
+/daily-dev-pulse --focus security     # Security-only briefing
+/daily-dev-pulse --format md          # Markdown output for Claude
 ```
 
 #### Skill Auto-Trigger
@@ -233,6 +236,7 @@ Skills automatically activate based on context:
 | Feature | Dependencies | Install Command |
 |---------|--------------|-----------------|
 | **Core** | bash, curl, python3 | System package manager |
+| **Daily Dev Pulse** | gh CLI, PyYAML | `brew install gh` + `pip install pyyaml` |
 | **WeChat** | playwright, beautifulsoup4, lxml | `uv pip install playwright beautifulsoup4 lxml && playwright install chromium` |
 | **Feishu** | `FEISHU_APP_ID` + `FEISHU_APP_SECRET` | Set environment variables |
 | **PDF** | marker-pdf or poppler | `uv pip install marker-pdf` or `brew install poppler` |
@@ -329,6 +333,20 @@ Bloomberg 终端 `{AKSB <GO>}` AI 助手的结构化 prompts。
 
 **输出格式**: `default` | `emoji` | `meme` | `poetry`
 
+#### Daily Dev Pulse — 开发者早报
+
+一个命令，全面了解你的开发世界：
+
+| 模块 | 数据源 | 内容 |
+|------|--------|------|
+| **GitHub 活动** | gh CLI | 跨仓库的 commits、PRs、issues、CI 状态 |
+| **安全警报** | NVD API | 影响你技术栈的 CVE |
+| **包更新** | npm/PyPI registry | 依赖的最新版本 |
+| **技术新闻** | HN、Dev.to、Lobsters | 热门趋势文章 |
+| **待办事项** | 自动生成 | 过期 PRs、失败 CI、安全补丁 |
+
+**输出模式**: `terminal` (ASCII 图表+颜色) | `md` (结构化 markdown) | `json` (原始数据)
+
 ### 安装
 
 ```bash
@@ -347,6 +365,9 @@ bash install.sh presearch
 # 核心
 /url-fetcher https://mp.weixin.qq.com/s/xxx
 /presearch "Python web framework" emoji
+/daily-dev-pulse                      # 完整早报
+/daily-dev-pulse --focus security     # 只看安全警报
+/daily-dev-pulse --format md          # Markdown 输出
 ```
 
 ### 环境配置
