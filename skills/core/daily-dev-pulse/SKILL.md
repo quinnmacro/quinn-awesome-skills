@@ -188,6 +188,9 @@ preferences:
   nvd_rate_limit: 6
   max_issues_per_repo: 3
   max_action_items: 10
+  max_prs_fetch: 20
+  max_ci_runs_fetch: 5
+  max_news_per_source: 10
 ```
 
 ## Notes

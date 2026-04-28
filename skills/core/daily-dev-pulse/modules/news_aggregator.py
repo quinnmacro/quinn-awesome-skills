@@ -215,12 +215,13 @@ def aggregate_news(config=None):
     cfg = config or load_config()
     prefs = get_preferences(cfg)
     sources = prefs.get("news_sources", ["hn", "devto", "lobsters"])
+    per_source_limit = prefs.get("max_news_per_source", 10)
 
     all_headlines = []
     url_fetcher_used = False
 
     if "hn" in sources:
-        hn_headlines = fetch_hn_top(10)
+        hn_headlines = fetch_hn_top(per_source_limit)
         if hn_headlines:
             all_headlines.extend(hn_headlines)
         else:
@@ -239,7 +240,7 @@ def aggregate_news(config=None):
                 url_fetcher_used = True
 
     if "devto" in sources:
-        devto_headlines = fetch_devto_top(10)
+        devto_headlines = fetch_devto_top(per_source_limit)
         if devto_headlines:
             all_headlines.extend(devto_headlines)
         else:
@@ -257,7 +258,7 @@ def aggregate_news(config=None):
                 url_fetcher_used = True
 
     if "lobsters" in sources:
-        lobsters_headlines = fetch_lobsters_top(10)
+        lobsters_headlines = fetch_lobsters_top(per_source_limit)
         if lobsters_headlines:
             all_headlines.extend(lobsters_headlines)
         else:

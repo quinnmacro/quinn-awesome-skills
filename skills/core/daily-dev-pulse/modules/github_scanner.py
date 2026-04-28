@@ -48,33 +48,33 @@ def scan_commits(repo_owner, repo_name, days=7):
     ]
 
 
-def scan_prs(repo_owner, repo_name, state="open"):
+def scan_prs(repo_owner, repo_name, state="open", limit=20):
     """Get open/closed PRs for a repo."""
     repo = f"{repo_owner}/{repo_name}"
     prs = run_gh(
-        ["pr", "list", "--repo", repo, "--state", state, "--limit", "20", "--json",
+        ["pr", "list", "--repo", repo, "--state", state, "--limit", str(limit), "--json",
          "number,title,author,createdAt,updatedAt,labels"],
         fallback=[]
     )
     return prs if prs else []
 
 
-def scan_issues(repo_owner, repo_name, state="open"):
+def scan_issues(repo_owner, repo_name, state="open", limit=20):
     """Get open/closed issues for a repo."""
     repo = f"{repo_owner}/{repo_name}"
     issues = run_gh(
-        ["issue", "list", "--repo", repo, "--state", state, "--limit", "20", "--json",
+        ["issue", "list", "--repo", repo, "--state", state, "--limit", str(limit), "--json",
          "number,title,author,createdAt,labels"],
         fallback=[]
     )
     return issues if issues else []
 
 
-def scan_ci_status(repo_owner, repo_name, branch="main"):
+def scan_ci_status(repo_owner, repo_name, branch="main", limit=5):
     """Get recent CI/GitHub Actions run status."""
     repo = f"{repo_owner}/{repo_name}"
     runs = run_gh(
-        ["run", "list", "--repo", repo, "--branch", branch, "--limit", "5", "--json",
+        ["run", "list", "--repo", repo, "--branch", branch, "--limit", str(limit), "--json",
          "name,status,conclusion,createdAt,headBranch"],
         fallback=[]
     )
@@ -87,6 +87,8 @@ def scan_all_repos(config=None):
     repos = get_repos(cfg)
     prefs = get_preferences(cfg)
     days = prefs.get("lookback_days", 7)
+    prs_limit = prefs.get("max_prs_fetch", 20)
+    ci_limit = prefs.get("max_ci_runs_fetch", 5)
 
     results = []
     for repo in repos:
@@ -97,9 +99,9 @@ def scan_all_repos(config=None):
         full_name = f"{owner}/{name}"
 
         commits = scan_commits(owner, name, days)
-        prs = scan_prs(owner, name, "open")
-        issues = scan_issues(owner, name, "open")
-        ci_runs = scan_ci_status(owner, name)
+        prs = scan_prs(owner, name, "open", limit=prs_limit)
+        issues = scan_issues(owner, name, "open", limit=prs_limit)
+        ci_runs = scan_ci_status(owner, name, limit=ci_limit)
 
         results.append({
             "repo": full_name,

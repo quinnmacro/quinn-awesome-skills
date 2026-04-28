@@ -6,7 +6,6 @@ Supports env var overrides for CLI arguments (--days, --repos).
 
 import copy
 import os
-import sys
 from pathlib import Path
 
 try:
@@ -48,6 +47,9 @@ DEFAULT_CONFIG = {
         "nvd_rate_limit": 6,
         "max_issues_per_repo": 3,
         "max_action_items": 10,
+        "max_prs_fetch": 20,
+        "max_ci_runs_fetch": 5,
+        "max_news_per_source": 10,
     },
 }
 
@@ -58,8 +60,7 @@ def load_config(config_path=None):
 
     if path.exists():
         if not YAML_AVAILABLE:
-            print("Error: PyYAML required to load config file. Install with: pip install pyyaml", file=sys.stderr)
-            sys.exit(1)
+            raise ImportError("PyYAML required to load config file. Install with: pip install pyyaml")
         with open(path) as f:
             user_config = yaml.safe_load(f) or {}
         result = merge_config(DEFAULT_CONFIG, user_config)

@@ -70,3 +70,12 @@ preferences:
 
   # Max total action items in final output (caps the todo section size)
   max_action_items: 10
+
+  # Max PRs/issues fetched per repo via gh CLI (controls API request size)
+  max_prs_fetch: 20
+
+  # Max CI runs fetched per repo (controls how many recent workflow runs to check)
+  max_ci_runs_fetch: 5
+
+  # Max news items fetched per source (HN, Dev.to, Lobsters each)
+  max_news_per_source: 10

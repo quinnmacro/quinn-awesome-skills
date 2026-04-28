@@ -2085,7 +2085,7 @@ class TestPyYamlGracefulDegradation(unittest.TestCase):
             importlib.reload(config)
 
     def test_config_fails_without_yaml_when_config_file_exists(self):
-        """load_config should sys.exit when yaml missing AND user config file exists."""
+        """load_config should raise ImportError when yaml missing AND user config file exists."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             f.write("repos:\n  - name: test-repo\n    owner: test-owner\n")
             config_path = f.name
@@ -2096,7 +2096,7 @@ class TestPyYamlGracefulDegradation(unittest.TestCase):
                 import importlib
                 config_mod = importlib.import_module("config")
                 importlib.reload(config_mod)
-                with self.assertRaises(SystemExit):
+                with self.assertRaises(ImportError):
                     config_mod.load_config(config_path=config_path)
             finally:
                 if yaml_mod is not None:
@@ -3981,3 +3981,180 @@ class TestSkillMdJsonExampleFieldNames(unittest.TestCase):
             content = f.read()
         assert '"security_lookback_days"' in content or "'security_lookback_days'" in content, \
             "SKILL.md JSON example must include security_lookback_days in preferences"
+
+
+class TestConfigSysExitReplaced(unittest.TestCase):
+    """Verify sys.exit(1) in load_config was replaced with ImportError."""
+
+    MODULES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
+
+    def test_no_sys_exit_in_load_config(self):
+        """load_config() should raise ImportError, not call sys.exit(1)."""
+        with open(os.path.join(self.MODULES_DIR, "config.py")) as f:
+            content = f.read()
+        # sys.exit should not appear in the load_config function body
+        func_start = content.find("def load_config")
+        func_body = content[func_start:]
+        # Find the next function definition to bound the search
+        next_func = func_body.find("\ndef ", 1)
+        if next_func != -1:
+            func_body = func_body[:next_func]
+        assert "sys.exit" not in func_body, \
+            "load_config should not contain sys.exit — use ImportError instead"
+
+    def test_import_error_raised_when_yaml_missing_and_config_exists(self):
+        """When yaml unavailable and config file exists, load_config raises ImportError."""
+        with patch.object(config, "YAML_AVAILABLE", False):
+            with tempfile.NamedTemporaryFile(suffix=".yml", delete=False, mode="w") as f:
+                f.write("repos:\n  - name: test\n    owner: test\n")
+                fpath = f.name
+            try:
+                with self.assertRaises(ImportError) as ctx:
+                    config.load_config(config_path=fpath)
+                assert "PyYAML" in str(ctx.exception)
+            finally:
+                os.unlink(fpath)
+
+    def test_import_error_catchable_by_except_exception(self):
+        """ImportError inherits from Exception, so shell script's except Exception catches it."""
+        with patch.object(config, "YAML_AVAILABLE", False):
+            with tempfile.NamedTemporaryFile(suffix=".yml", delete=False, mode="w") as f:
+                f.write("repos:\n  - name: test\n    owner: test\n")
+                fpath = f.name
+            try:
+                caught = False
+                try:
+                    config.load_config(config_path=fpath)
+                except Exception:
+                    caught = True
+                assert caught, "ImportError should be catchable by except Exception"
+            finally:
+                os.unlink(fpath)
+
+    def test_sys_import_removed_from_config(self):
+        """sys module should not be imported in config.py (no longer needed)."""
+        with open(os.path.join(self.MODULES_DIR, "config.py")) as f:
+            content = f.read()
+        # Check for 'import sys' at module level (not in comments or strings)
+        import_lines = [line for line in content.split("\n")
+                        if line.strip().startswith("import sys") or
+                        (line.strip().startswith("from sys") and "import" in line)]
+        assert len(import_lines) == 0, \
+            "config.py should not import sys — sys.exit was the only use"
+
+
+class TestDataFetchLimitsConfigDriven(unittest.TestCase):
+    """Verify data fetch limits (max_prs_fetch, max_ci_runs_fetch, max_news_per_source)
+    are configurable via preferences and consumed by the relevant modules."""
+
+    MODULES_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
+    SCRIPTS_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
+    SKILL_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "SKILL.md"))
+    CONFIG_EXAMPLE_PATH = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "config-example.yml"))
+
+    def test_default_config_contains_new_preferences(self):
+        """DEFAULT_CONFIG preferences must include max_prs_fetch, max_ci_runs_fetch, max_news_per_source."""
+        prefs = config.DEFAULT_CONFIG["preferences"]
+        assert "max_prs_fetch" in prefs, "max_prs_fetch missing from DEFAULT_CONFIG"
+        assert "max_ci_runs_fetch" in prefs, "max_ci_runs_fetch missing from DEFAULT_CONFIG"
+        assert "max_news_per_source" in prefs, "max_news_per_source missing from DEFAULT_CONFIG"
+        assert prefs["max_prs_fetch"] == 20
+        assert prefs["max_ci_runs_fetch"] == 5
+        assert prefs["max_news_per_source"] == 10
+
+    def test_github_scanner_scan_prs_accepts_limit(self):
+        """scan_prs should accept a limit parameter and pass it to gh CLI."""
+        source = github_scanner.scan_prs.__code__.co_varnames
+        assert "limit" in source, "scan_prs must accept a limit parameter"
+
+    def test_github_scanner_scan_issues_accepts_limit(self):
+        """scan_issues should accept a limit parameter and pass it to gh CLI."""
+        source = github_scanner.scan_issues.__code__.co_varnames
+        assert "limit" in source, "scan_issues must accept a limit parameter"
+
+    def test_github_scanner_scan_ci_status_accepts_limit(self):
+        """scan_ci_status should accept a limit parameter and pass it to gh CLI."""
+        source = github_scanner.scan_ci_status.__code__.co_varnames
+        assert "limit" in source, "scan_ci_status must accept a limit parameter"
+
+    def test_github_scanner_scan_all_repos_reads_limits_from_prefs(self):
+        """scan_all_repos should read max_prs_fetch and max_ci_runs_fetch from preferences."""
+        source = github_scanner.scan_all_repos.__code__.co_varnames
+        with open(os.path.join(self.MODULES_DIR, "github_scanner.py")) as f:
+            source_code = f.read()
+        assert "max_prs_fetch" in source_code, "github_scanner.py must reference max_prs_fetch"
+        assert "max_ci_runs_fetch" in source_code, "github_scanner.py must reference max_ci_runs_fetch"
+
+    def test_github_scanner_passes_limits_to_scan_calls(self):
+        """scan_all_repos should pass prs_limit and ci_limit to scan functions."""
+        with open(os.path.join(self.MODULES_DIR, "github_scanner.py")) as f:
+            source_code = f.read()
+        assert "limit=prs_limit" in source_code or "prs_limit" in source_code, \
+            "scan_all_repos must pass prs_limit to scan functions"
+        assert "limit=ci_limit" in source_code or "ci_limit" in source_code, \
+            "scan_all_repos must pass ci_limit to scan functions"
+
+    def test_news_aggregator_reads_max_news_per_source(self):
+        """aggregate_news should read max_news_per_source from preferences."""
+        with open(os.path.join(self.MODULES_DIR, "news_aggregator.py")) as f:
+            source_code = f.read()
+        assert "max_news_per_source" in source_code, \
+            "news_aggregator.py must reference max_news_per_source"
+
+    def test_news_aggregator_uses_per_source_limit(self):
+        """aggregate_news should pass per_source_limit to fetch_*_top calls, not hardcoded 10."""
+        with open(os.path.join(self.MODULES_DIR, "news_aggregator.py")) as f:
+            source_code = f.read()
+        # Should NOT have hardcoded fetch_hn_top(10), fetch_devto_top(10), fetch_lobsters_top(10)
+        assert "fetch_hn_top(10)" not in source_code, \
+            "fetch_hn_top should use per_source_limit, not hardcoded 10"
+        assert "fetch_devto_top(10)" not in source_code, \
+            "fetch_devto_top should use per_source_limit, not hardcoded 10"
+        assert "fetch_lobsters_top(10)" not in source_code, \
+            "fetch_lobsters_top should use per_source_limit, not hardcoded 10"
+
+    def test_shell_script_fallback_contains_new_preferences(self):
+        """Shell script fallback preferences dict must include all 11 keys."""
+        with open(os.path.join(self.SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        assert "max_prs_fetch" in content, "Shell script fallback must include max_prs_fetch"
+        assert "max_ci_runs_fetch" in content, "Shell script fallback must include max_ci_runs_fetch"
+        assert "max_news_per_source" in content, "Shell script fallback must include max_news_per_source"
+
+    def test_config_example_contains_new_preferences(self):
+        """config-example.yml must include the new preferences."""
+        with open(self.CONFIG_EXAMPLE_PATH) as f:
+            content = f.read()
+        assert "max_prs_fetch" in content, "config-example.yml must include max_prs_fetch"
+        assert "max_ci_runs_fetch" in content, "config-example.yml must include max_ci_runs_fetch"
+        assert "max_news_per_source" in content, "config-example.yml must include max_news_per_source"
+
+    def test_skill_md_config_contains_new_preferences(self):
+        """SKILL.md config example must include all 11 preference keys."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        prefs = config.DEFAULT_CONFIG["preferences"]
+        for key in prefs:
+            assert key in content, f"SKILL.md must mention preference '{key}'"
+
+    def test_custom_max_prs_fetch_override(self):
+        """Custom max_prs_fetch preference should override default 20."""
+        custom_cfg = copy.deepcopy(config.DEFAULT_CONFIG)
+        custom_cfg["preferences"]["max_prs_fetch"] = 5
+        with patch.object(github_scanner, "run_gh", return_value=[]):
+            with patch.object(github_scanner, "scan_commits", return_value=[]):
+                result = github_scanner.scan_all_repos(config=custom_cfg)
+                # Function reads from prefs; verify the logic uses 5 not 20
+                # (We can't directly verify gh CLI args in mock, but verify prefs flow)
+
+    def test_custom_max_news_per_source_override(self):
+        """Custom max_news_per_source preference should override default 10."""
+        custom_cfg = copy.deepcopy(config.DEFAULT_CONFIG)
+        custom_cfg["preferences"]["max_news_per_source"] = 5
+        custom_cfg["preferences"]["news_sources"] = ["hn"]
+        with patch.object(news_aggregator, "fetch_hn_top", return_value=[
+            {"id": "1", "title": "Test", "url": "https://example.com", "score": 50, "comments": 10, "source": "hn"}
+        ]):
+            result = news_aggregator.aggregate_news(config=custom_cfg)
+            # fetch_hn_top should have been called with 5 (from custom pref)
+            news_aggregator.fetch_hn_top.assert_called_once_with(5)

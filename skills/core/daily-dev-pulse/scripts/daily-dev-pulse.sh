@@ -125,7 +125,7 @@ try:
     prefs = get_preferences(load_config())
     combined['preferences'] = prefs
 except Exception:
-    combined['preferences'] = {'stale_pr_days': 3, 'format': 'terminal', 'lookback_days': 7, 'security_lookback_days': 30, 'nvd_rate_limit': 6, 'news_sources': ['hn', 'devto', 'lobsters'], 'max_issues_per_repo': 3, 'max_action_items': 10}
+    combined['preferences'] = {'stale_pr_days': 3, 'format': 'terminal', 'lookback_days': 7, 'security_lookback_days': 30, 'nvd_rate_limit': 6, 'news_sources': ['hn', 'devto', 'lobsters'], 'max_issues_per_repo': 3, 'max_action_items': 10, 'max_prs_fetch': 20, 'max_ci_runs_fetch': 5, 'max_news_per_source': 10}
 
 for key in ['github', 'security', 'packages', 'news']:
     fpath = os.path.join(tmpdir, key + '.json')
