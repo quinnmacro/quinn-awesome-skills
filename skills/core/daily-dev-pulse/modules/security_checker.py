@@ -66,12 +66,12 @@ def fetch_cves(product, version="", days=30):
 
     for vuln in vulnerabilities[:10]:
         cve = vuln.get("cve", {})
-        cve_id = cve.get("id", "")
+        cve_id = cve.get("id") or ""
         descriptions = cve.get("descriptions", [])
         desc = ""
         for d in descriptions:
             if d.get("lang") == "en":
-                desc = d.get("value", "")
+                desc = d.get("value") or ""
                 break
 
         metrics = cve.get("metrics", {})
@@ -80,11 +80,12 @@ def fetch_cves(product, version="", days=30):
 
         cvss_v31 = metrics.get("cvssMetricV31", [])
         if cvss_v31:
-            severity = cvss_v31[0].get("cvssData", {}).get("baseSeverity", "unknown")
-            score = cvss_v31[0].get("cvssData", {}).get("baseScore", 0.0)
+            severity = (cvss_v31[0].get("cvssData", {}).get("baseSeverity") or "unknown")
+            score = cvss_v31[0].get("cvssData", {}).get("baseScore") or 0.0
         elif metrics.get("cvssMetricV30"):
-            severity = metrics.get("cvssMetricV30")[0].get("cvssData", {}).get("baseSeverity", "unknown")
-            score = metrics.get("cvssMetricV30")[0].get("cvssData", {}).get("baseScore", 0.0)
+            cvss_v30 = metrics.get("cvssMetricV30")
+            severity = (cvss_v30[0].get("cvssData", {}).get("baseSeverity") or "unknown")
+            score = cvss_v30[0].get("cvssData", {}).get("baseScore") or 0.0
 
         results.append({
             "cve_id": cve_id,
@@ -92,7 +93,7 @@ def fetch_cves(product, version="", days=30):
             "severity": severity,
             "score": score,
             "description": desc[:200],
-            "published": cve.get("published", "")[:10],
+            "published": (cve.get("published") or "")[:10],
         })
 
     return results

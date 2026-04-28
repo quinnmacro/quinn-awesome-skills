@@ -80,29 +80,29 @@ def format_terminal(data):
     github = data.get("github", {})
     if github and not github.get("error"):
         repos = github.get("repos", [])
-        if repos:
+        if isinstance(repos, list) and repos:
             lines.append(f"{Colors.BOLD}{Colors.BLUE}📊 GitHub Activity (Last {data.get('preferences', {}).get('lookback_days', data.get('github', {}).get('lookback_days', 7))} Days){Colors.RESET}")
             max_commits = max(r.get("commit_count", 0) for r in repos) if repos else 1
             for repo in repos:
-                name = repo["repo"].split("/")[-1]
+                name = (repo.get("repo") or "").split("/")[-1]
                 count = repo.get("commit_count", 0)
                 bar = ascii_bar(count, max(max_commits, 1), 20)
                 lines.append(f"  {Colors.GREEN}{name:20s}{Colors.RESET} {bar} {Colors.BOLD}{count}{Colors.RESET} commits")
 
             # CI Status (only show heading if at least one repo has CI runs)
-            has_ci = any(repo.get("ci_runs") for repo in repos)
+            has_ci = any(isinstance(repo.get("ci_runs"), list) and len(repo.get("ci_runs", [])) > 0 for repo in repos)
             if has_ci:
                 lines.append("")
                 lines.append(f"{Colors.BOLD}{Colors.BLUE}🔄 CI Status{Colors.RESET}")
                 for repo in repos:
-                    name = repo["repo"].split("/")[-1]
+                    name = (repo.get("repo") or "").split("/")[-1]
                     ci_runs = repo.get("ci_runs", [])
-                    if ci_runs:
-                        latest = ci_runs[0] if ci_runs else {}
-                        status = latest.get("status", "unknown")
-                        conclusion = latest.get("conclusion", "unknown")
+                    if isinstance(ci_runs, list) and ci_runs:
+                        latest = ci_runs[0]
+                        status = (latest.get("status") or "unknown")
+                        conclusion = (latest.get("conclusion") or "unknown")
                         emoji = CI_EMOJI.get(conclusion, CI_EMOJI.get(status, CI_EMOJI["unknown"]))
-                        lines.append(f"  {emoji} {name}: {conclusion} ({latest.get('name', 'unknown')})")
+                        lines.append(f"  {emoji} {name}: {conclusion} ({latest.get('name') or 'unknown'})")
                 lines.append("")
 
     # GitHub error
@@ -113,42 +113,43 @@ def format_terminal(data):
     # Open PRs & Issues
     if github and not github.get("error"):
         repos = github.get("repos", [])
-        has_prs = any(isinstance(r.get("open_prs"), list) and len(r["open_prs"]) > 0 for r in repos)
-        has_issues = any(isinstance(r.get("open_issues"), list) and len(r["open_issues"]) > 0 for r in repos)
+        if isinstance(repos, list):
+            has_prs = any(isinstance(r.get("open_prs"), list) and len(r.get("open_prs", [])) > 0 for r in repos)
+            has_issues = any(isinstance(r.get("open_issues"), list) and len(r.get("open_issues", [])) > 0 for r in repos)
 
-        if has_prs or has_issues:
-            lines.append(f"{Colors.BOLD}{Colors.BLUE}🔍 Open PRs & Issues{Colors.RESET}")
-            lines.append(f"  ┌{'─' * 30}┬{'─' * 8}┬{'─' * 30}┐")
-            lines.append(f"  │{'Repo':^30}│{'Type':^8}│{'Title':^30}│")
-            lines.append(f"  ├{'─' * 30}┼{'─' * 8}┼{'─' * 30}┤")
-            for repo in repos:
-                name = repo["repo"].split("/")[-1][:30]
-                open_prs = repo.get("open_prs", [])
-                if isinstance(open_prs, list):
-                    for pr in open_prs[:5]:
-                        title = (pr.get("title", "") or "")[:30]
-                        lines.append(f"  │{name:^30}│{'PR':^8}│{title:^30}│")
-                open_issues = repo.get("open_issues", [])
-                if isinstance(open_issues, list):
-                    for issue in open_issues[:5]:
-                        title = (issue.get("title", "") or "")[:30]
-                        lines.append(f"  │{name:^30}│{'Issue':^8}│{title:^30}│")
-            lines.append(f"  └{'─' * 30}┴{'─' * 8}┴{'─' * 30}┘")
-            lines.append("")
+            if has_prs or has_issues:
+                lines.append(f"{Colors.BOLD}{Colors.BLUE}🔍 Open PRs & Issues{Colors.RESET}")
+                lines.append(f"  ┌{'─' * 30}┬{'─' * 8}┬{'─' * 30}┐")
+                lines.append(f"  │{'Repo':^30}│{'Type':^8}│{'Title':^30}│")
+                lines.append(f"  ├{'─' * 30}┼{'─' * 8}┼{'─' * 30}┤")
+                for repo in repos:
+                    name = (repo.get("repo") or "").split("/")[-1][:30]
+                    open_prs = repo.get("open_prs", [])
+                    if isinstance(open_prs, list):
+                        for pr in open_prs[:5]:
+                            title = (pr.get("title") or "")[:30]
+                            lines.append(f"  │{name:^30}│{'PR':^8}│{title:^30}│")
+                    open_issues = repo.get("open_issues", [])
+                    if isinstance(open_issues, list):
+                        for issue in open_issues[:5]:
+                            title = (issue.get("title") or "")[:30]
+                            lines.append(f"  │{name:^30}│{'Issue':^8}│{title:^30}│")
+                lines.append(f"  └{'─' * 30}┴{'─' * 8}┴{'─' * 30}┘")
+                lines.append("")
 
     # Security Alerts
     security = data.get("security", {})
     if security and not security.get("error"):
         alerts = security.get("alerts", [])
-        if alerts:
+        if isinstance(alerts, list) and alerts:
             sec_lookback = data.get('preferences', {}).get('security_lookback_days', 30)
             lines.append(f"{Colors.BOLD}{Colors.RED}🛡️ Security Alerts (Last {sec_lookback} Days){Colors.RESET}")
             for alert in alerts[:8]:
-                sev = alert.get("severity", "unknown")
+                sev = alert.get("severity") or "unknown"
                 emoji = SEVERITY_EMOJI.get(sev, SEVERITY_EMOJI["unknown"])
-                cve_id = alert.get("cve_id", "")
-                product = alert.get("product", "")
-                desc = (alert.get("description", "") or "")[:60]
+                cve_id = alert.get("cve_id") or ""
+                product = alert.get("product") or ""
+                desc = (alert.get("description") or "")[:60]
                 lines.append(f"  {emoji} {cve_id} — {product} ({sev}): {desc}")
             lines.append("")
 
@@ -156,12 +157,12 @@ def format_terminal(data):
     packages = data.get("packages", {})
     if packages and not packages.get("error"):
         updates = packages.get("updates", [])
-        if updates:
+        if isinstance(updates, list) and updates:
             lines.append(f"{Colors.BOLD}{Colors.BLUE}📦 Package Updates{Colors.RESET}")
             for pkg in updates:
-                name = pkg.get("package", "")
-                reg = pkg.get("registry", "")
-                ver = pkg.get("latest_version", "unknown")
+                name = pkg.get("package") or ""
+                reg = pkg.get("registry") or ""
+                ver = pkg.get("latest_version") or "unknown"
                 lines.append(f"  {reg:4s} {Colors.GREEN}{name}{Colors.RESET} → {ver}")
             lines.append("")
 
@@ -169,11 +170,11 @@ def format_terminal(data):
     news = data.get("news", {})
     if news and not news.get("error"):
         headlines = news.get("headlines", [])
-        if headlines:
+        if isinstance(headlines, list) and headlines:
             lines.append(f"{Colors.BOLD}{Colors.BLUE}📰 Trending Dev News{Colors.RESET}")
             for i, hl in enumerate(headlines[:10], 1):
-                source = hl.get("source", "")
-                title = (hl.get("title", "") or "")[:60]
+                source = hl.get("source") or ""
+                title = (hl.get("title") or "")[:60]
                 score = hl.get("score", 0)
                 lines.append(f"  {i:2d}. [{source:4s}] {title} ({score} pts)")
             lines.append("")
@@ -198,87 +199,91 @@ def format_markdown(data):
     github = data.get("github", {})
     if github and not github.get("error"):
         repos = github.get("repos", [])
-        if repos:
+        if isinstance(repos, list) and repos:
             lookback = data.get("preferences", {}).get("lookback_days", 7)
             lines.append(f"## GitHub Activity (Last {lookback} Days)")
             lines.append("")
             lines.append("| Repo | Commits | Latest CI |")
             lines.append("|------|---------|-----------|")
             for repo in repos:
-                name = repo["repo"].split("/")[-1]
+                name = (repo.get("repo") or "").split("/")[-1]
                 count = repo.get("commit_count", 0)
                 ci_runs = repo.get("ci_runs", [])
-                ci_status = ci_runs[0].get("conclusion", "N/A") if ci_runs else "N/A"
+                ci_status = ci_runs[0].get("conclusion") or "N/A" if isinstance(ci_runs, list) and ci_runs else "N/A"
                 emoji = CI_EMOJI.get(ci_status, "❓")
                 lines.append(f"| {name} | {count} | {emoji} {ci_status} |")
             lines.append("")
 
         # PRs
         all_prs = []
-        for repo in (github.get("repos", [])):
-            open_prs = repo.get("open_prs", [])
-            if isinstance(open_prs, list):
-                for pr in open_prs:
-                    all_prs.append((repo["repo"], pr))
+        repos_for_iteration = github.get("repos", [])
+        if isinstance(repos_for_iteration, list):
+            for repo in repos_for_iteration:
+                open_prs = repo.get("open_prs", [])
+                if isinstance(open_prs, list):
+                    for pr in open_prs:
+                        all_prs.append((repo.get("repo") or "", pr))
         if all_prs:
             lines.append("### Open PRs")
             lines.append("")
             for full_repo, pr in all_prs[:10]:
-                lines.append(f"- **{full_repo}** #{pr.get('number', '')}: {pr.get('title', '')}")
+                lines.append(f"- **{full_repo}** #{pr.get('number') or ''}: {pr.get('title') or ''}")
             lines.append("")
 
         # Issues
         all_issues = []
-        for repo in (github.get("repos", [])):
-            open_issues = repo.get("open_issues", [])
-            if isinstance(open_issues, list):
-                for issue in open_issues:
-                    all_issues.append((repo["repo"], issue))
+        repos_for_iteration = github.get("repos", [])
+        if isinstance(repos_for_iteration, list):
+            for repo in repos_for_iteration:
+                open_issues = repo.get("open_issues", [])
+                if isinstance(open_issues, list):
+                    for issue in open_issues:
+                        all_issues.append((repo.get("repo") or "", issue))
         if all_issues:
             lines.append("### Open Issues")
             lines.append("")
             for full_repo, issue in all_issues[:10]:
-                lines.append(f"- **{full_repo}** #{issue.get('number', '')}: {issue.get('title', '')}")
+                lines.append(f"- **{full_repo}** #{issue.get('number') or ''}: {issue.get('title') or ''}")
             lines.append("")
 
     # Security
     security = data.get("security", {})
     if security and not security.get("error"):
         alerts = security.get("alerts", [])
-        if alerts:
+        if isinstance(alerts, list) and alerts:
             sec_lookback = data.get("preferences", {}).get("security_lookback_days", 30)
             lines.append(f"## Security Alerts (Last {sec_lookback} Days)")
             lines.append("")
             lines.append("| CVE ID | Product | Severity | Description |")
             lines.append("|--------|---------|----------|-------------|")
             for alert in alerts[:10]:
-                lines.append(f"| {alert.get('cve_id', '')} | {alert.get('product', '')} | {alert.get('severity', '')} | {(alert.get('description', '') or '')[:50]} |")
+                lines.append(f"| {alert.get('cve_id') or ''} | {alert.get('product') or ''} | {alert.get('severity') or ''} | {(alert.get('description') or '')[:50]} |")
             lines.append("")
 
     # Packages
     packages = data.get("packages", {})
     if packages and not packages.get("error"):
         updates = packages.get("updates", [])
-        if updates:
+        if isinstance(updates, list) and updates:
             lines.append("## Package Updates Available")
             lines.append("")
             lines.append("| Registry | Package | Latest Version |")
             lines.append("|----------|---------|----------------|")
             for pkg in updates:
-                lines.append(f"| {pkg.get('registry', '')} | {pkg.get('package', '')} | {pkg.get('latest_version', '')} |")
+                lines.append(f"| {pkg.get('registry') or ''} | {pkg.get('package') or ''} | {pkg.get('latest_version') or ''} |")
             lines.append("")
 
     # News
     news = data.get("news", {})
     if news and not news.get("error"):
         headlines = news.get("headlines", [])
-        if headlines:
+        if isinstance(headlines, list) and headlines:
             lines.append("## Trending Dev News")
             lines.append("")
             for i, hl in enumerate(headlines[:15], 1):
-                source = hl.get("source", "")
-                title = hl.get("title", "")
-                url = hl.get("url", "")
+                source = hl.get("source") or ""
+                title = hl.get("title") or ""
+                url = hl.get("url") or ""
                 score = hl.get("score", 0)
                 lines.append(f"{i}. **[{source}]** [{title}]({url}) ({score} pts)")
             lines.append("")
@@ -315,8 +320,10 @@ def generate_action_items(data):
     max_action_items = data.get("preferences", {}).get("max_action_items", 10)
 
     github = data.get("github", {})
-    if github and not github.get("error"):
-        for repo in github.get("repos", []):
+    repos = github.get("repos", [])
+    if github and not github.get("error") and isinstance(repos, list):
+        for repo in repos:
+            repo_name = repo.get("repo") or "unknown"
             # Stale PRs (open > stale_pr_days threshold from config)
             open_prs = repo.get("open_prs", [])
             if isinstance(open_prs, list):
@@ -327,7 +334,7 @@ def generate_action_items(data):
                             created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
                             days_open = (datetime.now(timezone.utc) - created_dt).days
                             if days_open > stale_threshold:
-                                text = f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)"
+                                text = f"Review stale PR #{pr.get('number') or ''} on {repo_name} (open {days_open} days)"
                                 if text not in seen:
                                     seen.add(text)
                                     items.append(text)
@@ -338,8 +345,8 @@ def generate_action_items(data):
             ci_runs = repo.get("ci_runs", [])
             if isinstance(ci_runs, list):
                 for run in ci_runs:
-                    if run.get("conclusion") == "failure":
-                        text = f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})"
+                    if (run.get("conclusion") or "") == "failure":
+                        text = f"Fix failing CI on {repo_name} ({run.get('name') or 'unknown'})"
                         if text not in seen:
                             seen.add(text)
                             items.append(text)
@@ -357,8 +364,8 @@ def generate_action_items(data):
                             created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
                             days_since = (datetime.now(timezone.utc) - created_dt).days
                             if days_since <= lookback_days:
-                                title = (issue.get("title", "") or "")[:40]
-                                text = f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}"
+                                title = (issue.get("title") or "")[:40]
+                                text = f"Address open issue #{issue.get('number') or ''} on {repo_name}: {title}"
                                 if text not in seen:
                                     seen.add(text)
                                     items.append(text)
@@ -368,11 +375,12 @@ def generate_action_items(data):
 
     # Security-related updates
     security = data.get("security", {})
-    if security and not security.get("error"):
-        for alert in security.get("alerts", [])[:5]:
-            sev = alert.get("severity", "")
+    alerts = security.get("alerts", [])
+    if security and not security.get("error") and isinstance(alerts, list):
+        for alert in alerts[:5]:
+            sev = alert.get("severity") or ""
             if sev in ("CRITICAL", "HIGH"):
-                text = f"Update {alert.get('product', '')} — {alert.get('cve_id', '')} ({sev})"
+                text = f"Update {alert.get('product') or ''} — {alert.get('cve_id') or ''} ({sev})"
                 if text not in seen:
                     seen.add(text)
                     items.append(text)

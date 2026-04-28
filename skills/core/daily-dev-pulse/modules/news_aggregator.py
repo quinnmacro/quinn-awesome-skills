@@ -135,7 +135,7 @@ def fetch_hn_top(limit=10):
 
         # Preserve original order by sorting by story_id position
         id_order = {sid: i for i, sid in enumerate(story_ids)}
-        stories.sort(key=lambda s: id_order.get(s["id"], 0))
+        stories.sort(key=lambda s: id_order.get(s.get("id", ""), 0))
 
         return stories
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):

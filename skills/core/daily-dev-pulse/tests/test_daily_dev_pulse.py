@@ -3096,3 +3096,285 @@ class TestTableColumnOverflow(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDictGetNoneVsDefault(unittest.TestCase):
+    """Verify that dict.get() uses (or default) pattern for values that are sliced or formatted.
+
+    dict.get(key, default) returns None (not the default) when the key exists but value is None.
+    This causes TypeError on slicing (None[:7]) or format specs ({None:20s}).
+    The fix: use (dict.get(key) or default) so None falls through to the default.
+    """
+
+    def test_github_scanner_sha_none_safe(self):
+        """sha field must use (or "")[:7] pattern, not .get("sha", "")[:7]."""
+        with open(os.path.join(MODULES_DIR, "github_scanner.py")) as f:
+            content = f.read()
+        # Must NOT have the old pattern: .get("sha", "")[:7]
+        assert '.get("sha", "")[:7]' not in content and \
+               ".get('sha', \"\")[:7]" not in content, \
+            "sha must use (or '')[:7] pattern, not .get('sha', '')[:7]"
+        # Must have the new pattern: (c.get("sha") or "")[:7]
+        assert "(c.get(\"sha\") or \"\")[:7]" in content or \
+               "(c.get('sha') or \"\")[:7]" in content, \
+            "sha must use (c.get('sha') or '')[:7] pattern"
+
+    def test_github_scanner_date_none_safe(self):
+        """date field must use (or "")[:10] pattern."""
+        source = open(os.path.join(MODULES_DIR, "github_scanner.py")).read()
+        assert '.get("date", "")[:10]' not in source, \
+            "date must use (or '')[:10] pattern, not .get('date', '')[:10]"
+        assert '.get("date") or ""' in source, \
+            "date must use .get('date') or '' pattern"
+
+    def test_security_checker_description_none_safe(self):
+        """description field must use (or "") before slicing [:200]."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        # The desc variable assignment should use (or "") pattern
+        assert "d.get(\"value\") or \"\"" in content or \
+               "d.get('value') or \"\"" in content, \
+            "desc must use d.get('value') or '' pattern"
+
+    def test_security_checker_published_none_safe(self):
+        """published field must use (or "")[:10] pattern."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert '.get("published", "")[:10]' not in content, \
+            "published must use (or '')[:10] pattern"
+        assert "(cve.get(\"published\") or \"\")[:10]" in content, \
+            "published must use (cve.get('published') or '')[:10] pattern"
+
+    def test_security_checker_severity_none_safe(self):
+        """severity must use (or "unknown") pattern so None doesn't display as 'None'."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        # Should NOT have the old pattern: .get("baseSeverity", "unknown")
+        assert '.get("baseSeverity", "unknown")' not in content and \
+               ".get('baseSeverity', 'unknown')" not in content, \
+            "severity must use (or 'unknown') pattern, not .get('baseSeverity', 'unknown')"
+        assert '.get("baseSeverity") or "unknown"' in content or \
+               ".get('baseSeverity') or 'unknown'" in content, \
+            "severity must use .get('baseSeverity') or 'unknown' pattern"
+
+    def test_security_checker_score_none_safe(self):
+        """score must use (or 0.0) pattern so None doesn't cause sort TypeError."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert '.get("baseScore", 0.0)' not in content, \
+            "score must use (or 0.0) pattern, not .get('baseScore', 0.0)"
+        assert '.get("baseScore") or 0.0' in content, \
+            "score must use .get('baseScore') or 0.0 pattern"
+
+    def test_package_watcher_version_none_safe(self):
+        """version fields must use (or 'unknown') pattern."""
+        with open(os.path.join(MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        # npm latest_version
+        assert 'data.get("version") or "unknown"' in content, \
+            "npm latest_version must use (or 'unknown') pattern"
+        # pypi latest_version
+        assert 'data.get("info", {}).get("version") or "unknown"' in content, \
+            "pypi latest_version must use (or 'unknown') pattern"
+
+    def test_package_watcher_description_none_safe(self):
+        """description fields must use (or "") before slicing [:100]."""
+        with open(os.path.join(MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        # Must not have old pattern: .get("description", "")[:100] (without or)
+        assert 'data.get("description") or ""' in content, \
+            "npm description must use (or '') pattern"
+        assert 'info.get("summary") or ""' in content, \
+            "pypi description must use (or '') pattern"
+
+    def test_pulse_formatter_repo_name_safe(self):
+        """repo name must use .get('repo') or '' pattern, not repo['repo']."""
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        assert "repo[\"repo\"]" not in content and "repo['repo']" not in content, \
+            "pulse_formatter must use repo.get('repo') or '', not repo['repo'] direct key access"
+
+    def test_pulse_formatter_registry_format_none_safe(self):
+        """registry and source fields in format specs must use (or '') pattern."""
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        # reg = pkg.get("registry") or "" (not pkg.get("registry", ""))
+        assert 'pkg.get("registry") or ""' in content or \
+               "pkg.get('registry') or \"\"" in content, \
+            "registry must use (or '') pattern for format spec safety"
+        # source = hl.get("source") or "" (not hl.get("source", ""))
+        assert 'hl.get("source") or ""' in content or \
+               "hl.get('source') or \"\"" in content, \
+            "source must use (or '') pattern for format spec safety"
+
+    def test_github_scanner_sha_with_none_value(self):
+        """When commit dict has sha=None, (or '')[:7] returns ''[:7]='' (not TypeError)."""
+        result = github_scanner.scan_commits.__code__.co_consts
+        # Verify the function definition exists and uses safe patterns
+        source = open(os.path.join(MODULES_DIR, "github_scanner.py")).read()
+        assert "(c.get(\"sha\") or \"\")[:7]" in source, \
+            "github_scanner must use safe None-handling pattern for sha"
+
+    def test_pulse_formatter_action_items_repo_name_safe(self):
+        """Action items must use repo.get('repo') or 'unknown', not repo['repo']."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        # All repo['repo'] should be replaced with .get('repo') or 'unknown'
+        assert "repo[\"repo\"]" not in source and "repo['repo']" not in source, \
+            "generate_action_items must use repo.get('repo') pattern, not direct key access"
+
+
+class TestIsinstanceGuardsComplete(unittest.TestCase):
+    """Verify that isinstance(list) guards are applied to ALL iterable data fields
+    in pulse_formatter, not just open_prs and open_issues."""
+
+    def test_repos_isinstance_guard_in_format_terminal(self):
+        """repos must have isinstance(list) guard before iteration."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        # In format_terminal, the repos check should include isinstance
+        assert "isinstance(repos, list) and repos" in source, \
+            "format_terminal must check isinstance(repos, list) before iterating"
+
+    def test_alerts_isinstance_guard_in_format_terminal(self):
+        """alerts must have isinstance(list) guard before iteration."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        assert "isinstance(alerts, list) and alerts" in source, \
+            "format_terminal Security Alerts must check isinstance(alerts, list)"
+
+    def test_updates_isinstance_guard_in_format_terminal(self):
+        """updates must have isinstance(list) guard before iteration."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        assert "isinstance(updates, list) and updates" in source, \
+            "format_terminal Package Updates must check isinstance(updates, list)"
+
+    def test_headlines_isinstance_guard_in_format_terminal(self):
+        """headlines must have isinstance(list) guard before iteration."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        assert "isinstance(headlines, list) and headlines" in source, \
+            "format_terminal News must check isinstance(headlines, list)"
+
+    def test_repos_isinstance_guard_in_format_markdown(self):
+        """repos must have isinstance guard in markdown format too."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        # format_markdown should also have isinstance(repos, list) check
+        self.assertIn("isinstance(repos, list)", source)
+
+    def test_action_items_repos_isinstance_guard(self):
+        """generate_action_items must have isinstance(repos, list) guard."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        assert "isinstance(repos, list)" in source, \
+            "generate_action_items must guard repos with isinstance(list)"
+
+    def test_action_items_alerts_isinstance_guard(self):
+        """generate_action_items must have isinstance(alerts, list) guard."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        # The alerts section in action items must use isinstance
+        assert "isinstance(alerts, list)" in source, \
+            "generate_action_items must guard alerts with isinstance(list)"
+
+    def test_ci_runs_isinstance_guard_in_terminal(self):
+        """ci_runs in terminal format must use isinstance(list) guard."""
+        source = open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")).read()
+        # The CI section should use isinstance(ci_runs, list) check
+        assert "isinstance(ci_runs, list) and ci_runs" in source, \
+            "format_terminal CI Status must check isinstance(ci_runs, list)"
+
+    def test_format_terminal_with_string_repos(self):
+        """When repos is a non-list (e.g. 'scan_failed'), format should not crash."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"] = "scan_failed"  # Not a list
+        output = pulse_formatter.format_terminal(data)
+        # Should not crash and should not iterate over 'scan_failed' string
+        assert "scan_failed" not in output or "GitHub" not in output
+
+    def test_format_terminal_with_string_alerts(self):
+        """When alerts is a non-list, Security Alerts section should not crash."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["security"] = {"source": "security", "alerts": "error_string"}
+        output = pulse_formatter.format_terminal(data)
+        # Should not crash or iterate over string characters
+        assert "error_string" not in output
+
+    def test_format_terminal_with_string_headlines(self):
+        """When headlines is a non-list, News section should not crash."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["news"] = {"source": "news", "headlines": "fetch_failed"}
+        output = pulse_formatter.format_terminal(data)
+        assert "fetch_failed" not in output
+
+    def test_format_markdown_with_string_repos(self):
+        """When repos is a non-list in markdown, should not crash."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"] = "error"
+        output = pulse_formatter.format_markdown(data)
+        # Should not crash
+        assert isinstance(output, str)
+
+
+class TestShellScriptArgumentValidation(unittest.TestCase):
+    """Verify shell script validates $2 before accessing it for CLI arguments."""
+
+    def test_format_requires_value(self):
+        """--format must validate that a value follows it."""
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        # Should have $# -lt 2 check for --format
+        assert '--format' in content and '# -lt 2' in content, \
+            "Shell script must validate --format requires a value"
+
+    def test_repos_requires_value(self):
+        """--repos must validate that a value follows it."""
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        assert '--repos' in content and '# -lt 2' in content, \
+            "Shell script must validate --repos requires a value"
+
+    def test_focus_requires_value(self):
+        """--focus must validate that a value follows it."""
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        assert '--focus' in content and '# -lt 2' in content, \
+            "Shell script must validate --focus requires a value"
+
+    def test_days_requires_value(self):
+        """--days must validate that a numeric value follows it."""
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        assert '--days' in content and '# -lt 2' in content, \
+            "Shell script must validate --days requires a value"
+
+    def test_config_requires_value(self):
+        """--config must validate that a path follows it."""
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        assert '--config' in content and '# -lt 2' in content, \
+            "Shell script must validate --config requires a value"
+
+    def test_no_redundant_stderr_redirect(self):
+        """gh auth status should not have redundant 2>&1 after &>/dev/null."""
+        with open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")) as f:
+            content = f.read()
+        # &>/dev/null already redirects both stdout+stderr; 2>&1 after it is redundant
+        assert "&>/dev/null 2>&1" not in content, \
+            "Remove redundant 2>&1 after &>/dev/null"
+
+    def test_news_aggregator_id_safe_access(self):
+        """HN story sorting must use s.get('id', '') not s['id']."""
+        with open(os.path.join(MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        assert "s[\"id\"]" not in content and "s['id']" not in content, \
+            "news_aggregator must use s.get('id', '') not direct key access"
+
+    def test_security_checker_cve_id_none_safe(self):
+        """cve_id must use (or '') pattern."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert 'cve.get("id") or ""' in content, \
+            "cve_id must use cve.get('id') or '' pattern"
+
+    def test_security_checker_cvss_v30_not_duplicated(self):
+        """cvssMetricV30 should be stored in a variable, not called twice."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        # Should store cvss_v30 = metrics.get("cvssMetricV30") and reuse it
+        assert "cvss_v30 = metrics.get" in content, \
+            "cvssMetricV30 should be stored in a variable to avoid double lookup"

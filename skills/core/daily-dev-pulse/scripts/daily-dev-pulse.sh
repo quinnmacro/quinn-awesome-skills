@@ -16,22 +16,42 @@ CONFIG_PATH="${PULSE_CONFIG_PATH:-$HOME/.quinn-skills/pulse-config.yml}"
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --format)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --format requires a value (terminal|md|json)" >&2
+                exit 1
+            fi
             FORMAT="$2"
             shift 2
             ;;
         --repos)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --repos requires a value" >&2
+                exit 1
+            fi
             REPOS="$2"
             shift 2
             ;;
         --focus)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --focus requires a value (security|news|activity|all)" >&2
+                exit 1
+            fi
             FOCUS="$2"
             shift 2
             ;;
         --days)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --days requires a numeric value" >&2
+                exit 1
+            fi
             DAYS="$2"
             shift 2
             ;;
         --config)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --config requires a path" >&2
+                exit 1
+            fi
             CONFIG_PATH="$2"
             shift 2
             ;;
@@ -49,7 +69,7 @@ export PULSE_REPOS="${REPOS}"
 
 # Check gh CLI availability
 GH_AVAILABLE=false
-if command -v gh &>/dev/null && gh auth status &>/dev/null 2>&1; then
+if command -v gh &>/dev/null && gh auth status &>/dev/null; then
     GH_AVAILABLE=true
 fi
 

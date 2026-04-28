@@ -82,10 +82,10 @@ def fetch_npm_info(package):
         return {
             "package": package,
             "registry": "npm",
-            "latest_version": data.get("version", "unknown"),
-            "description": (data.get("description", "") or "")[:100],
-            "homepage": data.get("homepage", ""),
-            "license": data.get("license", ""),
+            "latest_version": data.get("version") or "unknown",
+            "description": (data.get("description") or "")[:100],
+            "homepage": data.get("homepage") or "",
+            "license": data.get("license") or "",
         }
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
         return {
@@ -107,7 +107,7 @@ def fetch_pypi_info(package):
             data = json.loads(resp.read().decode())
 
         info = data.get("info", {})
-        latest_version = data.get("info", {}).get("version", "unknown")
+        latest_version = data.get("info", {}).get("version") or "unknown"
 
         # Get URLs for changelog if available
         project_urls = info.get("project_urls", {}) or {}
@@ -122,10 +122,10 @@ def fetch_pypi_info(package):
             "package": package,
             "registry": "pypi",
             "latest_version": latest_version,
-            "description": (info.get("summary", "") or "")[:100],
-            "homepage": info.get("home_page", ""),
-            "changelog_url": changelog_url,
-            "license": info.get("license", ""),
+            "description": (info.get("summary") or "")[:100],
+            "homepage": info.get("home_page") or "",
+            "changelog_url": changelog_url or "",
+            "license": info.get("license") or "",
         }
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
         return {

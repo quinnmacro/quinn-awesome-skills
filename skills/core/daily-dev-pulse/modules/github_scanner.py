@@ -39,10 +39,10 @@ def scan_commits(repo_owner, repo_name, days=7):
 
     return [
         {
-            "sha": c.get("sha", "")[:7],
-            "message": (c.get("commit", {}).get("message", "") or "").split("\n")[0],
-            "author": (c.get("commit", {}).get("author", {}).get("name", "unknown")),
-            "date": (c.get("commit", {}).get("author", {}).get("date", ""))[:10],
+            "sha": (c.get("sha") or "")[:7],
+            "message": (c.get("commit", {}).get("message") or "").split("\n")[0],
+            "author": (c.get("commit", {}).get("author", {}).get("name") or "unknown"),
+            "date": (c.get("commit", {}).get("author", {}).get("date") or "")[:10],
         }
         for c in commits[:20]
     ]
