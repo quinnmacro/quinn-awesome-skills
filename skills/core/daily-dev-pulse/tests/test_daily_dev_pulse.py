@@ -3530,3 +3530,223 @@ class TestResourceWarningPrevention(unittest.TestCase):
             # Check for assignment pattern: content = open(...).read()
             if "= open(" in stripped and ".read()" in stripped and "with open" not in stripped:
                 assert False, f"Bare open-read found: {stripped}"
+
+
+class TestMergeConfigTypeMismatch(unittest.TestCase):
+    """Verify merge_config handles scalar-vs-list type mismatches correctly.
+
+    When user YAML provides a scalar for a list field (e.g. 'FastAPI' instead
+    of ['FastAPI']), merge_config must wrap the scalar into a list to prevent
+    downstream string iteration bugs.
+    """
+
+    def test_scalar_wrapped_into_list_for_frameworks(self):
+        """A scalar frameworks value must be wrapped into a list."""
+        user_config = {"tech_stack": {"frameworks": "FastAPI"}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        frameworks = result["tech_stack"]["frameworks"]
+        assert isinstance(frameworks, list), \
+            f"frameworks must be a list, got {type(frameworks).__name__}"
+        assert frameworks == ["FastAPI"], \
+            f"Expected ['FastAPI'], got {frameworks}"
+
+    def test_scalar_wrapped_into_list_for_databases(self):
+        """A scalar databases value must be wrapped into a list."""
+        user_config = {"tech_stack": {"databases": "PostgreSQL"}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        databases = result["tech_stack"]["databases"]
+        assert isinstance(databases, list), \
+            f"databases must be a list, got {type(databases).__name__}"
+        assert databases == ["PostgreSQL"], \
+            f"Expected ['PostgreSQL'], got {databases}"
+
+    def test_scalar_wrapped_into_list_for_libraries(self):
+        """A scalar libraries value must be wrapped into a list."""
+        user_config = {"tech_stack": {"libraries": "LangGraph"}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        libraries = result["tech_stack"]["libraries"]
+        assert isinstance(libraries, list), \
+            f"libraries must be a list, got {type(libraries).__name__}"
+        assert libraries == ["LangGraph"], \
+            f"Expected ['LangGraph'], got {libraries}"
+
+    def test_scalar_wrapped_into_list_for_npm_deps(self):
+        """A scalar npm dependency must be wrapped into a list."""
+        user_config = {"dependencies": {"npm": "react"}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        npm = result["dependencies"]["npm"]
+        assert isinstance(npm, list), \
+            f"npm must be a list, got {type(npm).__name__}"
+        assert npm == ["react"], \
+            f"Expected ['react'], got {npm}"
+
+    def test_scalar_wrapped_into_list_for_pypi_deps(self):
+        """A scalar pypi dependency must be wrapped into a list."""
+        user_config = {"dependencies": {"pypi": "fastapi"}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        pypi = result["dependencies"]["pypi"]
+        assert isinstance(pypi, list), \
+            f"pypi must be a list, got {type(pypi).__name__}"
+        assert pypi == ["fastapi"], \
+            f"Expected ['fastapi'], got {pypi}"
+
+    def test_scalar_wrapped_into_list_for_news_sources(self):
+        """A scalar news_sources preference must be wrapped into a list."""
+        user_config = {"preferences": {"news_sources": "hn"}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        sources = result["preferences"]["news_sources"]
+        assert isinstance(sources, list), \
+            f"news_sources must be a list, got {type(sources).__name__}"
+        assert sources == ["hn"], \
+            f"Expected ['hn'], got {sources}"
+
+    def test_none_scalar_produces_empty_list(self):
+        """A None value for a list field must produce an empty list."""
+        user_config = {"tech_stack": {"frameworks": None}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        frameworks = result["tech_stack"]["frameworks"]
+        assert isinstance(frameworks, list), \
+            f"frameworks must be a list, got {type(frameworks).__name__}"
+        assert frameworks == [], \
+            f"Expected [], got {frameworks}"
+
+    def test_list_value_preserved_as_list(self):
+        """A proper list value must be preserved as-is."""
+        user_config = {"tech_stack": {"frameworks": ["Django", "Flask"]}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        frameworks = result["tech_stack"]["frameworks"]
+        assert isinstance(frameworks, list), \
+            f"frameworks must be a list, got {type(frameworks).__name__}"
+        assert frameworks == ["Django", "Flask"], \
+            f"Expected ['Django', 'Flask'], got {frameworks}"
+
+    def test_new_key_preserved_as_original_type(self):
+        """New keys not in defaults must be preserved with their original type."""
+        user_config = {"custom_field": "some_string"}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        assert result.get("custom_field") == "some_string", \
+            f"Expected 'some_string', got {result.get('custom_field')}"
+
+    def test_scalar_repos_wrapped_into_list(self):
+        """A scalar repos value must be wrapped into a list."""
+        user_config = {"repos": "quinnmacro/weather-cli"}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        repos = result["repos"]
+        assert isinstance(repos, list), \
+            f"repos must be a list, got {type(repos).__name__}"
+        assert repos == ["quinnmacro/weather-cli"], \
+            f"Expected ['quinnmacro/weather-cli'], got {repos}"
+
+    def test_security_checker_build_search_terms_handles_scalar_config(self):
+        """build_search_terms must not crash when frameworks is a string (pre-merge bug)."""
+        # Simulate a config where merge didn't wrap a scalar
+        bad_tech_stack = {
+            "python": "3.13",
+            "frameworks": "FastAPI",  # scalar — bug scenario
+            "databases": ["SQLite"],
+            "libraries": ["LangGraph"],
+        }
+        # Even with scalar, build_search_terms should handle it gracefully
+        terms = security_checker.build_search_terms(bad_tech_stack)
+        assert isinstance(terms, list), \
+            f"build_search_terms must return a list, got {type(terms).__name__}"
+        # Should have python term + databases + libraries terms
+        assert len(terms) >= 3, \
+            f"Expected at least 3 terms, got {len(terms)}"
+
+
+class TestNewsAggregatorIsinstanceGuards(unittest.TestCase):
+    """Verify isinstance(list) guards on API response iteration in news_aggregator."""
+
+    def test_fetch_hn_top_handles_non_list_api_response(self):
+        """fetch_hn_top must handle non-list HN API responses gracefully."""
+        with patch("news_aggregator.urllib.request.urlopen") as mock_urlopen:
+            # Simulate API returning a dict instead of a list
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({"error": "not found"}).encode()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_urlopen.return_value = mock_resp
+
+            result = news_aggregator.fetch_hn_top(10)
+            assert isinstance(result, list), \
+                f"fetch_hn_top must return a list, got {type(result).__name__}"
+            assert result == [], \
+                f"Expected empty list for non-list API response, got {result}"
+
+    def test_fetch_devto_top_handles_non_list_api_response(self):
+        """fetch_devto_top must handle non-list Dev.to API responses gracefully."""
+        with patch("news_aggregator.urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({"error": "rate limited"}).encode()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_urlopen.return_value = mock_resp
+
+            result = news_aggregator.fetch_devto_top(10)
+            assert isinstance(result, list), \
+                f"fetch_devto_top must return a list, got {type(result).__name__}"
+            assert result == [], \
+                f"Expected empty list for non-list API response, got {result}"
+
+    def test_fetch_lobsters_top_handles_non_list_api_response(self):
+        """fetch_lobsters_top must handle non-list Lobsters API responses gracefully."""
+        with patch("news_aggregator.urllib.request.urlopen") as mock_urlopen:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = json.dumps({"error": "unavailable"}).encode()
+            mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+            mock_resp.__exit__ = MagicMock(return_value=False)
+            mock_urlopen.return_value = mock_resp
+
+            result = news_aggregator.fetch_lobsters_top(10)
+            assert isinstance(result, list), \
+                f"fetch_lobsters_top must return a list, got {type(result).__name__}"
+            assert result == [], \
+                f"Expected empty list for non-list API response, got {result}"
+
+    def test_fetch_hn_top_skips_string_story_ids(self):
+        """fetch_hn_top must not submit string characters as story IDs."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        # Verify isinstance(raw, list) guard exists before slicing
+        assert "isinstance(raw, list)" in content, \
+            "fetch_hn_top must check isinstance(raw, list) before slicing"
+
+    def test_fetch_devto_top_skips_non_dict_items(self):
+        """fetch_devto_top must skip non-dict items in the API response."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        # Verify isinstance(a, dict) guard in Dev.to comprehension
+        assert "isinstance(a, dict)" in content, \
+            "fetch_devto_top must check isinstance(a, dict) in comprehension"
+
+    def test_fetch_lobsters_top_skips_non_dict_items(self):
+        """fetch_lobsters_top must skip non-dict items in the API response."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        # Verify isinstance(s, dict) guard in Lobsters comprehension
+        assert "isinstance(s, dict)" in content, \
+            "fetch_lobsters_top must check isinstance(s, dict) in comprehension"
+
+    def test_tag_list_isinstance_guard_in_devto(self):
+        """Dev.to tag_list must use isinstance(list) guard."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        # Verify tag_list isinstance guard in Dev.to comprehension
+        assert "isinstance(a.get(\"tag_list\"), list)" in content or \
+               "isinstance(a.get('tag_list'), list)" in content, \
+            "Dev.to tag_list must have isinstance(list) guard"
+
+    def test_tags_isinstance_guard_in_lobsters(self):
+        """Lobsters tags must use isinstance(list) guard."""
+        source = os.path.join(MODULES_DIR, "news_aggregator.py")
+        with open(source) as f:
+            content = f.read()
+        # Verify tags isinstance guard in Lobsters comprehension
+        assert "isinstance(s.get(\"tags\"), list)" in content or \
+               "isinstance(s.get('tags'), list)" in content, \
+            "Lobsters tags must have isinstance(list) guard"

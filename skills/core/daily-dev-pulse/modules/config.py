@@ -92,12 +92,22 @@ def load_config(config_path=None):
 
 
 def merge_config(default, user):
-    """Merge user config into defaults, preserving unset default values."""
+    """Merge user config into defaults, preserving unset default values.
+
+    Handles type mismatches: if the default is a list and user provides a
+    scalar (e.g. 'FastAPI' instead of ['FastAPI']), wraps the scalar into a
+    list to prevent downstream string iteration bugs.
+    """
     result = copy.deepcopy(default)
 
     for key, value in user.items():
-        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+        if key not in result:
+            result[key] = value
+        elif isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = merge_config(result[key], value)
+        elif isinstance(result[key], list) and not isinstance(value, list):
+            # Scalar provided for a list field — wrap into a list
+            result[key] = [value] if value is not None else []
         else:
             result[key] = value
 

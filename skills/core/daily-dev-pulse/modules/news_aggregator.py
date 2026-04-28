@@ -123,7 +123,8 @@ def fetch_hn_top(limit=10):
             headers={"User-Agent": "daily-dev-pulse/1.0"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            story_ids = json.loads(resp.read().decode())[:limit]
+            raw = json.loads(resp.read().decode())
+            story_ids = raw[:limit] if isinstance(raw, list) else []
 
         stories = []
         with ThreadPoolExecutor(max_workers=min(limit, 5)) as executor:
@@ -150,7 +151,8 @@ def fetch_devto_top(limit=10):
             headers={"User-Agent": "daily-dev-pulse/1.0"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            articles = json.loads(resp.read().decode())
+            raw = json.loads(resp.read().decode())
+            articles = raw if isinstance(raw, list) else []
 
         return [
             {
@@ -160,9 +162,10 @@ def fetch_devto_top(limit=10):
                 "score": a.get("positive_reactions_count", 0),
                 "comments": a.get("comments_count", 0),
                 "source": "devto",
-                "tags": a.get("tag_list", []),
+                "tags": (a.get("tag_list") if isinstance(a.get("tag_list"), list) else []),
             }
             for a in articles[:limit]
+            if isinstance(a, dict)
         ]
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
         return []
@@ -176,7 +179,8 @@ def fetch_lobsters_top(limit=10):
             headers={"User-Agent": "daily-dev-pulse/1.0"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
-            stories = json.loads(resp.read().decode())
+            raw = json.loads(resp.read().decode())
+            stories = raw if isinstance(raw, list) else []
 
         return [
             {
@@ -186,9 +190,10 @@ def fetch_lobsters_top(limit=10):
                 "score": s.get("score", 0),
                 "comments": s.get("comment_count", 0),
                 "source": "lobsters",
-                "tags": s.get("tags", []),
+                "tags": (s.get("tags") if isinstance(s.get("tags"), list) else []),
             }
             for s in stories[:limit]
+            if isinstance(s, dict)
         ]
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
         return []
