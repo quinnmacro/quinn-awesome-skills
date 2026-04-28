@@ -1,0 +1,59 @@
+# Daily Dev Pulse Configuration Example
+# Copy to ~/.quinn-skills/pulse-config.yml and customize
+
+# GitHub repositories to monitor
+repos:
+  - name: quinnpm
+    owner: quinnmacro
+  - name: SanctionList
+    owner: quinnmacro
+  - name: quinn-awesome-skills
+    owner: quinnmacro
+  - name: quinnweb
+    owner: quinnmacro
+  - name: gnhf
+    owner: quinnmacro
+  - name: weather-cli
+    owner: quinnmacro
+
+# Tech stack for security scanning
+tech_stack:
+  python: "3.13"
+  frameworks:
+    - FastAPI
+    - Next.js
+  databases:
+    - SQLite
+  libraries:
+    - LangGraph
+
+# Package dependencies to watch for updates
+dependencies:
+  npm:
+    - next
+    - react
+    - tailwindcss
+  pypi:
+    - fastapi
+    - uvicorn
+    - langgraph
+    - sqlalchemy
+    - pyyaml
+    - requests
+
+# Display and behavior preferences
+preferences:
+  # News sources to aggregate
+  news_sources:
+    - hn          # Hacker News
+    - devto       # Dev.to
+    - lobsters    # Lobsters
+
+  # Output format: terminal, md, json
+  format: terminal
+
+  # How many days of GitHub activity to look back
+  lookback_days: 7
+
+  # PRs open longer than this are flagged as stale
+  stale_pr_days: 3

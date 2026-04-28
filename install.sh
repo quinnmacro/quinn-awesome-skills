@@ -100,6 +100,20 @@ install_skill() {
         chmod +x ~/.agent/skills/$SKILL_NAME/scripts/*.py 2>/dev/null || true
         echo -e "  ${GREEN}✅ 设置脚本可执行权限${NC}"
     fi
+    if [ -d ~/.agent/skills/$SKILL_NAME/modules ]; then
+        chmod +x ~/.agent/skills/$SKILL_NAME/modules/*.py 2>/dev/null || true
+    fi
+
+    # 6. Set up config directory for daily-dev-pulse
+    if [ "$SKILL_NAME" = "daily-dev-pulse" ]; then
+        mkdir -p ~/.quinn-skills
+        if [ ! -f ~/.quinn-skills/pulse-config.yml ]; then
+            cp "$SKILL_PATH/config-example.yml" ~/.quinn-skills/pulse-config.yml
+            echo -e "  ${GREEN}✅ 安装默认配置到 ~/.quinn-skills/pulse-config.yml${NC}"
+        else
+            echo -e "  ${YELLOW}⚠️ 配置已存在 ~/.quinn-skills/pulse-config.yml，保留现有配置${NC}"
+        fi
+    fi
 
     # 6. 安装斜杠命令（从 commands/ 目录）
     install_command "$SKILL_NAME"

@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2025-04-28
+
+### Added
+- ✨ **daily-dev-pulse** skill - Personalized developer morning briefing
+  - GitHub activity scanner (commits, PRs, issues, CI status via gh CLI)
+  - Security/CVE checker (NVD API for tech stack vulnerabilities)
+  - News aggregator (HN, Dev.to, Lobsters via public APIs)
+  - Package watcher (npm + PyPI latest versions for dependencies)
+  - Three output modes: terminal (ASCII charts + colors), markdown, JSON
+  - Auto-generated action items from stale PRs, failing CI, security alerts
+  - Configurable via ~/.quinn-skills/pulse-config.yml
+- 🔧 Added github-activity and rss-fetch MCP server entries
+- 📝 Updated README with 3 skills (bilingual)
+- 📝 Updated install.sh for daily-dev-pulse config setup
+
 ## [1.2.0] - 2025-04-08
 
 ### Added
@@ -85,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3.0 | 2025-04-28 | Add daily-dev-pulse skill (personalized dev morning briefing) |
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |
 | 1.0.1 | 2025-04-08 | Add LLM Agent, environment config, bilingual README |
