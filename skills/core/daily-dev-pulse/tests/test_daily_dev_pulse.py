@@ -689,6 +689,67 @@ class TestTimezoneConsistency(unittest.TestCase):
         assert not any("stale PR" in item for item in items)
 
 
+class TestCommandArgumentForwarding(unittest.TestCase):
+    """Verify slash command files use $ARGUMENTS to forward user input."""
+
+    PROJECT_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+    CLAUDE_COMMANDS_DIR = os.path.join(PROJECT_ROOT, ".claude", "commands")
+    COMMANDS_DIR = os.path.join(PROJECT_ROOT, "commands")
+
+    def test_daily_dev_pulse_command_has_arguments(self):
+        """The daily-dev-pulse command should include $ARGUMENTS for forwarding."""
+        for path in [
+            os.path.join(self.CLAUDE_COMMANDS_DIR, "daily-dev-pulse.md"),
+            os.path.join(self.COMMANDS_DIR, "daily-dev-pulse.md"),
+        ]:
+            if os.path.exists(path):
+                with open(path) as f:
+                    content = f.read()
+                assert "$ARGUMENTS" in content, f"$ARGUMENTS missing in {path}"
+
+    def test_morning_brief_command_has_arguments(self):
+        """The morning-brief alias command should include $ARGUMENTS."""
+        for path in [
+            os.path.join(self.CLAUDE_COMMANDS_DIR, "morning-brief.md"),
+            os.path.join(self.COMMANDS_DIR, "morning-brief.md"),
+        ]:
+            if os.path.exists(path):
+                with open(path) as f:
+                    content = f.read()
+                assert "$ARGUMENTS" in content, f"$ARGUMENTS missing in {path}"
+
+    def test_dev_pulse_command_has_arguments(self):
+        """The dev-pulse alias command should include $ARGUMENTS."""
+        for path in [
+            os.path.join(self.CLAUDE_COMMANDS_DIR, "dev-pulse.md"),
+            os.path.join(self.COMMANDS_DIR, "dev-pulse.md"),
+        ]:
+            if os.path.exists(path):
+                with open(path) as f:
+                    content = f.read()
+                assert "$ARGUMENTS" in content, f"$ARGUMENTS missing in {path}"
+
+    def test_commands_in_claude_commands_dir(self):
+        """All three command files should exist in .claude/commands/ for immediate use."""
+        for name in ["daily-dev-pulse.md", "morning-brief.md", "dev-pulse.md"]:
+            path = os.path.join(self.CLAUDE_COMMANDS_DIR, name)
+            assert os.path.exists(path), f"{name} not found in .claude/commands/"
+
+    def test_command_arguments_not_hardcoded_format(self):
+        """Command workflow should NOT hardcode --format md without $ARGUMENTS."""
+        for name in ["daily-dev-pulse.md", "morning-brief.md", "dev-pulse.md"]:
+            for dir_path in [self.CLAUDE_COMMANDS_DIR, self.COMMANDS_DIR]:
+                path = os.path.join(dir_path, name)
+                if os.path.exists(path):
+                    with open(path) as f:
+                        content = f.read()
+                    # The script invocation line should include $ARGUMENTS
+                    # so user args like --focus, --repos, --days get forwarded
+                    script_lines = [l for l in content.splitlines() if "daily-dev-pulse.sh" in l]
+                    for line in script_lines:
+                        assert "$ARGUMENTS" in line, f"$ARGUMENTS missing in script invocation in {path}"
+
+
 class TestFormatJsonNoMutation(unittest.TestCase):
     """Verify format_json does not mutate its input data."""
 
