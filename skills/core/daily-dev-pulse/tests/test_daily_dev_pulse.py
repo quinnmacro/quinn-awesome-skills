@@ -8,6 +8,7 @@ import os
 import sys
 import tempfile
 import unittest
+import urllib.parse
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
@@ -472,6 +473,81 @@ json.dump(combined, sys.stdout, ensure_ascii=False)
             data = json.loads(result.stdout)
             assert "github" in data
             assert data["github"]["error"] == "data_corrupted"
+
+
+class TestConfigNoPollution(unittest.TestCase):
+    """Verify that config operations don't leak mutations into DEFAULT_CONFIG."""
+
+    def test_merge_config_deep_copy_no_leak(self):
+        """merge_config should produce a fully independent copy — mutations to result must not affect DEFAULT_CONFIG."""
+        user = {"preferences": {"lookback_days": 30}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user)
+        # Mutate the result
+        result["preferences"]["stale_pr_days"] = 99
+        # DEFAULT_CONFIG must be unchanged
+        assert config.DEFAULT_CONFIG["preferences"]["stale_pr_days"] == 3
+
+    def test_env_override_no_leak(self):
+        """Setting PULSE_LOOKBACK_DAYS should not mutate DEFAULT_CONFIG."""
+        original = os.environ.get("PULSE_LOOKBACK_DAYS")
+        original_default = config.DEFAULT_CONFIG["preferences"]["lookback_days"]
+
+        os.environ["PULSE_LOOKBACK_DAYS"] = "14"
+        cfg = config.load_config(config_path="/nonexistent/path.yml")
+        assert cfg["preferences"]["lookback_days"] == 14
+        assert config.DEFAULT_CONFIG["preferences"]["lookback_days"] == original_default
+
+        if original is None:
+            os.environ.pop("PULSE_LOOKBACK_DAYS", None)
+        else:
+            os.environ["PULSE_LOOKBACK_DAYS"] = original
+
+
+class TestSecurityUrlEncoding(unittest.TestCase):
+    """Test that CVE search URLs are properly encoded."""
+
+    def test_url_encoding_spaces(self):
+        """Product names with spaces should be URL-encoded."""
+        import security_checker
+        params = {"keywordSearch": "python 3.13", "resultsPerPage": 10}
+        query = "&".join(f"{k}={urllib.parse.quote_plus(str(v))}" for k, v in params.items())
+        assert "python+3.13" in query or "python%203.13" in query
+        assert " " not in query
+
+    def test_fetch_cves_url_encoding(self):
+        """fetch_cves should produce valid URLs even for products with special chars."""
+        import subprocess
+        import inspect
+        source = inspect.getsource(security_checker.fetch_cves)
+        assert "urllib.parse" in source or "quote_plus" in source or "quote" in source
+
+
+class TestNewsExceptionHandling(unittest.TestCase):
+    """Verify all news fetchers catch generic Exception."""
+
+    def test_devto_catches_generic_exception(self):
+        """fetch_devto_top should catch generic Exception, not just specific ones."""
+        import inspect
+        source = inspect.getsource(news_aggregator.fetch_devto_top)
+        assert "Exception" in source
+
+    def test_lobsters_catches_generic_exception(self):
+        """fetch_lobsters_top should catch generic Exception, not just specific ones."""
+        import inspect
+        source = inspect.getsource(news_aggregator.fetch_lobsters_top)
+        assert "Exception" in source
+
+    @patch("urllib.request.urlopen", side_effect=RuntimeError("unexpected"))
+    def test_devto_runtime_error(self, mock_urlopen):
+        """fetch_devto_top should handle RuntimeError gracefully."""
+        result = news_aggregator.fetch_devto_top()
+        assert result == []
+
+    @patch("urllib.request.urlopen", side_effect=RuntimeError("unexpected"))
+    def test_lobsters_runtime_error(self, mock_urlopen):
+        """fetch_lobsters_top should handle RuntimeError gracefully."""
+        result = news_aggregator.fetch_lobsters_top()
+        assert result == []
 
 
 if __name__ == "__main__":

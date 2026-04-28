@@ -8,6 +8,7 @@ import json
 import sys
 import urllib.request
 import urllib.error
+import urllib.parse
 from datetime import datetime, timedelta
 
 from config import get_tech_stack, load_config
@@ -49,7 +50,7 @@ def fetch_cves(product, version="", days=30):
     if version:
         params["keywordSearch"] = f"{product} {version}"
 
-    query = "&".join(f"{k}={v}" for k, v in params.items())
+    query = "&".join(f"{k}={urllib.parse.quote_plus(str(v))}" for k, v in params.items())
     url = f"{NVD_API_BASE}?{query}"
 
     try:

@@ -74,7 +74,7 @@ def fetch_devto_top(limit=10):
             }
             for a in articles[:limit]
         ]
-    except (urllib.error.URLError, json.JSONDecodeError):
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
         return []
 
 
@@ -100,7 +100,7 @@ def fetch_lobsters_top(limit=10):
             }
             for s in stories[:limit]
         ]
-    except (urllib.error.URLError, json.JSONDecodeError):
+    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
         return []
 
 

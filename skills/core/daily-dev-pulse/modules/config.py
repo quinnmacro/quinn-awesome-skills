@@ -86,7 +86,7 @@ def load_config(config_path=None):
 
 def merge_config(default, user):
     """Merge user config into defaults, preserving unset default values."""
-    result = default.copy()
+    result = copy.deepcopy(default)
 
     for key, value in user.items():
         if key in result and isinstance(result[key], dict) and isinstance(value, dict):
