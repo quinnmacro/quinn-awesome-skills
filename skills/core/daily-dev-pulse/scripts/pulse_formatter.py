@@ -305,6 +305,11 @@ def generate_action_items(data):
                 if run.get("conclusion") == "failure":
                     items.append(f"Fix failing CI on {repo['repo']} ({run.get('name', 'unknown')})")
 
+            # Open issues
+            for issue in repo.get("open_issues", []):
+                title = (issue.get("title", "") or "")[:40]
+                items.append(f"Address open issue #{issue.get('number', '')} on {repo['repo']}: {title}")
+
     # Security-related updates
     security = data.get("security", {})
     if security and not security.get("error"):

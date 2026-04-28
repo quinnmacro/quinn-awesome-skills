@@ -338,11 +338,52 @@ class TestPulseFormatter(unittest.TestCase):
         assert any("failing CI" in item for item in items)
         # Should flag HIGH severity CVE
         assert any("fastapi" in item.lower() for item in items)
+        # Should flag open issues
+        assert any("open issue" in item for item in items)
+
+    def test_generate_action_items_flags_open_issues(self):
+        """Action items should include open issues from GitHub data."""
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [],
+                    "open_issues": [
+                        {"number": 99, "title": "Critical bug in auth module"},
+                    ],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("open issue" in item for item in items)
+        assert any("#99" in item for item in items)
+        assert any("Critical bug" in item for item in items)
 
     def test_format_terminal_no_github(self):
         data = {"github": {"error": "gh_not_available"}}
         output = pulse_formatter.format_terminal(data)
         assert "gh_not_available" in output
+
+    def test_format_terminal_empty_data(self):
+        """Terminal output should still produce header and action items with empty data."""
+        data = {}
+        output = pulse_formatter.format_terminal(data)
+        assert "DAILY DEV PULSE" in output
+        assert "Action Items" in output
+
+    def test_format_markdown_empty_data(self):
+        """Markdown output should still produce header and action items with empty data."""
+        data = {}
+        output = pulse_formatter.format_markdown(data)
+        assert "Daily Dev Pulse" in output
+        assert "Action Items" in output
+
+    def test_format_terminal_empty_security_alerts(self):
+        """Terminal output should skip security section when alerts list is empty."""
+        data = {"security": {"source": "security", "alerts": []}}
+        output = pulse_formatter.format_terminal(data)
+        assert "Security Alerts" not in output
 
 
 class TestSkillMdParsing(unittest.TestCase):
