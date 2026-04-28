@@ -7,7 +7,7 @@ description: |
   time-based context (before 10am), or explicit /daily-dev-pulse command.
   Integrates with url-fetcher (fallback content extraction) and presearch
   (trend discovery) skills for enhanced data collection.
-version: 1.0.0
+version: 1.3.0
 author: quinnmacro
 layer: core
 ---

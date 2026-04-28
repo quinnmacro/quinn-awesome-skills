@@ -61,7 +61,7 @@ def load_config(config_path=None):
     if path.exists():
         if not YAML_AVAILABLE:
             raise ImportError("PyYAML required to load config file. Install with: pip install pyyaml")
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             user_config = yaml.safe_load(f) or {}
         result = merge_config(DEFAULT_CONFIG, user_config)
     else:

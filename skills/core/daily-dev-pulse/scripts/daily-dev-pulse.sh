@@ -44,6 +44,10 @@ while [[ $# -gt 0 ]]; do
                 echo "Error: --days requires a numeric value" >&2
                 exit 1
             fi
+            if ! [[ "$2" =~ ^[0-9]+$ ]]; then
+                echo "Error: --days requires a positive integer, got '$2'" >&2
+                exit 1
+            fi
             DAYS="$2"
             shift 2
             ;;
@@ -113,6 +117,8 @@ import json, os, sys
 from datetime import datetime, timezone
 
 tmpdir = os.environ.get('PULSE_TMPDIR', '')
+if not tmpdir:
+    sys.exit(1)
 combined = {}
 combined['scan_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
@@ -142,8 +148,12 @@ json.dump(combined, sys.stdout, ensure_ascii=False)
 # If --format was not explicitly passed, fall back to config preference
 if [[ -z "${FORMAT}" ]]; then
     FORMAT=$(python3 -c "
-import json, os
-with open(os.environ.get('PULSE_TMPDIR', '') + '/combined.json') as f:
+import json, os, sys
+tmpdir = os.environ.get('PULSE_TMPDIR', '')
+if not tmpdir:
+    print('terminal')
+    sys.exit(0)
+with open(os.path.join(tmpdir, 'combined.json')) as f:
     data = json.load(f)
 print(data.get('preferences', {}).get('format', 'terminal'))
 " PULSE_TMPDIR="${TMPDIR}")

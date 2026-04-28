@@ -12,7 +12,7 @@ import urllib.error
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
-from config import get_tech_stack, load_config
+from config import get_tech_stack, get_preferences, load_config
 
 NVD_API_BASE = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 NVD_RATE_LIMIT_SECONDS = 6  # Without API key, 5 requests per 30 seconds
@@ -79,12 +79,12 @@ def fetch_cves(product, version="", days=30):
         score = 0.0
 
         cvss_v31 = metrics.get("cvssMetricV31", [])
-        if isinstance(cvss_v31, list) and cvss_v31:
+        if isinstance(cvss_v31, list) and cvss_v31 and cvss_v31[0] is not None:
             severity = (cvss_v31[0].get("cvssData", {}).get("baseSeverity") or "unknown")
             score = cvss_v31[0].get("cvssData", {}).get("baseScore") or 0.0
         else:
             cvss_v30 = metrics.get("cvssMetricV30", [])
-            if isinstance(cvss_v30, list) and cvss_v30:
+            if isinstance(cvss_v30, list) and cvss_v30 and cvss_v30[0] is not None:
                 severity = (cvss_v30[0].get("cvssData", {}).get("baseSeverity") or "unknown")
                 score = cvss_v30[0].get("cvssData", {}).get("baseScore") or 0.0
 
@@ -107,8 +107,9 @@ def check_security(config=None):
     terms = build_search_terms(tech_stack)
 
     # Rate limit and lookback days from config preferences
-    rate_limit = cfg.get("preferences", {}).get("nvd_rate_limit", NVD_RATE_LIMIT_SECONDS)
-    days = cfg.get("preferences", {}).get("security_lookback_days", 30)
+    prefs = get_preferences(cfg)
+    rate_limit = prefs.get("nvd_rate_limit", NVD_RATE_LIMIT_SECONDS)
+    days = prefs.get("security_lookback_days", 30)
 
     all_alerts = []
     for i, term in enumerate(terms):

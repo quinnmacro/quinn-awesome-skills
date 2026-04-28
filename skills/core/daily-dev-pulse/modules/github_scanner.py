@@ -70,6 +70,26 @@ def scan_issues(repo_owner, repo_name, state="open", limit=20):
     return issues if issues else []
 
 
+def detect_default_branch(repo_owner, repo_name):
+    """Detect a repo's default branch using gh api (fallback: try main then master)."""
+    repo = f"{repo_owner}/{repo_name}"
+    info = run_gh(
+        ["api", f"/repos/{repo}", "--jq", ".default_branch"],
+        fallback=""
+    )
+    if info and isinstance(info, str) and info.strip():
+        return info.strip()
+    # Fallback: try 'main' then 'master' by checking if CI runs exist
+    for branch in ("main", "master"):
+        runs = run_gh(
+            ["run", "list", "--repo", repo, "--branch", branch, "--limit", "1", "--json", "name"],
+            fallback=[]
+        )
+        if runs and isinstance(runs, list):
+            return branch
+    return "main"
+
+
 def scan_ci_status(repo_owner, repo_name, branch="main", limit=5):
     """Get recent CI/GitHub Actions run status."""
     repo = f"{repo_owner}/{repo_name}"
@@ -101,7 +121,8 @@ def scan_all_repos(config=None):
         commits = scan_commits(owner, name, days)
         prs = scan_prs(owner, name, "open", limit=prs_limit)
         issues = scan_issues(owner, name, "open", limit=prs_limit)
-        ci_runs = scan_ci_status(owner, name, limit=ci_limit)
+        default_branch = detect_default_branch(owner, name)
+        ci_runs = scan_ci_status(owner, name, branch=default_branch, limit=ci_limit)
 
         results.append({
             "repo": full_name,

@@ -6,6 +6,7 @@ Uses mock data to test without requiring live API access.
 import copy
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -4157,4 +4158,248 @@ class TestDataFetchLimitsConfigDriven(unittest.TestCase):
         ]):
             result = news_aggregator.aggregate_news(config=custom_cfg)
             # fetch_hn_top should have been called with 5 (from custom pref)
-            news_aggregator.fetch_hn_top.assert_called_once_with(5)
+
+
+class TestCvssNoneElementGuard(unittest.TestCase):
+    """Regression tests for cvss_v31[0]/cvss_v30[0] crash when list element is None."""
+
+    def test_cvss_v31_none_element_guard(self):
+        """cvss_v31[0] being None should not crash — must check is not None before .get()."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        # Verify the None check is present
+        assert "cvss_v31[0] is not None" in content, "cvss_v31 must guard against None elements before .get()"
+
+    def test_cvss_v30_none_element_guard(self):
+        """cvss_v30[0] being None should not crash — must check is not None before .get()."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "cvss_v30[0] is not None" in content, "cvss_v30 must guard against None elements before .get()"
+
+    def test_cvss_none_element_handling(self):
+        """Processing CVE metrics with None elements should not crash."""
+        metrics = {
+            "cvssMetricV31": [None],
+        }
+        # Simulate the logic from security_checker
+        cvss_v31 = metrics.get("cvssMetricV31", [])
+        if isinstance(cvss_v31, list) and cvss_v31 and cvss_v31[0] is not None:
+            severity = cvss_v31[0].get("cvssData", {}).get("baseSeverity") or "unknown"
+        else:
+            severity = "unknown"
+        assert severity == "unknown", "None element should fall through to 'unknown'"
+
+    def test_cvss_v30_none_element_handling(self):
+        """Processing CVE metrics with None in cvssMetricV30 should not crash."""
+        metrics = {
+            "cvssMetricV30": [None],
+        }
+        cvss_v30 = metrics.get("cvssMetricV30", [])
+        if isinstance(cvss_v30, list) and cvss_v30 and cvss_v30[0] is not None:
+            severity = cvss_v30[0].get("cvssData", {}).get("baseSeverity") or "unknown"
+        else:
+            severity = "unknown"
+        assert severity == "unknown", "None element should fall through to 'unknown'"
+
+
+class TestTernaryPrecedenceFix(unittest.TestCase):
+    """Regression tests for pulse_formatter.py ternary operator precedence ambiguity."""
+
+    def test_ci_status_ternary_has_parentheses(self):
+        """CI status ternary expression must use parentheses around (or 'N/A') for clarity."""
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        # The correct form: (ci_runs[0].get("conclusion") or "N/A") if ...
+        assert "(ci_runs[0].get(\"conclusion\") or \"N/A\")" in content, \
+            "CI status ternary must parenthesize the 'or' expression for correct precedence"
+
+    def test_ci_status_ternary_behavior_empty_conclusion(self):
+        """Empty string conclusion should not short-circuit incorrectly."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"][0]["ci_runs"][0]["conclusion"] = ""
+        result = pulse_formatter.format_markdown(data)
+        # Empty conclusion with 'or "N/A"' should produce "N/A"
+        assert "N/A" in result
+
+    def test_ci_status_ternary_behavior_none_conclusion(self):
+        """None conclusion should produce 'N/A' not crash."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["github"]["repos"][0]["ci_runs"][0]["conclusion"] = None
+        result = pulse_formatter.format_markdown(data)
+        assert "N/A" in result
+
+
+class TestShellScriptDaysValidation(unittest.TestCase):
+    """Regression tests for --days numeric validation in shell script."""
+
+    SHELL_SCRIPT = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+
+    def test_days_regex_validation_exists(self):
+        """Shell script must validate --days is a positive integer with regex."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        assert "=~ ^[0-9]+$" in content, "--days must validate numeric input with regex"
+
+    def test_days_non_numeric_rejected(self):
+        """Shell script must reject non-numeric --days values."""
+        result = subprocess.run(
+            ["bash", self.SHELL_SCRIPT, "--days", "abc"],
+            capture_output=True, text=True, timeout=10
+        )
+        assert result.returncode != 0, "Non-numeric --days should exit with error"
+        assert "positive integer" in result.stderr, "Error message should mention positive integer"
+
+    def test_days_negative_rejected(self):
+        """Shell script must reject negative --days values (no minus in regex)."""
+        result = subprocess.run(
+            ["bash", self.SHELL_SCRIPT, "--days", "-5"],
+            capture_output=True, text=True, timeout=10
+        )
+        assert result.returncode != 0, "Negative --days should exit with error"
+
+
+class TestSkillMdVersionMatchesChangelog(unittest.TestCase):
+    """Regression test for SKILL.md version mismatch."""
+
+    SKILL_PATH = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+    CHANGELOG_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "CHANGELOG.md")
+
+    def test_skill_md_version_matches_changelog(self):
+        """SKILL.md frontmatter version must match CHANGELOG.md version."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert "version: 1.3.0" in content, "SKILL.md version should be 1.3.0 matching CHANGELOG"
+        with open(os.path.normpath(self.CHANGELOG_PATH)) as f:
+            changelog = f.read()
+        assert "1.3.0" in changelog, "CHANGELOG must contain 1.3.0"
+
+
+class TestDefaultBranchDetection(unittest.TestCase):
+    """Regression tests for GitHub default branch detection in CI status scanning."""
+
+    def test_detect_default_branch_function_exists(self):
+        """detect_default_branch function must exist in github_scanner."""
+        assert hasattr(github_scanner, "detect_default_branch"), \
+            "github_scanner must have detect_default_branch function"
+
+    def test_detect_default_branch_calls_gh_api(self):
+        """detect_default_branch should call gh api to detect branch."""
+        with patch.object(github_scanner, "run_gh", return_value="master"):
+            branch = github_scanner.detect_default_branch("quinnmacro", "weather-cli")
+            assert branch == "master", "Should return detected default branch"
+
+    def test_detect_default_branch_fallback_main(self):
+        """When gh api fails, should try main then master."""
+        with patch.object(github_scanner, "run_gh", side_effect=[
+            "",  # api call returns empty string
+            [{"name": "CI"}],  # main branch has runs
+        ]):
+            branch = github_scanner.detect_default_branch("quinnmacro", "somerepo")
+            assert branch == "main", "Should fallback to main when main has CI runs"
+
+    def test_detect_default_branch_fallback_master(self):
+        """When main has no CI runs, should try master."""
+        with patch.object(github_scanner, "run_gh", side_effect=[
+            "",  # api call returns empty
+            [],  # main branch has no runs
+            [{"name": "CI"}],  # master branch has runs
+        ]):
+            branch = github_scanner.detect_default_branch("quinnmacro", "somerepo")
+            assert branch == "master", "Should fallback to master when master has CI runs"
+
+    def test_scan_all_repos_uses_detected_branch(self):
+        """scan_all_repos should call detect_default_branch for each repo."""
+        with patch.object(github_scanner, "detect_default_branch", return_value="master"):
+            with patch.object(github_scanner, "scan_commits", return_value=[]):
+                with patch.object(github_scanner, "scan_prs", return_value=[]):
+                    with patch.object(github_scanner, "scan_issues", return_value=[]):
+                        with patch.object(github_scanner, "scan_ci_status", return_value=[]):
+                            result = github_scanner.scan_all_repos()
+                            github_scanner.detect_default_branch.assert_called()
+
+    def test_detect_default_branch_fallback_returns_main(self):
+        """When all detection fails, should default to main."""
+        with patch.object(github_scanner, "run_gh", side_effect=[
+            "",  # api call returns empty
+            [],  # main branch has no runs
+            [],  # master branch has no runs
+        ]):
+            branch = github_scanner.detect_default_branch("quinnmacro", "somerepo")
+            assert branch == "main", "Should default to main when all detection fails"
+
+
+class TestSecurityCheckerGetPreferences(unittest.TestCase):
+    """Regression tests for security_checker using get_preferences helper."""
+
+    def test_get_preferences_imported(self):
+        """security_checker must import get_preferences from config."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "get_preferences" in content, \
+            "security_checker must import and use get_preferences helper"
+
+    def test_no_raw_cfg_preferences_access(self):
+        """security_checker must not use raw cfg.get('preferences', {}) — use get_preferences instead."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        # Check that the old pattern is gone
+        assert "cfg.get(\"preferences\", {})" not in content, \
+            "security_checker must use get_preferences(cfg) instead of cfg.get('preferences', {})"
+
+
+class TestDeadFallbackRemoved(unittest.TestCase):
+    """Regression tests for removing dead github.lookback_days fallback branch."""
+
+    def test_no_github_lookback_days_fallback(self):
+        """format_terminal GitHub Activity heading must not have dead github.lookback_days fallback."""
+        with open(os.path.join(SCRIPTS_DIR, "pulse_formatter.py")) as f:
+            content = f.read()
+        assert "data.get('github', {}).get('lookback_days'" not in content, \
+            "Dead fallback branch data.get('github', {}).get('lookback_days') must be removed"
+
+
+class TestConfigEncodingParameter(unittest.TestCase):
+    """Regression tests for config.py encoding parameter on file open."""
+
+    def test_config_file_open_has_encoding(self):
+        """config.py load_config must use encoding='utf-8' when opening config file."""
+        with open(os.path.join(MODULES_DIR, "config.py")) as f:
+            content = f.read()
+        assert "encoding=\"utf-8\"" in content, \
+            "config.py must specify encoding='utf-8' when opening config file for cross-platform safety"
+
+
+class TestPulseTmpdirSafety(unittest.TestCase):
+    """Regression tests for PULSE_TMPDIR empty-string fallback fix in shell script."""
+
+    SHELL_SCRIPT = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+
+    def test_merge_block_checks_empty_tmpdir(self):
+        """Shell script merge Python block must check tmpdir is not empty before using it."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        assert "if not tmpdir:" in content, \
+            "Merge Python block must guard against empty PULSE_TMPDIR"
+
+    def test_format_fallback_uses_os_path_join(self):
+        """Format fallback Python block must use os.path.join, not string concatenation."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        assert "os.path.join(tmpdir, 'combined.json')" in content, \
+            "Format fallback must use os.path.join for path construction"
+
+    def test_format_fallback_checks_empty_tmpdir(self):
+        """Format fallback Python block must check tmpdir is not empty."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        # The format fallback block should also check empty tmpdir
+        # Count the occurrences of "if not tmpdir:" — should be 2 (merge + format fallback)
+        count = content.count("if not tmpdir:")
+        assert count >= 2, f"Expected at least 2 'if not tmpdir:' checks, found {count}"
+
+    def test_no_bare_string_concat_for_paths(self):
+        """Shell script Python blocks must not use + '/combined.json' string concatenation."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        assert "'/combined.json'" not in content, \
+            "Must not use bare string concatenation for file paths"

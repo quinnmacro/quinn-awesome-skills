@@ -81,7 +81,7 @@ def format_terminal(data):
     if github and not github.get("error"):
         repos = github.get("repos", [])
         if isinstance(repos, list) and repos:
-            lines.append(f"{Colors.BOLD}{Colors.BLUE}📊 GitHub Activity (Last {data.get('preferences', {}).get('lookback_days', data.get('github', {}).get('lookback_days', 7))} Days){Colors.RESET}")
+            lines.append(f"{Colors.BOLD}{Colors.BLUE}📊 GitHub Activity (Last {data.get('preferences', {}).get('lookback_days', 7)} Days){Colors.RESET}")
             max_commits = max(r.get("commit_count", 0) for r in repos) if repos else 1
             for repo in repos:
                 name = (repo.get("repo") or "").split("/")[-1]
@@ -209,7 +209,7 @@ def format_markdown(data):
                 name = (repo.get("repo") or "").split("/")[-1]
                 count = repo.get("commit_count", 0)
                 ci_runs = repo.get("ci_runs", [])
-                ci_status = ci_runs[0].get("conclusion") or "N/A" if isinstance(ci_runs, list) and ci_runs else "N/A"
+                ci_status = (ci_runs[0].get("conclusion") or "N/A") if isinstance(ci_runs, list) and ci_runs else "N/A"
                 emoji = CI_EMOJI.get(ci_status, "❓")
                 lines.append(f"| {name} | {count} | {emoji} {ci_status} |")
             lines.append("")
