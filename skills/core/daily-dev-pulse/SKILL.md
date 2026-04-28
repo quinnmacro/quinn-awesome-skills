@@ -176,6 +176,9 @@ preferences:
   news_sources: [hn, devto, lobsters]
   format: terminal
   lookback_days: 7
+  security_lookback_days: 30
+  stale_pr_days: 3
+  nvd_rate_limit: 6
 ```
 
 ## Notes

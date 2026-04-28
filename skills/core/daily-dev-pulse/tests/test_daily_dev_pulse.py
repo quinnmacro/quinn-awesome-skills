@@ -1382,5 +1382,95 @@ class TestNvdUrlEncoding(unittest.TestCase):
         assert "T00:00:00.000" in start_date, "Date should include time component"
 
 
+class TestSecurityLookbackDaysConfigDriven(unittest.TestCase):
+    """Verify security_lookback_days preference is consumed by security_checker, not hardcoded."""
+
+    def test_security_lookback_days_in_default_config(self):
+        """DEFAULT_CONFIG should include security_lookback_days preference."""
+        assert "security_lookback_days" in config.DEFAULT_CONFIG["preferences"]
+        assert config.DEFAULT_CONFIG["preferences"]["security_lookback_days"] == 30
+
+    def test_check_security_reads_lookback_from_preferences(self):
+        """check_security should read days from preferences.security_lookback_days, not hardcode 30."""
+        import inspect
+        source = inspect.getsource(security_checker.check_security)
+        assert "security_lookback_days" in source
+        # Should NOT have hardcoded days=30 in function signature
+        assert "days=30" not in source
+
+    def test_check_security_default_days_is_30(self):
+        """check_security should default to 30 days when no config preferences set."""
+        # Use a config with no preferences to verify the fallback
+        cfg = copy.deepcopy(config.DEFAULT_CONFIG)
+        del cfg["preferences"]["security_lookback_days"]
+        result = security_checker.check_security(config=cfg)
+        # The function should still work with the 30-day fallback
+        assert "source" in result
+        assert result["source"] == "security"
+
+    @patch("security_checker.fetch_cves")
+    def test_check_security_custom_security_lookback_days(self, mock_fetch):
+        """Custom security_lookback_days should override the 30-day default."""
+        mock_fetch.return_value = []
+        cfg = copy.deepcopy(config.DEFAULT_CONFIG)
+        cfg["preferences"]["security_lookback_days"] = 14
+        result = security_checker.check_security(config=cfg)
+        # fetch_cves should be called with days=14, not days=30
+        for call in mock_fetch.call_args_list:
+            assert call[1].get("days") == 14 or call[0][2] == 14, \
+                "fetch_cves should be called with custom days value from security_lookback_days"
+
+    def test_shell_script_includes_security_lookback_days(self):
+        """Shell script merge section should include security_lookback_days in preferences."""
+        script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        assert "'security_lookback_days'" in content or '"security_lookback_days"' in content, \
+            "Shell script should include security_lookback_days in combined JSON preferences"
+
+    def test_security_lookback_days_in_config_example(self):
+        """config-example.yml should document security_lookback_days preference."""
+        config_path = os.path.join(os.path.dirname(__file__), "..", "config-example.yml")
+        with open(config_path) as f:
+            content = f.read()
+        assert "security_lookback_days" in content, \
+            "config-example.yml should document security_lookback_days preference"
+
+
+class TestSkillMdConfigCompleteness(unittest.TestCase):
+    """Verify SKILL.md config example includes all preferences from DEFAULT_CONFIG."""
+
+    SKILL_PATH = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+
+    def test_skill_md_includes_stale_pr_days(self):
+        """SKILL.md config example should include stale_pr_days preference."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert "stale_pr_days" in content, \
+            "SKILL.md config example should include stale_pr_days preference"
+
+    def test_skill_md_includes_nvd_rate_limit(self):
+        """SKILL.md config example should include nvd_rate_limit preference."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert "nvd_rate_limit" in content, \
+            "SKILL.md config example should include nvd_rate_limit preference"
+
+    def test_skill_md_includes_security_lookback_days(self):
+        """SKILL.md config example should include security_lookback_days preference."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        assert "security_lookback_days" in content, \
+            "SKILL.md config example should include security_lookback_days preference"
+
+    def test_skill_md_preferences_match_default_config_keys(self):
+        """SKILL.md config example should list all preference keys from DEFAULT_CONFIG."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        for key in config.DEFAULT_CONFIG["preferences"]:
+            assert key in content, \
+                f"SKILL.md should mention preference '{key}' from DEFAULT_CONFIG"
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -44,6 +44,7 @@ DEFAULT_CONFIG = {
         "format": "terminal",
         "lookback_days": 7,
         "stale_pr_days": 3,
+        "security_lookback_days": 30,
         "nvd_rate_limit": 6,
     },
 }

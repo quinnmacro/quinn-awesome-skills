@@ -101,9 +101,9 @@ try:
     sys.path.insert(0, '${MODULES_DIR}')
     from config import load_config, get_preferences
     prefs = get_preferences(load_config())
-    combined['preferences'] = {'stale_pr_days': prefs.get('stale_pr_days', 3), 'format': prefs.get('format', 'terminal'), 'lookback_days': prefs.get('lookback_days', 7)}
+    combined['preferences'] = {'stale_pr_days': prefs.get('stale_pr_days', 3), 'format': prefs.get('format', 'terminal'), 'lookback_days': prefs.get('lookback_days', 7), 'security_lookback_days': prefs.get('security_lookback_days', 30)}
 except Exception:
-    combined['preferences'] = {'stale_pr_days': 3, 'format': 'terminal', 'lookback_days': 7}
+    combined['preferences'] = {'stale_pr_days': 3, 'format': 'terminal', 'lookback_days': 7, 'security_lookback_days': 30}
 
 for key in ['github', 'security', 'packages', 'news']:
     fpath = os.path.join(tmpdir, key + '.json')

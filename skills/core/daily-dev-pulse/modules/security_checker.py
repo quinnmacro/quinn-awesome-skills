@@ -99,14 +99,15 @@ def fetch_cves(product, version="", days=30):
     return results
 
 
-def check_security(config=None, days=30):
+def check_security(config=None):
     """Check all tech stack components for recent CVEs."""
     cfg = config or load_config()
     tech_stack = get_tech_stack(cfg)
     terms = build_search_terms(tech_stack)
 
-    # Rate limit from config or default
+    # Rate limit and lookback days from config preferences
     rate_limit = cfg.get("preferences", {}).get("nvd_rate_limit", NVD_RATE_LIMIT_SECONDS)
+    days = cfg.get("preferences", {}).get("security_lookback_days", 30)
 
     all_alerts = []
     for i, term in enumerate(terms):

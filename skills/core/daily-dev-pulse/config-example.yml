@@ -55,6 +55,9 @@ preferences:
   # How many days of GitHub activity to look back
   lookback_days: 7
 
+  # How many days of CVE history to check (longer window than activity)
+  security_lookback_days: 30
+
   # PRs open longer than this are flagged as stale
   stale_pr_days: 3
 
