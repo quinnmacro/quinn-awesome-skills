@@ -1472,5 +1472,67 @@ class TestSkillMdConfigCompleteness(unittest.TestCase):
                 f"SKILL.md should mention preference '{key}' from DEFAULT_CONFIG"
 
 
+class TestMarkdownHeadingConsistency(unittest.TestCase):
+    """Verify format_markdown headings include configurable lookback days,
+    matching the dynamic display already in format_terminal."""
+
+    def test_format_markdown_github_activity_includes_lookback_days(self):
+        """format_markdown GitHub Activity heading should include lookback_days."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["preferences"] = {"lookback_days": 14, "stale_pr_days": 3, "security_lookback_days": 30}
+        output = pulse_formatter.format_markdown(data)
+        assert "Last 14 Days" in output, \
+            "format_markdown GitHub Activity heading should include lookback_days from preferences"
+
+    def test_format_markdown_github_activity_default_lookback(self):
+        """format_markdown GitHub Activity heading should show 7 when no preferences."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        output = pulse_formatter.format_markdown(data)
+        assert "Last 7 Days" in output, \
+            "format_markdown GitHub Activity heading should default to 7 days"
+
+    def test_format_markdown_security_alerts_includes_security_lookback(self):
+        """format_markdown Security Alerts heading should include security_lookback_days."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["security"] = {"source": "security", "alerts": [
+            {"cve_id": "CVE-2025-1234", "product": "fastapi", "severity": "HIGH", "score": 8.5, "description": "Auth bypass"},
+        ]}
+        data["preferences"] = {"lookback_days": 7, "stale_pr_days": 3, "security_lookback_days": 60}
+        output = pulse_formatter.format_markdown(data)
+        assert "Last 60 Days" in output, \
+            "format_markdown Security Alerts heading should include security_lookback_days from preferences"
+
+    def test_format_markdown_security_alerts_default_lookback(self):
+        """format_markdown Security Alerts heading should show 30 when no preferences."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["security"] = {"source": "security", "alerts": [
+            {"cve_id": "CVE-2025-1234", "product": "fastapi", "severity": "HIGH", "score": 8.5, "description": "Auth bypass"},
+        ]}
+        output = pulse_formatter.format_markdown(data)
+        assert "Last 30 Days" in output, \
+            "format_markdown Security Alerts heading should default to 30 days"
+
+    def test_format_terminal_github_activity_includes_lookback_days(self):
+        """format_terminal GitHub Activity heading should include lookback_days (already implemented)."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["preferences"] = {"lookback_days": 14, "stale_pr_days": 3, "security_lookback_days": 30}
+        output = pulse_formatter.format_terminal(data)
+        assert "Last 14 Days" in output, \
+            "format_terminal GitHub Activity heading should include lookback_days from preferences"
+
+    def test_format_markdown_no_hardcoded_static_heading(self):
+        """format_markdown should NOT have a bare '## GitHub Activity' without lookback days."""
+        # Verify the format_markdown function code itself doesn't contain
+        # the old hardcoded heading string without lookback info
+        formatter_path = os.path.join(SCRIPTS_DIR, "pulse_formatter.py")
+        with open(formatter_path) as f:
+            content = f.read()
+        # The old bug was a line like: lines.append("## GitHub Activity")
+        # The fixed version should include lookback: lines.append(f"## GitHub Activity (Last {lookback} Days)")
+        # Check that the bare string is not used as a heading
+        assert '"## GitHub Activity"' not in content, \
+            "format_markdown should not use bare '## GitHub Activity' heading without lookback days"
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -191,7 +191,8 @@ def format_markdown(data):
     if github and not github.get("error"):
         repos = github.get("repos", [])
         if repos:
-            lines.append("## GitHub Activity")
+            lookback = data.get("preferences", {}).get("lookback_days", 7)
+            lines.append(f"## GitHub Activity (Last {lookback} Days)")
             lines.append("")
             lines.append("| Repo | Commits | Latest CI |")
             lines.append("|------|---------|-----------|")
@@ -233,7 +234,8 @@ def format_markdown(data):
     if security and not security.get("error"):
         alerts = security.get("alerts", [])
         if alerts:
-            lines.append("## Security Alerts")
+            sec_lookback = data.get("preferences", {}).get("security_lookback_days", 30)
+            lines.append(f"## Security Alerts (Last {sec_lookback} Days)")
             lines.append("")
             lines.append("| CVE ID | Product | Severity | Description |")
             lines.append("|--------|---------|----------|-------------|")
