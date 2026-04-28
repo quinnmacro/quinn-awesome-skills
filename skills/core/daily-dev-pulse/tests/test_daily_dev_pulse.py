@@ -1894,3 +1894,139 @@ class TestSkillMdDocumentationAccuracy(unittest.TestCase):
         # Find the News Aggregator step
         assert "url-fetcher" in content and "fallback" in content.lower(), \
             "SKILL.md should mention url-fetcher fallback for news aggregation"
+
+
+class TestSkillMdFormatModeNaming(unittest.TestCase):
+    """Verify SKILL.md uses 'md' (not 'markdown') consistently for format mode."""
+
+    SKILL_PATH = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "SKILL.md"))
+
+    def test_skill_md_no_markdown_format_name(self):
+        """SKILL.md should not reference 'markdown' as a format mode name."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # Check Step 3 example
+        step3_section = ""
+        lines = content.split("\n")
+        in_step3 = False
+        for line in lines:
+            if "Step 3" in line:
+                in_step3 = True
+            elif in_step3 and line.strip().startswith("### Step"):
+                in_step3 = False
+            elif in_step3:
+                step3_section += line + "\n"
+        assert "--format markdown" not in step3_section, \
+            "SKILL.md Step 3 should use '--format md', not '--format markdown'"
+
+    def test_skill_md_output_modes_use_md(self):
+        """SKILL.md Output modes section should use 'md' not 'markdown'."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # Find the output modes list items
+        assert "**md**:" in content, \
+            "SKILL.md should use '**md**:' for markdown output mode, not '**markdown**:'"
+
+    def test_skill_md_arguments_table_has_config(self):
+        """SKILL.md Arguments table should include --config argument."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # Find the Arguments table
+        assert "--config" in content, \
+            "SKILL.md Arguments table should include --config argument"
+
+
+class TestCommandPermissionsComplete(unittest.TestCase):
+    """Verify slash commands include mktemp and rm permissions."""
+
+    COMMANDS_DIR = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "..", "commands"))
+    CLAUDE_COMMANDS_DIR = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "..", ".claude", "commands"))
+
+    def _read_command(self, filename):
+        for dir_path in [self.COMMANDS_DIR, self.CLAUDE_COMMANDS_DIR]:
+            path = os.path.join(dir_path, filename)
+            if os.path.exists(path):
+                with open(path) as f:
+                    return f.read()
+        return None
+
+    def test_daily_dev_pulse_has_mktemp_permission(self):
+        """daily-dev-pulse command should include Bash(mktemp *) permission."""
+        content = self._read_command("daily-dev-pulse.md")
+        assert content is not None, "daily-dev-pulse.md command not found"
+        assert "Bash(mktemp *)" in content, \
+            "daily-dev-pulse command should include Bash(mktemp *) in allowed-tools"
+
+    def test_daily_dev_pulse_has_rm_permission(self):
+        """daily-dev-pulse command should include Bash(rm *) permission."""
+        content = self._read_command("daily-dev-pulse.md")
+        assert content is not None, "daily-dev-pulse.md command not found"
+        assert "Bash(rm *)" in content, \
+            "daily-dev-pulse command should include Bash(rm *) in allowed-tools"
+
+    def test_morning_brief_has_mktemp_permission(self):
+        """morning-brief command should include Bash(mktemp *) permission."""
+        content = self._read_command("morning-brief.md")
+        assert content is not None, "morning-brief.md command not found"
+        assert "Bash(mktemp *)" in content, \
+            "morning-brief command should include Bash(mktemp *) in allowed-tools"
+
+    def test_dev_pulse_has_mktemp_permission(self):
+        """dev-pulse command should include Bash(mktemp *) permission."""
+        content = self._read_command("dev-pulse.md")
+        assert content is not None, "dev-pulse.md command not found"
+        assert "Bash(mktemp *)" in content, \
+            "dev-pulse command should include Bash(mktemp *) in allowed-tools"
+
+
+class TestMcpEntriesHaveEnabledField(unittest.TestCase):
+    """Verify MCP github-activity and rss-fetch entries have enabled field."""
+
+    MCP_PATH = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "..", "..", "..", "connectors", "mcp-servers.json"))
+
+    def test_github_activity_has_enabled_field(self):
+        """github-activity MCP entry should have enabled: true."""
+        with open(self.MCP_PATH) as f:
+            data = json.load(f)
+        entry = data["mcpServers"]["github-activity"]
+        assert "enabled" in entry, \
+            "github-activity MCP entry should have 'enabled' field"
+        assert entry["enabled"] is True, \
+            "github-activity 'enabled' should be true"
+
+    def test_rss_fetch_has_enabled_field(self):
+        """rss-fetch MCP entry should have enabled: true."""
+        with open(self.MCP_PATH) as f:
+            data = json.load(f)
+        entry = data["mcpServers"]["rss-fetch"]
+        assert "enabled" in entry, \
+            "rss-fetch MCP entry should have 'enabled' field"
+        assert entry["enabled"] is True, \
+            "rss-fetch 'enabled' should be true"
+
+
+class TestSkillMdConfigExampleMatchesDefaults(unittest.TestCase):
+    """Verify SKILL.md config example dependencies match DEFAULT_CONFIG."""
+
+    SKILL_PATH = os.path.normpath(os.path.join(
+        os.path.dirname(__file__), "..", "SKILL.md"))
+
+    def test_skill_md_npm_deps_match_default(self):
+        """SKILL.md config example npm deps should match DEFAULT_CONFIG."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # DEFAULT_CONFIG npm: [next, react, tailwindcss]
+        assert "next, react, tailwindcss" in content, \
+            "SKILL.md npm deps should match DEFAULT_CONFIG (next, react, tailwindcss)"
+
+    def test_skill_md_pypi_deps_match_default(self):
+        """SKILL.md config example pypi deps should match DEFAULT_CONFIG."""
+        with open(self.SKILL_PATH) as f:
+            content = f.read()
+        # DEFAULT_CONFIG pypi: [fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests]
+        assert "fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests" in content, \
+            "SKILL.md pypi deps should match DEFAULT_CONFIG (fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests)"

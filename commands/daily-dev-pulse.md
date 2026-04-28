@@ -1,6 +1,6 @@
 ---
 description: 开发者早报 — GitHub活动、安全警报、包更新、新闻聚合、待办事项
-allowed-tools: Bash(gh *), Bash(curl *), Bash(bash *), Bash(python3 *), Bash(mkdir *), Bash(cat *)
+allowed-tools: Bash(gh *), Bash(curl *), Bash(bash *), Bash(python3 *), Bash(mkdir *), Bash(cat *), Bash(mktemp *), Bash(rm *)
 ---
 
 # /daily-dev-pulse - 开发者早报

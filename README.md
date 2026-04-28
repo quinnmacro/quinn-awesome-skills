@@ -230,6 +230,7 @@ Skills automatically activate based on context:
 |-----------------|-----------------|
 | URL in message | url-fetcher |
 | "找库", "找轮子", "有没有现成的" | presearch |
+| "good morning", "morning brief", "start my day", "早上好", "早报" | daily-dev-pulse |
 
 ### Dependencies
 

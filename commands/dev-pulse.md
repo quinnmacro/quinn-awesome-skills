@@ -1,6 +1,6 @@
 ---
 description: 开发者日报（别名）— 与 /daily-dev-pulse 相同
-allowed-tools: Bash(gh *), Bash(curl *), Bash(bash *), Bash(python3 *), Bash(mkdir *), Bash(cat *)
+allowed-tools: Bash(gh *), Bash(curl *), Bash(bash *), Bash(python3 *), Bash(mkdir *), Bash(cat *), Bash(mktemp *), Bash(rm *)
 ---
 
 # /dev-pulse

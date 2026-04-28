@@ -40,6 +40,7 @@
       "command": "mcp-github-activity",
       "description": "GitHub activity and CI status monitoring for daily-dev-pulse",
       "skills": ["daily-dev-pulse"],
+      "enabled": true,
       "env": {
         "GITHUB_TOKEN": "${GITHUB_TOKEN}"
       },
@@ -59,6 +60,7 @@
       "command": "mcp-rss-fetch",
       "description": "RSS and API feed aggregation for dev news",
       "skills": ["daily-dev-pulse"],
+      "enabled": true,
       "dataTypes": [
         "hackernews",
         "devto",

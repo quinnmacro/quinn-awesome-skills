@@ -69,12 +69,12 @@ Pipe collected JSON data to the formatter:
 
 ```bash
 python3 ~/.claude/skills/daily-dev-pulse/scripts/pulse_formatter.py --format terminal < data.json
-# Or: --format markdown, --format json
+# Or: --format md, --format json
 ```
 
 Output modes:
 - **terminal**: Rich console with ASCII bar charts, colored sections, emoji indicators
-- **markdown**: Structured sections for Claude consumption (default for skill context)
+- **md**: Structured sections for Claude consumption (default for skill context)
 - **json**: Raw structured data for programmatic use
 
 ### Step 4: Generate Action Items
@@ -147,6 +147,7 @@ Structured with `##` sections, tables, and checklist items. Used when Claude nee
 | `--focus` | `security`, `news`, `activity`, `all` | Focus area (default: all) |
 | `--format` | `terminal`, `md`, `json` | Output format (default: terminal) |
 | `--days` | `1`, `7`, `30` | Activity lookback period (default: 7) |
+| `--config` | `/path/to/config.yml` | Custom config file path (default: ~/.quinn-skills/pulse-config.yml) |
 
 ## Dependencies
 
@@ -174,8 +175,8 @@ tech_stack:
   libraries: [LangGraph]
 
 dependencies:
-  npm: [next, typescript, tailwindcss]
-  pypi: [fastapi, langgraph, httpx, pydantic, uvicorn, sqlalchemy]
+  npm: [next, react, tailwindcss]
+  pypi: [fastapi, uvicorn, langgraph, sqlalchemy, pyyaml, requests]
 
 preferences:
   news_sources: [hn, devto, lobsters]
