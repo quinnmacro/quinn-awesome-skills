@@ -55,56 +55,59 @@ fi
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "${TMPDIR}"' EXIT
 
-# Collect data based on focus
-COMBINED_DATA="{"
-
-# GitHub activity
+# Collect data based on focus, writing each source to its own file
 if [[ "${FOCUS}" == "all" || "${FOCUS}" == "activity" ]]; then
     if [[ "${GH_AVAILABLE}" == "true" ]]; then
-        echo "📡 Scanning GitHub repos..." >&2
-        python3 "${MODULES_DIR}/github_scanner.py" > "${TMPDIR}/github.json" 2>/dev/null || echo '{"source":"github","repos":[],"error":"scan_failed"}' > "${TMPDIR}/github.json"
+        echo "Scanning GitHub repos..." >&2
+        python3 "${MODULES_DIR}/github_scanner.py" > "${TMPDIR}/github.json" 2>/dev/null || \
+            echo '{"source":"github","repos":[],"error":"scan_failed"}' > "${TMPDIR}/github.json"
     else
-        echo "⚠️ gh CLI not available or not authenticated — skipping GitHub scan" >&2
+        echo "gh CLI not available or not authenticated - skipping GitHub scan" >&2
         echo '{"source":"github","repos":[],"error":"gh_not_available"}' > "${TMPDIR}/github.json"
     fi
-    GITHUB_DATA="$(cat "${TMPDIR}/github.json")"
-    COMBINED_DATA="${COMBINED_DATA}\"github\":${GITHUB_DATA},"
+
+    echo "Checking package updates..." >&2
+    python3 "${MODULES_DIR}/package_watcher.py" > "${TMPDIR}/packages.json" 2>/dev/null || \
+        echo '{"source":"packages","updates":[],"error":"check_failed"}' > "${TMPDIR}/packages.json"
 fi
 
-# Security alerts
 if [[ "${FOCUS}" == "all" || "${FOCUS}" == "security" ]]; then
-    echo "🛡️ Checking security alerts..." >&2
-    python3 "${MODULES_DIR}/security_checker.py" > "${TMPDIR}/security.json" 2>/dev/null || echo '{"source":"security","alerts":[],"error":"check_failed"}' > "${TMPDIR}/security.json"
-    SECURITY_DATA="$(cat "${TMPDIR}/security.json")"
-    COMBINED_DATA="${COMBINED_DATA}\"security\":${SECURITY_DATA},"
+    echo "Checking security alerts..." >&2
+    python3 "${MODULES_DIR}/security_checker.py" > "${TMPDIR}/security.json" 2>/dev/null || \
+        echo '{"source":"security","alerts":[],"error":"check_failed"}' > "${TMPDIR}/security.json"
 fi
 
-# Package updates
-if [[ "${FOCUS}" == "all" || "${FOCUS}" == "activity" ]]; then
-    echo "📦 Checking package updates..." >&2
-    python3 "${MODULES_DIR}/package_watcher.py" > "${TMPDIR}/packages.json" 2>/dev/null || echo '{"source":"packages","updates":[],"error":"check_failed"}' > "${TMPDIR}/packages.json"
-    PACKAGES_DATA="$(cat "${TMPDIR}/packages.json")"
-    COMBINED_DATA="${COMBINED_DATA}\"packages\":${PACKAGES_DATA},"
-fi
-
-# News aggregation
 if [[ "${FOCUS}" == "all" || "${FOCUS}" == "news" ]]; then
-    echo "📰 Aggregating dev news..." >&2
-    python3 "${MODULES_DIR}/news_aggregator.py" > "${TMPDIR}/news.json" 2>/dev/null || echo '{"source":"news","headlines":[],"error":"fetch_failed"}' > "${TMPDIR}/news.json"
-    NEWS_DATA="$(cat "${TMPDIR}/news.json")"
-    COMBINED_DATA="${COMBINED_DATA}\"news\":${NEWS_DATA},"
+    echo "Aggregating dev news..." >&2
+    python3 "${MODULES_DIR}/news_aggregator.py" > "${TMPDIR}/news.json" 2>/dev/null || \
+        echo '{"source":"news","headlines":[],"error":"fetch_failed"}' > "${TMPDIR}/news.json"
 fi
 
-# Remove trailing comma and close JSON
-COMBINED_DATA="${COMBINED_DATA%,}}"
-COMBINED_DATA="${COMBINED_DATA},\"scan_date\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\"}"
+# Merge all collected JSON files into combined output using Python
+# (shell string concatenation is fragile with JSON data)
+python3 -c "
+import json, os, sys
+from datetime import datetime, timezone
 
-# Write combined data to temp file
-echo "${COMBINED_DATA}" > "${TMPDIR}/combined.json"
+tmpdir = os.environ.get('PULSE_TMPDIR', '${TMPDIR}')
+combined = {}
+combined['scan_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+for key in ['github', 'security', 'packages', 'news']:
+    fpath = os.path.join(tmpdir, key + '.json')
+    if os.path.exists(fpath):
+        try:
+            with open(fpath) as f:
+                combined[key] = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            combined[key] = {'source': key, 'error': 'data_corrupted'}
+
+json.dump(combined, sys.stdout, ensure_ascii=False)
+" PULSE_TMPDIR="${TMPDIR}" > "${TMPDIR}/combined.json"
 
 # Format output
-echo "🎨 Formatting output (${FORMAT})..." >&2
+echo "Formatting output (${FORMAT})..." >&2
 python3 "${SCRIPT_DIR}/pulse_formatter.py" --format "${FORMAT}" < "${TMPDIR}/combined.json"
 
 echo "" >&2
-echo "✅ Daily Dev Pulse complete" >&2
+echo "Daily Dev Pulse complete" >&2

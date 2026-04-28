@@ -172,11 +172,7 @@ One command, full picture of your dev world:
 /daily-dev-pulse --days 30        # 30-day activity review
 ```
 
-### Detailed Features
-
-#### URL Fetcher — Universal Content Extraction
-
-#### Prerequisites
+### Prerequisites & Installation
 
 | Requirement | Installation |
 |-------------|--------------|

@@ -340,5 +340,81 @@ class TestShellScript(unittest.TestCase):
         assert result == 0
 
 
+class TestJsonMerge(unittest.TestCase):
+    """Test the JSON merge approach used by the shell script."""
+
+    def _write_merge_script(self, tmpdir, script_path):
+        """Write the merge helper script to a temp file."""
+        script = '''
+from datetime import datetime, timezone
+import json, os, sys
+
+combined = dict()
+combined["scan_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+for key in ["github", "security", "packages", "news"]:
+    fpath = os.path.join("''' + tmpdir + '''", key + ".json")
+    if os.path.exists(fpath):
+        try:
+            with open(fpath) as f:
+                combined[key] = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            combined[key] = {"source": key, "error": "data_corrupted"}
+
+json.dump(combined, sys.stdout, ensure_ascii=False)
+'''
+        with open(script_path, "w") as f:
+            f.write(script)
+
+    def test_merge_empty_sources(self):
+        """Merging no data files should still produce valid JSON with scan_date."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmpdir:
+            script_path = os.path.join(tmpdir, "merge.py")
+            self._write_merge_script(tmpdir, script_path)
+            result = subprocess.run(
+                ["python3", script_path],
+                capture_output=True, text=True
+            )
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            data = json.loads(result.stdout)
+            assert "scan_date" in data
+            assert "github" not in data
+
+    def test_merge_with_data(self):
+        """Merging existing data files should produce valid JSON."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "security.json"), "w") as f:
+                json.dump({"source": "security", "alerts": []}, f)
+            script_path = os.path.join(tmpdir, "merge.py")
+            self._write_merge_script(tmpdir, script_path)
+            result = subprocess.run(
+                ["python3", script_path],
+                capture_output=True, text=True
+            )
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            data = json.loads(result.stdout)
+            assert "security" in data
+            assert data["security"]["source"] == "security"
+
+    def test_merge_with_corrupted_json(self):
+        """Corrupted JSON file should produce error entry, not crash."""
+        import subprocess
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with open(os.path.join(tmpdir, "github.json"), "w") as f:
+                f.write("this is not json{}")
+            script_path = os.path.join(tmpdir, "merge.py")
+            self._write_merge_script(tmpdir, script_path)
+            result = subprocess.run(
+                ["python3", script_path],
+                capture_output=True, text=True
+            )
+            assert result.returncode == 0, f"stderr: {result.stderr}"
+            data = json.loads(result.stdout)
+            assert "github" in data
+            assert data["github"]["error"] == "data_corrupted"
+
+
 if __name__ == "__main__":
     unittest.main()
