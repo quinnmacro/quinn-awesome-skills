@@ -134,7 +134,8 @@ def format_terminal(data):
     if security and not security.get("error"):
         alerts = security.get("alerts", [])
         if alerts:
-            lines.append(f"{Colors.BOLD}{Colors.RED}🛡️ Security Alerts{Colors.RESET}")
+            sec_lookback = data.get('preferences', {}).get('security_lookback_days', 30)
+            lines.append(f"{Colors.BOLD}{Colors.RED}🛡️ Security Alerts (Last {sec_lookback} Days){Colors.RESET}")
             for alert in alerts[:8]:
                 sev = alert.get("severity", "unknown")
                 emoji = SEVERITY_EMOJI.get(sev, SEVERITY_EMOJI["unknown"])

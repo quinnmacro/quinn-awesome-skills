@@ -1534,5 +1534,91 @@ class TestMarkdownHeadingConsistency(unittest.TestCase):
             "format_markdown should not use bare '## GitHub Activity' heading without lookback days"
 
 
+class TestTerminalSecurityAlertsHeadingConsistency(unittest.TestCase):
+    """Verify format_terminal Security Alerts heading includes security_lookback_days,
+    matching the dynamic display in format_markdown (iteration 18) and
+    format_terminal GitHub Activity (iteration 16)."""
+
+    def test_format_terminal_security_alerts_includes_security_lookback(self):
+        """Terminal Security Alerts heading should show security_lookback_days from preferences."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["security"] = {"source": "security", "alerts": [
+            {"cve_id": "CVE-2025-1234", "product": "fastapi", "severity": "HIGH", "score": 8.5, "description": "Auth bypass"},
+        ]}
+        data["preferences"] = {"lookback_days": 7, "stale_pr_days": 3, "security_lookback_days": 60}
+        output = pulse_formatter.format_terminal(data)
+        assert "Last 60 Days" in output, \
+            "Terminal Security Alerts heading should include security_lookback_days from preferences"
+
+    def test_format_terminal_security_alerts_default_lookback(self):
+        """Terminal Security Alerts heading should show 30 when no security_lookback_days preference."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        output = pulse_formatter.format_terminal(data)
+        assert "Last 30 Days" in output, \
+            "Terminal Security Alerts heading should default to 30 days"
+
+    def test_format_terminal_no_bare_security_heading(self):
+        """format_terminal should not use bare 'Security Alerts' heading without lookback days."""
+        formatter_path = os.path.join(SCRIPTS_DIR, "pulse_formatter.py")
+        with open(formatter_path) as f:
+            content = f.read()
+        # The old bug was a line with just "Security Alerts" without the lookback info
+        assert '"🛡️ Security Alerts"' not in content, \
+            "format_terminal should not use bare Security Alerts heading without lookback days"
+
+    def test_format_terminal_security_heading_matches_markdown(self):
+        """Terminal and markdown Security Alerts headings should both show the same security_lookback_days."""
+        data = copy.deepcopy(MOCK_GITHUB_DATA)
+        data["security"] = {"source": "security", "alerts": [
+            {"cve_id": "CVE-2025-1234", "product": "fastapi", "severity": "HIGH", "score": 8.5, "description": "Auth bypass"},
+        ]}
+        data["preferences"] = {"lookback_days": 7, "stale_pr_days": 3, "security_lookback_days": 45}
+        terminal_output = pulse_formatter.format_terminal(data)
+        markdown_output = pulse_formatter.format_markdown(data)
+        assert "Last 45 Days" in terminal_output, \
+            "Terminal Security Alerts heading should show 45 days"
+        assert "Last 45 Days" in markdown_output, \
+            "Markdown Security Alerts heading should show 45 days"
+
+
+class TestNvdRateLimitInCombinedJson(unittest.TestCase):
+    """Verify shell script combined JSON includes nvd_rate_limit preference alongside the other 5 preferences."""
+
+    SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "scripts", "daily-dev-pulse.sh")
+
+    def test_shell_script_includes_nvd_rate_limit_in_preferences(self):
+        """Shell script merge section should include nvd_rate_limit in combined JSON preferences."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        assert "'nvd_rate_limit'" in content or '"nvd_rate_limit"' in content, \
+            "Shell script should include nvd_rate_limit in combined JSON preferences"
+
+    def test_shell_script_preferences_all_6_keys(self):
+        """Shell script merge section should include all 6 preference keys from DEFAULT_CONFIG."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        for key in config.DEFAULT_CONFIG["preferences"]:
+            assert key in content, \
+                f"Shell script merge section should include preference '{key}' from DEFAULT_CONFIG"
+
+    def test_format_json_includes_nvd_rate_limit(self):
+        """format_json output should preserve nvd_rate_limit from input data."""
+        data = {
+            "preferences": {"nvd_rate_limit": 2, "stale_pr_days": 3},
+            "github": {"source": "github", "repos": []},
+        }
+        output = pulse_formatter.format_json(data)
+        parsed = json.loads(output)
+        assert parsed["preferences"]["nvd_rate_limit"] == 2
+
+    def test_nvd_rate_limit_in_combined_json_default_value(self):
+        """Shell script fallback preferences should include nvd_rate_limit default value of 6."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        # The fallback line (except block) should include nvd_rate_limit: 6
+        assert "nvd_rate_limit': 6" in content, \
+            "Shell script fallback preferences should include nvd_rate_limit default of 6"
+
+
 if __name__ == "__main__":
     unittest.main()
