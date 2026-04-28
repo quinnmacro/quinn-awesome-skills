@@ -113,6 +113,16 @@ install_skill() {
         else
             echo -e "  ${YELLOW}⚠️ 配置已存在 ~/.quinn-skills/pulse-config.yml，保留现有配置${NC}"
         fi
+
+        # Install alias commands: morning-brief and dev-pulse
+        for alias_cmd in morning-brief dev-pulse; do
+            local ALIAS_FILE="$COMMANDS_DIR/$alias_cmd.md"
+            if [ -f "$ALIAS_FILE" ]; then
+                cp "$ALIAS_FILE" ~/.claude/commands/$alias_cmd.md
+                ln -sf ~/.claude/commands/$alias_cmd.md ~/.openclaw/commands/$alias_cmd.md
+                echo -e "  ${GREEN}✅ 安装别名命令 /$alias_cmd${NC}"
+            fi
+        done
     fi
 
     # 6. 安装斜杠命令（从 commands/ 目录）

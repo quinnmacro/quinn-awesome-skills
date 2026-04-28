@@ -592,6 +592,22 @@ class TestTimezoneConsistency(unittest.TestCase):
         # Should not use bare datetime.now() for the comparison
         assert "datetime.now()" not in source.replace("datetime.now(timezone.utc)", "")
 
+    def test_pulse_formatter_format_terminal_uses_utc(self):
+        """format_terminal should use datetime.now(timezone.utc) for date header."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.format_terminal)
+        # Should use UTC for the date header, not naive datetime.now()
+        assert "datetime.now(timezone.utc)" in source
+        assert "datetime.now()" not in source.replace("datetime.now(timezone.utc)", "")
+
+    def test_pulse_formatter_format_markdown_uses_utc(self):
+        """format_markdown should use datetime.now(timezone.utc) for date header."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.format_markdown)
+        # Should use UTC for the date header, not naive datetime.now()
+        assert "datetime.now(timezone.utc)" in source
+        assert "datetime.now()" not in source.replace("datetime.now(timezone.utc)", "")
+
     def test_stale_pr_days_calculation_correctness(self):
         """Stale PR detection should calculate days correctly with UTC timestamps."""
         # A PR created 5 days ago in UTC should be flagged as stale (> 3 days)

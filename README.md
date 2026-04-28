@@ -405,7 +405,8 @@ quinn-awesome-skills/
 ├── skills/                    # 按领域划分的技能
 │   ├── core/                  # 核心技能
 │   │   ├── url-fetcher/       # URL 抓取
-│   │   └── presearch/         # 开发前搜索
+│   │   ├── presearch/         # 开发前搜索
+│   │   └── daily-dev-pulse/   # 开发者早报
 │   └── external/              # 外部数据源 prompts
 │       ├── bloomberg/         # Bloomberg AI prompts
 │       │   ├── company/       # 公司视角

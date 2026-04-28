@@ -56,7 +56,7 @@ def ascii_bar(count, max_count, width=30):
 
 def format_terminal(data):
     """Format data as rich terminal output with ASCII charts and colors."""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     width = 48
 
     lines = []
@@ -173,7 +173,7 @@ def format_terminal(data):
 
 def format_markdown(data):
     """Format data as structured markdown for Claude consumption."""
-    today = datetime.now().strftime("%Y-%m-%d")
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     lines = [f"# 🌅 Daily Dev Pulse — {today}", ""]
 
     # GitHub
