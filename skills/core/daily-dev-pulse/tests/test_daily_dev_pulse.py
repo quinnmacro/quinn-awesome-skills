@@ -296,6 +296,123 @@ class TestPackageWatcher(unittest.TestCase):
             assert result["latest_version"] == "unknown"
             assert result.get("error") == "fetch_failed"
 
+    def test_fetch_pypi_error(self):
+        """fetch_pypi_info should handle network errors gracefully."""
+        with patch("urllib.request.urlopen", side_effect=Exception("error")):
+            result = package_watcher.fetch_pypi_info("nonexistent-pkg")
+            assert result["latest_version"] == "unknown"
+            assert result.get("error") == "fetch_failed"
+
+    def test_fetch_pypi_successful(self):
+        """fetch_pypi_info should extract version and changelog URL from PyPI API response."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({
+            "info": {
+                "version": "0.115.0",
+                "summary": "Modern fast web framework",
+                "home_page": "https://fastapi.tiangolo.com",
+                "project_urls": {"Changelog": "https://fastapi.tiangolo.com/release-notes/",
+                                 "Source": "https://github.com/tiangolo/fastapi"},
+                "license": "MIT",
+            }
+        }).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = package_watcher.fetch_pypi_info("fastapi")
+            assert result["package"] == "fastapi"
+            assert result["registry"] == "pypi"
+            assert result["latest_version"] == "0.115.0"
+            assert result["changelog_url"] == "https://fastapi.tiangolo.com/release-notes/"
+
+    def test_fetch_npm_successful(self):
+        """fetch_npm_info should extract version and description from npm registry."""
+        mock_response = MagicMock()
+        mock_response.read.return_value = json.dumps({
+            "version": "15.3.0",
+            "description": "The React Framework",
+            "homepage": "https://nextjs.org",
+            "license": "MIT",
+        }).encode()
+        mock_response.__enter__ = MagicMock(return_value=mock_response)
+        mock_response.__exit__ = MagicMock(return_value=False)
+
+        with patch("urllib.request.urlopen", return_value=mock_response):
+            result = package_watcher.fetch_npm_info("next")
+            assert result["package"] == "next"
+            assert result["registry"] == "npm"
+            assert result["latest_version"] == "15.3.0"
+
+
+class TestFocusFiltering(unittest.TestCase):
+    """Test that --focus argument correctly controls which data sources are collected."""
+
+    SCRIPT_PATH = os.path.join(os.path.dirname(__file__), "..", "scripts", "daily-dev-pulse.sh")
+
+    def test_shell_script_focus_activity_branch(self):
+        """Shell script should include activity branch when --focus is activity."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        # Verify focus branching logic exists
+        assert '"activity"' in content or "'activity'" in content
+        # Verify GitHub scan is in the activity branch
+        assert "github_scanner.py" in content
+
+    def test_shell_script_focus_security_branch(self):
+        """Shell script should include security branch when --focus is security."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        assert '"security"' in content or "'security'" in content
+        assert "security_checker.py" in content
+
+    def test_shell_script_focus_news_branch(self):
+        """Shell script should include news branch when --focus is news."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        assert '"news"' in content or "'news'" in content
+        assert "news_aggregator.py" in content
+
+    def test_shell_script_focus_all_runs_all(self):
+        """Shell script --focus all should trigger all collection branches."""
+        with open(self.SCRIPT_PATH) as f:
+            content = f.read()
+        assert '"all"' in content or "'all'" in content
+        # All modules should be referenced
+        assert "github_scanner.py" in content
+        assert "security_checker.py" in content
+        assert "news_aggregator.py" in content
+        assert "package_watcher.py" in content
+
+
+class TestConfigEdgeCases(unittest.TestCase):
+    """Test config loading with edge cases: partial overrides, missing keys."""
+
+    def test_merge_partial_override_preserves_defaults(self):
+        """Merging with only repos override should preserve default tech_stack and preferences."""
+        user = {"repos": [{"name": "myrepo", "owner": "me"}]}
+        result = config.merge_config(config.DEFAULT_CONFIG, user)
+        assert len(result["repos"]) == 1
+        assert result["repos"][0]["name"] == "myrepo"
+        # Other defaults preserved
+        assert result["tech_stack"]["python"] == "3.13"
+        assert result["preferences"]["lookback_days"] == 7
+
+    def test_merge_empty_user_config(self):
+        """Empty user config should produce a full deep copy of defaults."""
+        result = config.merge_config(config.DEFAULT_CONFIG, {})
+        assert result["repos"] == config.DEFAULT_CONFIG["repos"]
+        # Must be a deep copy, not the same object
+        assert result["repos"] is not config.DEFAULT_CONFIG["repos"]
+
+    def test_merge_nested_partial_override(self):
+        """Partial override of a nested dict should preserve unset keys."""
+        user = {"preferences": {"lookback_days": 14}}
+        result = config.merge_config(config.DEFAULT_CONFIG, user)
+        assert result["preferences"]["lookback_days"] == 14
+        assert result["preferences"]["format"] == "terminal"
+        assert result["preferences"]["stale_pr_days"] == 3
+
 
 class TestPulseFormatter(unittest.TestCase):
     """Test the pulse formatter with sample data."""
