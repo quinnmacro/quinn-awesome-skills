@@ -80,9 +80,9 @@ Output modes:
 ### Step 4: Generate Action Items
 
 The formatter automatically creates a todo section based on:
-- Stale PRs (open > 3 days)
+- Stale PRs (open longer than stale_pr_days threshold)
 - Failing CI runs
-- Unresolved issues assigned to you
+- Open issues created within lookback_days (capped at max_issues_per_repo per repo)
 - Available package updates with security relevance
 
 ## Output Format
@@ -186,6 +186,7 @@ preferences:
   stale_pr_days: 3
   nvd_rate_limit: 6
   max_issues_per_repo: 3
+  max_action_items: 10
 ```
 
 ## Notes

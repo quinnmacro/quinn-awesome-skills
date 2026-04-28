@@ -298,6 +298,7 @@ def generate_action_items(data):
     stale_threshold = data.get("preferences", {}).get("stale_pr_days", 3)
     lookback_days = data.get("preferences", {}).get("lookback_days", 7)
     max_issues_per_repo = data.get("preferences", {}).get("max_issues_per_repo", 3)
+    max_action_items = data.get("preferences", {}).get("max_action_items", 10)
 
     github = data.get("github", {})
     if github and not github.get("error"):
@@ -346,7 +347,7 @@ def generate_action_items(data):
             if sev in ("CRITICAL", "HIGH"):
                 items.append(f"Update {alert.get('product', '')} — {alert.get('cve_id', '')} ({sev})")
 
-    return items[:10]
+    return items[:max_action_items]
 
 
 def main():

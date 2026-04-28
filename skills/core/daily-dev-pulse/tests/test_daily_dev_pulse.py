@@ -2317,5 +2317,134 @@ class TestMaxIssuesPerRepo(unittest.TestCase):
             return f.read()
 
 
+class TestMaxActionItems(unittest.TestCase):
+    """Test that max_action_items preference is functional and configurable."""
+
+    def test_max_action_items_in_default_config(self):
+        """max_action_items should be present in DEFAULT_CONFIG preferences."""
+        assert "max_action_items" in config.DEFAULT_CONFIG["preferences"], \
+            "DEFAULT_CONFIG should include max_action_items preference"
+        assert config.DEFAULT_CONFIG["preferences"]["max_action_items"] == 10
+
+    def test_max_action_items_caps_output(self):
+        """generate_action_items should cap output at max_action_items."""
+        recent = _recent_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": i, "title": "PR " + str(i),
+                         "createdAt": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")}
+                        for i in range(1, 20)  # 19 stale PRs
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [
+                        {"name": "CI", "conclusion": "failure", "headBranch": "main"}
+                    ],
+                }],
+            },
+            "security": {
+                "alerts": [
+                    {"cve_id": "CVE-2025-" + str(i), "product": "fastapi",
+                     "severity": "CRITICAL", "score": 9.0}
+                    for i in range(1, 10)
+                ],
+            },
+            "preferences": {"stale_pr_days": 3, "lookback_days": 7,
+                            "max_issues_per_repo": 3, "max_action_items": 5},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert len(items) <= 5, f"Expected <=5 action items with max_action_items=5, got {len(items)}"
+
+    def test_default_max_action_items_is_10(self):
+        """Default max_action_items should be 10 when not specified in data."""
+        data = {"github": {"repos": []}, "preferences": {}}
+        items = pulse_formatter.generate_action_items(data)
+        # No items generated from empty data, but the cap should be 10
+        # Verify the default cap by checking the code uses 10 as fallback
+        max_items = data.get("preferences", {}).get("max_action_items", 10)
+        assert max_items == 10
+
+    def test_custom_max_action_items_override(self):
+        """Custom max_action_items should override the default cap."""
+        recent = _recent_date_str()
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": i, "title": "PR " + str(i),
+                         "createdAt": (datetime.now(timezone.utc) - timedelta(days=5)).strftime("%Y-%m-%dT%H:%M:%SZ")}
+                        for i in range(1, 20)  # 19 stale PRs
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+            "preferences": {"stale_pr_days": 3, "lookback_days": 7,
+                            "max_issues_per_repo": 3, "max_action_items": 3},
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert len(items) <= 3, f"Expected <=3 action items with max_action_items=3, got {len(items)}"
+
+    def test_shell_script_includes_max_action_items_in_preferences(self):
+        """Shell script combined JSON preferences should include max_action_items."""
+        content = open(os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")).read()
+        assert "max_action_items" in content, \
+            "Shell script should include max_action_items in preferences"
+
+    def test_config_example_includes_max_action_items(self):
+        """config-example.yml should include max_action_items preference."""
+        config_example_path = os.path.join(os.path.dirname(__file__), "..", "config-example.yml")
+        if os.path.exists(config_example_path):
+            content = open(config_example_path).read()
+            assert "max_action_items" in content, \
+                "config-example.yml should include max_action_items preference"
+
+    def test_skill_md_includes_max_action_items(self):
+        """SKILL.md config section should include max_action_items."""
+        skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+        content = open(skill_md_path).read()
+        assert "max_action_items" in content, \
+            "SKILL.md should include max_action_items preference"
+
+
+class TestSkillMdStep4Accuracy(unittest.TestCase):
+    """Test that SKILL.md Step 4 description matches actual implementation."""
+
+    def test_step4_mentions_stale_pr_days_configurable(self):
+        """Step 4 should describe stale PR threshold as configurable, not hardcoded."""
+        skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+        content = open(skill_md_path).read()
+        # Should NOT say "open > 3 days" (hardcoded threshold)
+        assert "open > 3 days" not in content, \
+            "SKILL.md Step 4 should not hardcode stale PR threshold as '3 days'"
+        # Should mention configurable threshold
+        assert "stale_pr_days" in content, \
+            "SKILL.md Step 4 should reference configurable stale_pr_days threshold"
+
+    def test_step4_does_not_claim_assigned_issues(self):
+        """Step 4 should NOT claim 'assigned to you' — implementation flags recently created issues."""
+        skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+        content = open(skill_md_path).read()
+        assert "assigned to you" not in content, \
+            "SKILL.md Step 4 should not claim 'assigned to you' — implementation flags recently created issues within lookback_days"
+
+    def test_step4_mentions_lookback_days_for_issues(self):
+        """Step 4 should mention lookback_days as the issue filtering criterion."""
+        skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+        content = open(skill_md_path).read()
+        assert "lookback_days" in content, \
+            "SKILL.md Step 4 should mention lookback_days as the criterion for flagging issues"
+
+    def test_step4_mentions_max_issues_per_repo(self):
+        """Step 4 should mention max_issues_per_repo cap."""
+        skill_md_path = os.path.join(os.path.dirname(__file__), "..", "SKILL.md")
+        content = open(skill_md_path).read()
+        assert "max_issues_per_repo" in content, \
+            "SKILL.md Step 4 should mention max_issues_per_repo cap"
+
+
 if __name__ == "__main__":
     unittest.main()

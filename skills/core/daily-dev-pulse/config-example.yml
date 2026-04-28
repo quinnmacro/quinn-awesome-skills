@@ -67,3 +67,6 @@ preferences:
 
   # Max open issues flagged per repo in action items (only recent issues within lookback_days)
   max_issues_per_repo: 3
+
+  # Max total action items in final output (caps the todo section size)
+  max_action_items: 10
