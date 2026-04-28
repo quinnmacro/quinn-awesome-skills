@@ -87,6 +87,7 @@ fi
 
 # Merge all collected JSON files into combined output using Python
 # (shell string concatenation is fragile with JSON data)
+# Also include preferences (stale_pr_days) so the formatter uses config thresholds
 python3 -c "
 import json, os, sys
 from datetime import datetime, timezone
@@ -94,6 +95,15 @@ from datetime import datetime, timezone
 tmpdir = os.environ.get('PULSE_TMPDIR', '${TMPDIR}')
 combined = {}
 combined['scan_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+
+# Include preferences so formatter can use config-driven thresholds
+try:
+    sys.path.insert(0, '${MODULES_DIR}')
+    from config import load_config, get_preferences
+    prefs = get_preferences(load_config())
+    combined['preferences'] = {'stale_pr_days': prefs.get('stale_pr_days', 3)}
+except Exception:
+    combined['preferences'] = {'stale_pr_days': 3}
 
 for key in ['github', 'security', 'packages', 'news']:
     fpath = os.path.join(tmpdir, key + '.json')

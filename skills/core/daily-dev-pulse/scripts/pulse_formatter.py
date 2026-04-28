@@ -292,11 +292,12 @@ def format_json(data):
 def generate_action_items(data):
     """Generate personalized action items from collected data."""
     items = []
+    stale_threshold = data.get("preferences", {}).get("stale_pr_days", 3)
 
     github = data.get("github", {})
     if github and not github.get("error"):
         for repo in github.get("repos", []):
-            # Stale PRs (open > stale_pr_days threshold)
+            # Stale PRs (open > stale_pr_days threshold from config)
             for pr in repo.get("open_prs", []):
                 created = pr.get("createdAt", "")
                 if created:
@@ -305,7 +306,7 @@ def generate_action_items(data):
                         # Python 3.11+ handles Z in fromisoformat
                         created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
                         days_open = (datetime.now(timezone.utc) - created_dt).days
-                        if days_open > 3:
+                        if days_open > stale_threshold:
                             items.append(f"Review stale PR #{pr.get('number', '')} on {repo['repo']} (open {days_open} days)")
                     except (ValueError, TypeError):
                         pass

@@ -1175,5 +1175,101 @@ class TestTerminalBoxCharacters(unittest.TestCase):
         assert not hasattr(pulse_formatter.Colors, "BOX_BOT")
 
 
+class TestStalePrDaysConfigDriven(unittest.TestCase):
+    """Verify stale_pr_days threshold comes from config/preferences, not hardcoded."""
+
+    def test_generate_action_items_reads_stale_pr_days_from_data(self):
+        """generate_action_items should use stale_pr_days from data.preferences, not hardcode 3."""
+        import inspect
+        source = inspect.getsource(pulse_formatter.generate_action_items)
+        # Should read threshold from data, not hardcode > 3
+        assert "stale_threshold" in source
+        assert "stale_pr_days" in source
+        # Should NOT have the old hardcoded > 3
+        assert "> 3" not in source
+
+    def test_stale_pr_default_threshold(self):
+        """Default stale_pr_days should be 3 when no preferences in data."""
+        from datetime import datetime, timezone, timedelta
+        four_days_ago = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+        # No preferences key — should use default threshold of 3
+        data = {
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": 1, "title": "Test PR", "createdAt": four_days_ago},
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("stale PR" in item for item in items)
+
+    def test_stale_pr_custom_threshold_higher(self):
+        """With stale_pr_days=7, a PR open 4 days should NOT be flagged."""
+        from datetime import datetime, timezone, timedelta
+        four_days_ago = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
+        data = {
+            "preferences": {"stale_pr_days": 7},
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": 1, "title": "Test PR", "createdAt": four_days_ago},
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert not any("stale PR" in item for item in items), \
+            "PR open 4 days should not be flagged when threshold is 7"
+
+    def test_stale_pr_custom_threshold_lower(self):
+        """With stale_pr_days=1, a PR open 2 days should be flagged."""
+        from datetime import datetime, timezone, timedelta
+        two_days_ago = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
+        data = {
+            "preferences": {"stale_pr_days": 1},
+            "github": {
+                "repos": [{
+                    "repo": "test/repo",
+                    "open_prs": [
+                        {"number": 1, "title": "Test PR", "createdAt": two_days_ago},
+                    ],
+                    "open_issues": [],
+                    "ci_runs": [],
+                }],
+            },
+        }
+        items = pulse_formatter.generate_action_items(data)
+        assert any("stale PR" in item for item in items), \
+            "PR open 2 days should be flagged when threshold is 1"
+
+    def test_shell_script_includes_preferences_in_combined_json(self):
+        """Shell script merge section should add preferences to combined JSON output."""
+        script_path = os.path.join(os.path.dirname(__file__), "..", "scripts", "daily-dev-pulse.sh")
+        with open(script_path) as f:
+            content = f.read()
+        assert "stale_pr_days" in content, \
+            "Shell script should include stale_pr_days preference in combined JSON"
+        assert "preferences" in content, \
+            "Shell script should include preferences dict in combined JSON"
+
+    def test_format_json_includes_preferences(self):
+        """format_json output should preserve preferences from input data."""
+        data = {
+            "preferences": {"stale_pr_days": 5},
+            "github": {"source": "github", "repos": []},
+        }
+        output = pulse_formatter.format_json(data)
+        parsed = json.loads(output)
+        assert parsed["preferences"]["stale_pr_days"] == 5
+
+
 if __name__ == "__main__":
     unittest.main()
