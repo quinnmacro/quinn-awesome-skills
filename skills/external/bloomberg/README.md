@@ -1,87 +1,263 @@
-# Bloomberg AI Prompt Templates
+<div align="center">
 
-Bloomberg Terminal `{AKSB <GO>}` AI workflow prompts for financial analysis.
+# 🫧 Bloomberg AI Prompts
 
-## 模板索引
+**Professional prompt templates for Bloomberg Terminal `{AKSB <GO>}`**
 
-| 名称 | 视角 | 用途 | 变量 |
-|------|------|------|------|
-| [Trends Analysis](company/trends-analysis/template.md) | Company | 股价+财务+运营趋势分析 | `{Company Name/Ticker}` |
-| [Management & Governance](company/management-governance/template.md) | Company | 管理层+治理结构评估 | `{Company Name/Ticker}`, `N` |
-| [Company Snapshot](company/company-snapshot/template.md) | Company | 投资论点支撑概览 | `{Company Name/Ticker}` |
-| [Performance Tracker](company/performance-tracker/template.md) | Company | 季度财务绩效追踪 | `{Company Name/Ticker}`, `N` |
-| [Sector Snapshot](sector/sector-snapshot/template.md) | Sector | 行业+同行对比分析 | `{Sector Name}`, `{Focus: Company Name/Ticker}` |
-| [Breaking Event](event/breaking-event/template.md) | Event | 突发重大事件分析 | `{Company Name/Ticker}` |
-| [Credit Strategy](market/credit-strategy/template.md) | Market | 信用市场早报 | `{Market to Analyze}` |
+*Fixed Income • Currencies • Commodities • Credit • Equities*
 
-## 分类说明
+---
+
+[![Bloomberg](https://img.shields.io/badge/Platform-Bloomberg_Terminal-blue?style=for-the-badge)](https://www.bloomberg.com/professional/solution/bloomberg-terminal/)
+[![Templates](https://img.shields.io/badge/Templates-33-green?style=for-the-badge)]()
+[![FICC](https://img.shields.io/badge/FICC-26_prompts-orange?style=for-the-badge)]()
+[![Equity](https://img.shields.io/badge/Equity-7_templates-purple?style=for-the-badge)]()
+
+</div>
+
+---
+
+## 📊 Quick Navigation
+
+| Category | Templates | Description |
+|:--------:|:---------:|:------------|
+| [🏢 **Equity**](#-equity-prompts) | 7 | Company, Sector, Event analysis |
+| [📈 **FICC**](#-ficc-prompts) | 26 | Rates, FX, Credit, Commodities |
+| [⚡ **Mini Prompts**](#-mini-prompts) | 14 | Quick daily analysis |
+| [🎭 **Theme Prompts**](#-theme-prompts) | 7 | Macro scenario analysis |
+
+---
+
+## 🏢 Equity Prompts
+
+> **Company & Sector Analysis for Investment Decisions**
+
+### 📋 Template Index
+
+| Template | Perspective | Use Case | Variable |
+|:---------|:-----------:|:---------|:---------|
+| [Trends Analysis](company/trends-analysis/template.md) | 🏭 Company | Stock + Financial + Operational trends | `{Company/Ticker}` |
+| [Management & Governance](company/management-governance/template.md) | 🏭 Company | Board & leadership assessment | `{Company/Ticker}`, `N` |
+| [Company Snapshot](company/company-snapshot/template.md) | 🏭 Company | Investment thesis primer | `{Company/Ticker}` |
+| [Performance Tracker](company/performance-tracker/template.md) | 🏭 Company | Quarterly financial tracking | `{Company/Ticker}`, `N` |
+| [Sector Snapshot](sector/sector-snapshot/template.md) | 🏭 Sector | Industry + peer comparison | `{Sector Name}` |
+| [Breaking Event](event/breaking-event/template.md) | ⚡ Event | Material event analysis (24-96h) | `{Company/Ticker}` |
+| [Credit Strategy](market/credit-strategy/template.md) | 📊 Market | Credit market morning briefing | `{Market}` |
+
+### 🎯 Usage
+
+```
+1. Bloomberg Terminal → {AKSB <GO>}
+2. Copy template → Replace variables
+3. Example: {Company/Ticker} → AAPL US Equity
+```
+
+<details>
+<summary>📖 Variable Format Guide</summary>
+
+| Variable | Format | Example |
+|----------|--------|---------|
+| `{Company/Ticker}` | Bloomberg Ticker | `AAPL US Equity`, `700 HK Equity` |
+| `{Sector Name}` | Industry Name | `Technology`, `Healthcare` |
+| `{Market}` | Market Type | `US IG`, `Asia HY`, `EM USD` |
+| `N` | Period Count | `4`, `8` |
+
+</details>
+
+---
+
+## 📈 FICC Prompts
+
+> **Fixed Income, Currencies & Commodities Analysis**
+
+### 🔥 Core Templates (5)
+
+| Template | Category | Key Metrics |
+|:---------|:--------:|:------------|
+| [Sovereign Yields](ficc/rates/sovereign-yields/template.md) | 📉 Rates | Yield curve + CB policy pricing |
+| [Currency Cross](ficc/fx/currency-cross/template.md) | 💱 FX | Spot/Forward + Carry + Vol |
+| [Credit Spreads](ficc/credit/spreads/template.md) | 💳 Credit | IG vs HY + Sector matrix |
+| [Energy Futures](ficc/commodities/energy-futures/template.md) | 🛢️ Commodities | Curve structure + OVX volatility |
+| [Cross-Asset](ficc/cross-asset/template.md) | 🔗 Multi-Asset | Transmission chains |
+
+### 📚 FICC Documentation
+
+| Document | Content |
+|:---------|:--------|
+| [📖 Design Framework](ficc/FICC-DESIGN.md) | Strategy types + Methodology |
+| [🔍 Quick Reference](ficc/QUICK-REFERENCE.md) | Ticker lookup + BQL templates |
+| [💡 Trader Tips](ficc/TRADER-TIPS.md) | Pitfalls + Formulas + Jargon |
+| [📋 Case Studies](ficc/CASE-STUDIES.md) | 7 real & scenario examples |
+
+### 🎯 FICC by Strategy Type
+
+```
+📊 Rates      → Curve trades (Steepener/Flattener)
+💱 FX        → Carry trades + Vol strategies  
+💳 Credit    → IG/HY rotation + Sector RV
+🛢️ Commodities → Calendar spreads + Crack spreads
+🔗 Cross-Asset → Transmission analysis
+```
+
+---
+
+## ⚡ Mini Prompts
+
+> **Quick Analysis for Daily Workflow**
+
+### 📅 Daily Workflow
+
+| Prompt | Use When | Time |
+|:-------|:---------|:----:|
+| **Pre-Market Scan** | Before market open | 5 min |
+| **Close Review** | End of trading day | 10 min |
+| **Weekly Wrap** | Friday close | 15 min |
+
+### ⚡ Event-Driven
+
+| Prompt | Trigger |
+|:-------|:--------|
+| **Rate Decision Reaction** | CB meeting outcome |
+| **Geopolitical Shock** | War, sanctions, election |
+| **Data Release Reaction** | CPI, NFP, GDP surprise |
+
+### 📊 Relative Value
+
+| Prompt | Use Case |
+|:-------|:---------|
+| **Curve Trade Setup** | Steepener/Flattener ideas |
+| **Credit RV** | IG vs HY relative value |
+| **FX Carry Trade** | Carry attractiveness check |
+
+### 🛡️ Risk & Stress
+
+| Prompt | Purpose |
+|:-------|:--------|
+| **Market Stress Check** | Cross-asset stress level |
+| **Liquidity Assessment** | Market functioning check |
+| **Position Risk Check** | VaR + Stop-loss sizing |
+
+---
+
+## 🎭 Theme Prompts
+
+> **Macro-Driven Scenario Analysis**
+
+| Theme | When to Use |
+|:------|:------------|
+| 🌡️ **Inflation Trade** | CPI surprises, breakeven moves |
+| 📉 **Recession Trade** | Curve inversion, LEI decline |
+| 💧 **Liquidity Crisis** | Bid-ask widening, market freeze |
+| ⚖️ **CB Divergence** | Rate differential widening |
+| ❌ **Policy Mistake** | Real rates extreme |
+| 📊 **Tail Risk** | Geopolitical escalation |
+| 🦢 **Black Swan Prep** | Portfolio resilience check |
+
+---
+
+## 🗂️ Directory Structure
 
 ```
 bloomberg/
-├── company/          # 公司视角：单公司深度分析
-│   ├── trends-analysis/        # 股价+财务+运营趋势
-│   ├── management-governance/  # 治理+管理层评估
-│   ├── company-snapshot/       # 投资概览手册
-│   └── performance-tracker/    # 季度财务追踪
-├── sector/           # 行业视角：同行对比+定位
+│
+├── 📄 README.md                    # You are here
+│
+├── 🏢 company/                     # Equity - Company
+│   ├── trends-analysis/
+│   ├── management-governance/
+│   ├── company-snapshot/
+│   └── performance-tracker/
+│
+├── 🏭 sector/                      # Equity - Sector
 │   └── sector-snapshot/
-├── event/            # 事件视角：突发事件快速评估
+│
+├── ⚡ event/                       # Equity - Event
 │   └── breaking-event/
-└── market/           # 市场视角：宏观信用市场
-    └── credit-strategy/
+│
+├── 📊 market/                      # Market-wide
+│   └── credit-strategy/
+│
+└── 📈 ficc/                        # FICC Prompts
+    ├── README.md
+    ├── FICC-DESIGN.md
+    ├── QUICK-REFERENCE.md
+    ├── MINI-PROMPTS.md
+    ├── CASE-STUDIES.md
+    ├── THEME-PROMPTS.md
+    ├── TRADER-TIPS.md
+    │
+    ├── rates/sovereign-yields/
+    ├── fx/currency-cross/
+    ├── credit/spreads/
+    ├── commodities/energy-futures/
+    └── cross-asset/
 ```
 
-## 使用方法
+---
 
-### 1. 在 Bloomberg 终端使用
+## 🚀 Quick Start
 
-1. 打开 Bloomberg Terminal，输入 `{AKSB <GO>}` 进入 AI 助手
-2. 选择对应模板
-3. 替换 `{Variable}` 为实际值（如 `{Company Name/Ticker}` → `AAPL US Equity`）
-4. 执行分析
+### First Time
 
-### 2. 变量替换规则
+```bash
+# Clone the repository
+git clone https://github.com/quinnmacro/quinn-awesome-skills.git
 
-| 变量 | 格式 | 示例 |
-|------|------|------|
-| `{Company Name/Ticker}` | Bloomberg Ticker | `AAPL US Equity`, `700 HK Equity` |
-| `{Sector Name}` | 行业名称 | `Technology`, `Healthcare` |
-| `{Market to Analyze}` | 市场类型 | `US IG`, `Asia HY`, `EM USD` |
-| `{Region}` | 地区 | `US`, `Europe`, `Asia` |
-| `N` | 周期数 | `4`, `8` |
+# Navigate to Bloomberg prompts
+cd quinn-awesome-skills/skills/external/bloomberg
+```
 
-### 3. 数据周期规则
+### Using a Template
 
-| 规则 | 说明 |
-|------|------|
-| N+1 | 计算 YoY 需要额外 1 个周期数据 |
-| N+5 | Performance Tracker 要求最严格 |
-| < 366 days | 数据新鲜度优先级 |
+```bash
+# 1. Open template file
+cat company/trends-analysis/template.md
 
-## 模板来源
+# 2. Copy to Bloomberg Terminal {AKSB <GO>}
 
-| 模板 | 来源 |
-|------|------|
-| Trends Analysis | Bloomberg Official |
-| Management & Governance | Bloomberg Official |
-| Company Snapshot | Bloomberg Official |
-| Performance Tracker | Bloomberg Official |
-| Sector Snapshot | Bloomberg Official |
-| Breaking Event | Bloomberg Official |
-| Credit Strategy | **Custom** (用户自写) |
+# 3. Replace variables
+# {Company/Ticker} → AAPL US Equity
 
-## 与 Wind 的区分
+# 4. Run analysis
+```
 
-| 维度 | Bloomberg | Wind |
-|------|-----------|------|
-| 市场 | 全球市场 | 中国市场为主 |
-| 数据源 | Bloomberg Terminal | Wind Terminal |
-| 指标体系 | 全球标准 | A股特色 |
-| 适用场景 | 跨境投资、全球配置 | A股研究、国内债券 |
+---
 
-## 注意事项
+## 📊 Stats
 
-- 模板需在 Bloomberg Terminal 内使用，依赖 Bloomberg 数据 API
-- Credit Strategy 模板包含 70+ Bloomberg Index Tickers
-- 部分模板有严格的 DAPI 字段限制（如 `INDEX_TOTAL_RETURN_MTD`）
-- 过期数据（>180/366 days）应移至 Historical Data section
+| Metric | Count |
+|:-------|------:|
+| Total Templates | 33 |
+| FICC Prompts | 26 |
+| Equity Templates | 7 |
+| Case Studies | 7 |
+| Documentation Pages | 11 |
+
+---
+
+## 📜 Template Sources
+
+| Source | Templates |
+|:-------|:---------:|
+| Bloomberg Official | 6 |
+| Custom (User-Written) | 1 (Credit Strategy) |
+
+---
+
+## 🔗 Related Resources
+
+- [Bloomberg Terminal](https://www.bloomberg.com/professional/solution/bloomberg-terminal/)
+- [Bloomberg AI Documentation](https://www.bloomberg.com/professional/solution/bloomberg-terminal/)
+- [Wind Prompts](../wind/) *(Coming Soon)*
+
+---
+
+<div align="center">
+
+**Made with 💙 for FICC & Equity Traders**
+
+*Star ⭐ this repo if you find it useful!*
+
+[⬆ Back to Top](#-bloomberg-ai-prompts)
+
+</div>
