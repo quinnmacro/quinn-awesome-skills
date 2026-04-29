@@ -19,7 +19,7 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from skill_discovery import discover_skills, get_skill_by_name, search_skills
+from skill_discovery import discover_skills, get_skill_by_name, search_skills, check_dep_installed, check_all_deps
 from database import (
     DEFAULT_DB_PATH,
     init_db,
@@ -130,7 +130,22 @@ async def health_page(request: Request):
 
 @app.get("/install", response_class=HTMLResponse)
 async def install_page(request: Request):
-    return _render_template("install.html", {"skills_dir": str(DEFAULT_SKILLS_DIR)})
+    db = await get_db()
+    skills = await get_all_skills(db)
+    skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+    discovered = discover_skills(skills_dir)
+    enriched = _enrich_with_discovered(skills, discovered)
+    # Collect all dependencies across skills
+    all_deps = {}
+    for s in enriched:
+        deps = await get_dependencies(db, s["name"])
+        if deps:
+            all_deps[s["name"]] = deps
+    return _render_template("install.html", {
+        "skills_dir": str(DEFAULT_SKILLS_DIR),
+        "skills": enriched,
+        "all_deps": all_deps,
+    })
 
 
 @app.get("/test/{name}", response_class=HTMLResponse)
@@ -194,6 +209,30 @@ async def api_run_test(name: str):
 async def api_health():
     db = await get_db()
     return await get_health_stats(db)
+
+
+@app.post("/api/skills/{name}/check-deps")
+async def api_check_deps(name: str):
+    """Check whether a skill's dependencies are actually installed."""
+    db = await get_db()
+    skill = await get_skill(db, name)
+    if skill is None:
+        skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+        skill = get_skill_by_name(skills_dir, name)
+        if skill is None:
+            return JSONResponse({"error": f"Skill '{name}' not found"}, status_code=404)
+    deps_from_db = await get_dependencies(db, name)
+    if not deps_from_db:
+        # Try discovered dependencies
+        skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+        discovered = get_skill_by_name(skills_dir, name)
+        if discovered and discovered.get("dependencies"):
+            deps_from_db = discovered["dependencies"]
+    checked = check_all_deps(deps_from_db)
+    # Update DB with actual installed status
+    for d in checked:
+        await upsert_dependency(db, name, d["dep_name"], d["dep_type"], 1 if d["installed"] else 0)
+    return {"skill_name": name, "dependencies": checked}
 
 
 # --- WebSocket for live test streaming ---

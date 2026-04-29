@@ -13,12 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SQLite for skill metadata and test history
   - Auto-discover skills by scanning skills/core/*/SKILL.md and skills/external/*/SKILL.md
   - Home page: skill cards grid with name, version, layer, test count, health badge, description, search bar
-  - Skill detail page: render SKILL.md, list scripts/modules, show config, version history
+  - Skill detail page: render SKILL.md, list scripts/modules, show config, version history, dependencies
   - Test panel: run pytest and stream results via WebSocket
   - Health dashboard: aggregate stats, test pass rates, dependency status
-  - Install page: install commands, dependency check
-  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health
-  - 123 tests (skill_discovery, database, API endpoints, HTML pages, pytest summary parsing)
+  - Install page: dynamic skills table with dependency install status, check-deps button
+  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps
+  - 300 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking)
   - Server on localhost:8765, configurable via SKILL_HUB_PORT
 
 ## [1.3.0] - 2026-04-28
@@ -128,7 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), 123 tests |
+| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), dynamic dep checking, 300 tests |
 | 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs, daily-dev-pulse |
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |

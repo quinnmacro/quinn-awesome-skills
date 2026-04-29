@@ -242,10 +242,6 @@ class TestInstallPageContent:
         resp = client.get("/install")
         assert "install.sh" in resp.text
 
-    def test_install_has_single_skill_commands(self, client):
-        resp = client.get("/install")
-        assert "url-fetcher" in resp.text
-
     def test_install_has_dependencies_section(self, client):
         resp = client.get("/install")
         assert "Dependencies" in resp.text or "pip install" in resp.text
@@ -273,6 +269,36 @@ class TestInstallPageContent:
     def test_install_shows_default_port(self, client):
         resp = client.get("/install")
         assert "8765" in resp.text
+
+    def test_install_dynamic_skills_table(self, client):
+        """Install page should now show a dynamic skills table with names and versions."""
+        resp = client.get("/install")
+        assert "skill-hub" in resp.text or "url-fetcher" in resp.text
+
+    def test_install_dynamic_deps_column(self, client):
+        """Skills table should have a Dependencies column."""
+        resp = client.get("/install")
+        assert "Dependencies" in resp.text
+
+    def test_install_has_check_deps_button(self, client):
+        """Install page should have a Check Dependencies button."""
+        resp = client.get("/install")
+        assert "Check Dependencies" in resp.text or "checkAllDeps" in resp.text
+
+    def test_install_has_layer_column(self, client):
+        """Skills table should show Layer column with badges."""
+        resp = client.get("/install")
+        assert "Layer" in resp.text
+
+    def test_install_has_javascript(self, client):
+        """Dynamic install page should have JavaScript for check deps."""
+        resp = client.get("/install")
+        assert "<script>" in resp.text
+
+    def test_install_has_link_to_health(self, client):
+        """Install page should link to health dashboard."""
+        resp = client.get("/install")
+        assert "/health" in resp.text
 
 
 # --- Test page content tests ---

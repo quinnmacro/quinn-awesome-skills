@@ -8,12 +8,39 @@
   <h2 style="font-size:16px;margin-bottom:8px;">Quick Install (all skills)</h2>
   <div class="test-output">bash install.sh</div>
 
-  <h2 style="font-size:16px;margin:16px 0 8px;">Install single skill</h2>
-  <div class="test-output">bash install.sh url-fetcher
-bash install.sh presearch
-bash install.sh daily-dev-pulse</div>
+  <h2 style="font-size:16px;margin:20px 0 8px;">Skills &amp; Dependencies</h2>
+  {% if skills %}
+  <table>
+    <tr><th>Skill</th><th>Version</th><th>Layer</th><th>Dependencies</th></tr>
+    {% for skill in skills %}
+    <tr>
+      <td><a href="/skill/{{ skill.name }}" style="color:var(--accent);">{{ skill.name }}</a></td>
+      <td>{{ skill.version }}</td>
+      <td><span class="badge {{ skill.layer }}">{{ skill.layer }}</span></td>
+      <td>
+        {% if all_deps.get(skill.name) %}
+          {% for dep in all_deps[skill.name] %}
+            <span class="badge {% if dep.installed %}passing{% else %}failing{% endif %}" style="margin-right:4px;">{{ dep.dep_name }} <small>({{ dep.dep_type }})</small></span>
+          {% endfor %}
+        {% else %}
+          <span style="color:#8b949e;">None</span>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty">No skills discovered yet.</div>
+  {% endif %}
 
-  <h2 style="font-size:16px;margin:16px 0 8px;">Skill Hub Dependencies</h2>
+  <div style="margin-top:20px;display:flex;gap:12px;">
+    <button class="btn" onclick="checkAllDeps()">Check Dependencies</button>
+    <a href="/health" class="btn secondary">Health Dashboard</a>
+  </div>
+
+  <div id="check-output" class="test-output" style="margin-top:16px;display:none;"></div>
+
+  <h2 style="font-size:16px;margin:24px 0 8px;">Skill Hub Dependencies</h2>
   <div class="test-output">pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio</div>
 
   <h2 style="font-size:16px;margin:16px 0 8px;">Start Skill Hub Server</h2>
@@ -27,4 +54,37 @@ bash install.sh daily-dev-pulse</div>
     <tr><td>SKILL_HUB_SKILLS_DIR</td><td>auto</td><td>Skills directory path</td></tr>
   </table>
 </div>
+
+<script>
+function checkAllDeps() {
+  const outputDiv = document.getElementById('check-output');
+  outputDiv.style.display = 'block';
+  outputDiv.textContent = 'Checking dependencies...';
+
+  fetch('/api/health')
+    .then(r => r.json())
+    .then(data => {
+      const skillNames = Object.keys(data.dep_summary);
+      if (skillNames.length === 0) {
+        outputDiv.textContent = 'No dependencies to check.';
+        return;
+      }
+      let results = '';
+      let pending = skillNames.length;
+      skillNames.forEach(name => {
+        fetch('/api/skills/' + name + '/check-deps', {method: 'POST'})
+          .then(r => r.json())
+          .then(depData => {
+            results += name + ': ';
+            depData.dependencies.forEach(d => {
+              results += d.dep_name + ' (' + d.dep_type + ') ' + (d.installed ? 'INSTALLED' : 'MISSING') + '  ';
+            });
+            results += '\n';
+            pending--;
+            if (pending === 0) outputDiv.textContent = results;
+          });
+      });
+    });
+}
+</script>
 {% endblock %}

@@ -1,7 +1,10 @@
 """Auto-discover skills by scanning SKILL.md files in core/ and external/ directories."""
 
+import importlib
 import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -239,3 +242,48 @@ def search_skills(skills_dir: Path, query: str) -> list[dict]:
         s for s in skills
         if q in s["name"].lower() or q in s["description"].lower()
     ]
+
+
+def check_dep_installed(dep_name: str, dep_type: str) -> bool:
+    """Check whether a dependency is actually installed on the system."""
+    if dep_type == "pip":
+        try:
+            importlib.import_module(dep_name.replace("-", "_"))
+            return True
+        except ImportError:
+            pass
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "show", dep_name],
+                capture_output=True, timeout=10,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+    elif dep_type == "brew":
+        try:
+            result = subprocess.run(
+                ["brew", "--prefix", dep_name],
+                capture_output=True, timeout=10,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+    elif dep_type == "npm":
+        try:
+            result = subprocess.run(
+                ["npm", "list", "-g", dep_name],
+                capture_output=True, timeout=10,
+            )
+            return result.returncode == 0
+        except Exception:
+            return False
+    return False
+
+
+def check_all_deps(deps: list[dict]) -> list[dict]:
+    """Check installation status for all dependencies, returning updated list."""
+    import sys as _sys
+    for d in deps:
+        d["installed"] = check_dep_installed(d["dep_name"], d["dep_type"])
+    return deps

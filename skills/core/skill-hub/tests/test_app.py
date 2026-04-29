@@ -508,3 +508,56 @@ class TestSearchFiltering:
         response = client.get("/?q=fetcher")
         # The page should contain url-fetcher info but not all 11 skills
         assert "url-fetcher" in response.text
+
+
+# --- Check Dependencies API endpoint tests ---
+
+
+class TestApiCheckDeps:
+    def test_check_deps_existing_skill(self, client):
+        """Check deps for a skill that exists in the DB."""
+        response = client.post("/api/skills/skill-hub/check-deps")
+        assert response.status_code == 200
+        data = response.json()
+        assert "skill_name" in data
+        assert data["skill_name"] == "skill-hub"
+        assert "dependencies" in data
+        assert isinstance(data["dependencies"], list)
+
+    def test_check_deps_has_dep_name_and_type(self, client):
+        """Each dependency in check-deps response should have dep_name and dep_type."""
+        response = client.post("/api/skills/skill-hub/check-deps")
+        data = response.json()
+        for d in data["dependencies"]:
+            assert "dep_name" in d
+            assert "dep_type" in d
+            assert "installed" in d
+            assert isinstance(d["installed"], bool)
+
+    def test_check_deps_not_found_skill(self, client):
+        """Check deps for nonexistent skill should return 404."""
+        response = client.post("/api/skills/nonexistent-skill/check-deps")
+        assert response.status_code == 404
+
+    def test_check_deps_updates_installed_status(self, client):
+        """Checking deps should update installed to True for pip packages that exist."""
+        response = client.post("/api/skills/skill-hub/check-deps")
+        data = response.json()
+        # fastapi should be installed since we're running the app with it
+        fastapi_dep = next((d for d in data["dependencies"] if d["dep_name"] == "fastapi"), None)
+        if fastapi_dep:
+            assert fastapi_dep["installed"] is True
+
+    def test_check_deps_url_fetcher(self, client):
+        """Check deps for url-fetcher should return its dependencies."""
+        response = client.post("/api/skills/url-fetcher/check-deps")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["skill_name"] == "url-fetcher"
+
+    def test_check_deps_returns_installed_bool(self, client):
+        """installed field in check-deps response should always be a boolean."""
+        response = client.post("/api/skills/skill-hub/check-deps")
+        data = response.json()
+        for d in data["dependencies"]:
+            assert d["installed"] in (True, False)

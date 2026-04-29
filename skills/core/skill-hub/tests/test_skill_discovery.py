@@ -18,6 +18,8 @@ from skill_discovery import (
     _list_modules,
     _layer_from_category,
     _extract_dependencies,
+    check_dep_installed,
+    check_all_deps,
 )
 
 
@@ -602,3 +604,86 @@ class TestExtractDependencies:
         for s in skills:
             assert "dependencies" in s
             assert isinstance(s["dependencies"], list)
+
+
+# --- check_dep_installed tests ---
+
+
+class TestCheckDepInstalled:
+    def test_pip_dep_installed(self):
+        """Check that a known pip package (pytest) is detected as installed."""
+        result = check_dep_installed("pytest", "pip")
+        assert result is True
+
+    def test_pip_dep_not_installed(self):
+        """Check that a nonexistent pip package is detected as not installed."""
+        result = check_dep_installed("nonexistent-pkg-xyzzy", "pip")
+        assert result is False
+
+    def test_brew_dep_installed(self):
+        """If brew is available, check for a common package."""
+        import shutil
+        if shutil.which("brew"):
+            # git is typically installed via brew on macOS
+            result = check_dep_installed("git", "brew")
+            # Result could be True or False depending on system
+            assert isinstance(result, bool)
+        else:
+            # On systems without brew, should return False
+            result = check_dep_installed("anything", "brew")
+            assert result is False
+
+    def test_brew_dep_not_installed(self):
+        """Check that a nonexistent brew package returns False."""
+        result = check_dep_installed("nonexistent-brew-xyzzy", "brew")
+        assert result is False
+
+    def test_npm_dep_returns_bool(self):
+        """npm check should return bool regardless of npm availability."""
+        result = check_dep_installed("express", "npm")
+        assert isinstance(result, bool)
+
+    def test_unknown_dep_type_returns_false(self):
+        """Unknown dependency type should return False."""
+        result = check_dep_installed("something", "unknown_type")
+        assert result is False
+
+
+class TestCheckAllDeps:
+    def test_check_empty_list(self):
+        """Empty dependency list should return empty list."""
+        result = check_all_deps([])
+        assert result == []
+
+    def test_check_list_with_pip_deps(self):
+        """Check list with pip deps should update installed status."""
+        deps = [
+            {"dep_name": "pytest", "dep_type": "pip", "installed": False},
+            {"dep_name": "nonexistent-pkg-xyzzy", "dep_type": "pip", "installed": False},
+        ]
+        result = check_all_deps(deps)
+        assert result[0]["installed"] is True  # pytest is installed
+        assert result[1]["installed"] is False  # nonexistent is not
+
+    def test_check_list_preserves_dep_name_and_type(self):
+        """check_all_deps should preserve dep_name and dep_type."""
+        deps = [{"dep_name": "aiosqlite", "dep_type": "pip", "installed": False}]
+        result = check_all_deps(deps)
+        assert result[0]["dep_name"] == "aiosqlite"
+        assert result[0]["dep_type"] == "pip"
+
+    def test_check_mixed_dep_types(self):
+        """Check list with mixed dep types."""
+        deps = [
+            {"dep_name": "pytest", "dep_type": "pip", "installed": False},
+            {"dep_name": "nonexistent-brew-xyzzy", "dep_type": "brew", "installed": False},
+        ]
+        result = check_all_deps(deps)
+        assert result[0]["dep_type"] == "pip"
+        assert result[1]["dep_type"] == "brew"
+
+    def test_pip_import_module_fallback(self):
+        """For pip deps, importlib check should work for importable modules."""
+        # 'json' is a stdlib module that can be imported
+        result = check_dep_installed("json", "pip")
+        assert result is True
