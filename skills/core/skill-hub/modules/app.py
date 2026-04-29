@@ -279,16 +279,19 @@ async def api_skills(q: Optional[str] = None, layer: Optional[str] = None, healt
     return enriched
 
 
+def csv_field(val):
+    """Format a value for CSV export using RFC 4180 quoting."""
+    s = str(val) if val else ""
+    if ',' in s or '"' in s or '\n' in s:
+        return '"' + s.replace('"', '""') + '"'
+    return s
+
+
 @app.get("/api/skills/export.csv", response_class=PlainTextResponse)
 async def api_export_csv():
     """Export all skills as CSV using RFC 4180 quoting."""
     db = await get_db()
     skills = await get_all_skills(db)
-    def csv_field(val):
-        s = str(val) if val else ""
-        if ',' in s or '"' in s or '\n' in s:
-            return '"' + s.replace('"', '""') + '"'
-        return s
     lines = ["name,version,layer,health,author,description,category,path"]
     for s in skills:
         lines.append(','.join([
@@ -738,8 +741,45 @@ def _find_test_dir(name: str, skill_path: str) -> Path:
     return Path(skill_path) / "tests" if skill_path else PROJECT_ROOT / "tests"
 
 
+def _sanitize_html(text: str) -> str:
+    """Escape HTML in plain text segments, preserving allowed markdown-generated tags and entities."""
+    allowed_tags = {'h1', 'h2', 'h3', 'h4', 'strong', 'em', 'a', 'ul', 'ol', 'li',
+                    'blockquote', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+                    'pre', 'code', 'p', 'img', 'br'}
+    # Match allowed HTML tags and existing HTML entities (both named and numeric)
+    token_re = re.compile(
+        r'<(/?\s*(?:' + '|'.join(allowed_tags) + r')\b[^>]*/?\s*)>'  # allowed tags
+        r'|(&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)'  # existing HTML entities
+    )
+    parts = []
+    last = 0
+    for m in token_re.finditer(text):
+        if m.start() > last:
+            # Plain text between tokens — escape raw <, >, & (but & before entity-like sequences is safe)
+            plain = text[last:m.start()]
+            # Escape < and > first, then escape raw & (not part of an entity)
+            plain = plain.replace('<', '&lt;').replace('>', '&gt;')
+            plain = re.sub(r'&(?![a-zA-Z]+;|#\d+;|#x[0-9a-fA-F]+;)', '&amp;', plain)
+            parts.append(plain)
+        if m.group(2):
+            # Existing HTML entity — preserve as-is
+            parts.append(m.group(2))
+        else:
+            # Allowed tag — keep but strip event handlers
+            tag = m.group(1)
+            tag = re.sub(r'\b(on\w+)=["\'][^"\']*["\']', '', tag)
+            parts.append(f'<{tag}>')
+        last = m.end()
+    if last < len(text):
+        plain = text[last:]
+        plain = plain.replace('<', '&lt;').replace('>', '&gt;')
+        plain = re.sub(r'&(?![a-zA-Z]+;|#\d+;|#x[0-9a-fA-F]+;)', '&amp;', plain)
+        parts.append(plain)
+    return ''.join(parts)
+
+
 def _render_markdown(text: str) -> str:
-    """Convert basic Markdown to HTML (headers, bold, italic, code, links, lists, tables, blockquotes, hr)."""
+    """Convert basic Markdown to HTML (headers, bold, italic, code, links, images, lists, tables, blockquotes, hr)."""
     if not text:
         return ""
     # Code blocks first (preserve content inside)
@@ -769,6 +809,10 @@ def _render_markdown(text: str) -> str:
     text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<strong><em>\1</em></strong>', text)
     text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
     text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+
+    # Images (![alt](url)) — must be processed before links
+    text = re.sub(r'!\[([^\]]*)\]\(([^()]+(?:\([^()]*\)[^()]*)*)\)',
+                  r'<img alt="\1" src="\2">', text)
 
     # Links (handle URLs containing parenthesized segments, e.g. Wikipedia links)
     # Match: [label](url) where url can contain balanced () pairs like (disambiguation)
@@ -903,6 +947,8 @@ def _render_markdown(text: str) -> str:
     text = re.sub(r'<p>(<table.*?</table>)</p>', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'<p>(<hr>)</p>', r'\1', text)
     text = re.sub(r'<p>(<CODE_BLOCK_\d+>)</p>', r'\1', text)
+    text = re.sub(r'<p>(<INLINE_CODE_\d+>)</p>', r'\1', text)
+    text = re.sub(r'<p>(<img[^>]*>)</p>', r'\1', text)
 
     # Restore code blocks as <pre>
     for i, code in enumerate(code_blocks):
@@ -914,6 +960,9 @@ def _render_markdown(text: str) -> str:
     for i, content in enumerate(inline_codes):
         escaped = content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         text = text.replace(f'<INLINE_CODE_{i}>', f'<code>{escaped}</code>')
+
+    # Sanitize HTML — escape plain text while preserving allowed tags
+    text = _sanitize_html(text)
 
     return text
 

@@ -2757,3 +2757,116 @@ class TestParseDescriptionAbbreviations:
         from skill_discovery import _parse_description
         desc = _parse_description({"description": "Amazing! This tool works well"})
         assert desc == "Amazing!"
+
+
+class TestMarkdownImages:
+    """Tests for markdown image rendering (![alt](url))."""
+
+    def test_image_basic(self):
+        """Basic image syntax ![alt](url) should render as <img> tag."""
+        from app import _render_markdown
+        result = _render_markdown("![logo](https://example.com/logo.png)")
+        assert '<img alt="logo" src="https://example.com/logo.png">' in result
+
+    def test_image_empty_alt(self):
+        """Image with empty alt text should render with alt=\"\"."""
+        from app import _render_markdown
+        result = _render_markdown("![](https://example.com/img.png)")
+        assert '<img alt="" src="https://example.com/img.png">' in result
+
+    def test_image_not_confused_with_link(self):
+        """Image ![] should not be confused with link []."""
+        from app import _render_markdown
+        result = _render_markdown("![pic](https://x.com/pic.png) and [link](https://x.com)")
+        assert '<img alt="pic" src="https://x.com/pic.png">' in result
+        assert '<a href="https://x.com">link</a>' in result
+
+    def test_image_with_parenthesized_url(self):
+        """Image with parenthesized URL (Wikipedia style) should render correctly."""
+        from app import _render_markdown
+        result = _render_markdown("![icon](https://wiki.com/Icon_(disambiguation).png)")
+        assert 'src="https://wiki.com/Icon_(disambiguation).png"' in result
+
+    def test_image_in_paragraph(self):
+        """Image within text content should render as <img> tag."""
+        from app import _render_markdown
+        result = _render_markdown("See the chart:\n\n![chart](chart.png)")
+        assert '<img alt="chart" src="chart.png">' in result
+
+
+class TestSanitizeHtml:
+    """Tests for HTML sanitization to prevent XSS in rendered markdown."""
+
+    def test_raw_script_tag_escaped(self):
+        """Raw <script> tags in markdown should be escaped."""
+        from app import _sanitize_html
+        result = _sanitize_html("Hello <script>alert('xss')</script> world")
+        assert "&lt;script&gt;" in result
+        assert "<script>" not in result
+
+    def test_allowed_tags_preserved(self):
+        """Allowed markdown-generated tags should pass through sanitization."""
+        from app import _sanitize_html
+        result = _sanitize_html("<h1>Title</h1><p>Text <strong>bold</strong></p>")
+        assert "<h1>" in result
+        assert "</h1>" in result
+        assert "<strong>" in result
+        assert "<p>" in result
+
+    def test_event_handlers_stripped(self):
+        """Event handler attributes like onclick should be stripped."""
+        from app import _sanitize_html
+        result = _sanitize_html('<a onclick="alert(1)" href="https://x.com">link</a>')
+        assert "onclick" not in result
+        assert 'href="https://x.com"' in result
+
+    def test_img_event_handlers_stripped(self):
+        """Image onerror/onload handlers should be stripped."""
+        from app import _sanitize_html
+        result = _sanitize_html('<img onerror="alert(1)" alt="pic" src="pic.png">')
+        assert "onerror" not in result
+        assert 'alt="pic"' in result
+
+    def test_existing_entities_preserved(self):
+        """Existing HTML entities like &lt; should not be double-escaped."""
+        from app import _sanitize_html
+        result = _sanitize_html("&lt;div&gt; &amp;")
+        assert "&lt;div&gt;" in result
+        assert "&amp;" in result
+        # Should NOT become &amp;lt;div&amp;gt;
+        assert "&amp;lt;" not in result
+
+    def test_numeric_entities_preserved(self):
+        """Numeric HTML entities like &#60; should be preserved."""
+        from app import _sanitize_html
+        result = _sanitize_html("&#60;tag&#62;")
+        assert "&#60;" in result
+        assert "&#62;" in result
+
+    def test_raw_angle_brackets_escaped(self):
+        """Raw angle brackets not part of allowed tags should be escaped."""
+        from app import _sanitize_html
+        result = _sanitize_html("Use <div> not <script>")
+        assert "&lt;div&gt;" in result
+        assert "&lt;script&gt;" in result
+
+    def test_sanitize_in_render_markdown(self):
+        """_render_markdown should sanitize XSS content via _sanitize_html."""
+        from app import _render_markdown
+        result = _render_markdown("Text with <script>alert(1)</script>")
+        assert "&lt;script&gt;" in result
+        assert "<script>" not in result
+
+    def test_allowed_tags_in_render_markdown(self):
+        """_render_markdown output with allowed tags should pass sanitization."""
+        from app import _render_markdown
+        result = _render_markdown("# Title\n**bold** text")
+        assert "<h1>" in result
+        assert "<strong>" in result
+
+    def test_img_tag_preserved_in_sanitize(self):
+        """<img> tags generated by markdown should pass through sanitization."""
+        from app import _sanitize_html
+        result = _sanitize_html('<img alt="chart" src="chart.png">')
+        assert '<img' in result
+        assert 'src="chart.png"' in result

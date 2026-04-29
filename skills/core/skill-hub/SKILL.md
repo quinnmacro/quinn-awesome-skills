@@ -28,7 +28,7 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 ## Features
 
 1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description, pass rate, last-tested timestamp. Search bar filters by name/description. Sort by name, version, test count, health. Layer/health filter dropdowns. Re-sync skills button.
-2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies (with per-skill Check Dependencies button), version history, Quick Run Tests button for inline test execution with live output display.
+2. **Skill detail page** - Render SKILL.md content as sanitized HTML, list scripts/modules, show config, dependencies (with per-skill Check Dependencies button), version history, Quick Run Tests button for inline test execution with live output display.
 3. **Test panel** - Run pytest and stream results via WebSocket.
 4. **Health dashboard** - Aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export.
 5. **Install page** - Install commands, dependency check.
@@ -71,6 +71,8 @@ pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyn
 - Version history recorded on skill version changes during sync
 - Sort options: name (asc/desc), version (semver-aware), test_count, health (priority order)
 - Skill cards show pass rate percentage and last-tested timestamp from recent test runs
+- Markdown renderer supports images (![alt](url)), inline code, code blocks, tables, blockquotes, ordered/unordered lists
+- HTML sanitization (_sanitize_html) prevents XSS by escaping raw HTML while preserving markdown-generated tags and HTML entities
 - Detail page has Check Dependencies button that calls /api/skills/{name}/check-deps and shows results
 - Detail page has Delete from DB button to remove skill data (does not remove filesystem files; re-sync restores)
 - Test page has Clear Test History button to clear all test runs and reset health to unknown

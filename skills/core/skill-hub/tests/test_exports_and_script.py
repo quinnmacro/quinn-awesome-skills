@@ -108,6 +108,38 @@ class TestModuleExports:
     def test_get_recent_test_runs_callable(self):
         assert callable(_modules_pkg.get_recent_test_runs)
 
+    def test_app_exports_sanitize_html(self):
+        assert hasattr(_modules_pkg, '_sanitize_html')
+        assert callable(_modules_pkg._sanitize_html)
+
+    def test_app_exports_render_markdown(self):
+        assert hasattr(_modules_pkg, '_render_markdown')
+        assert callable(_modules_pkg._render_markdown)
+
+    def test_app_exports_parse_md_table(self):
+        assert hasattr(_modules_pkg, '_parse_md_table')
+        assert callable(_modules_pkg._parse_md_table)
+
+    def test_app_exports_parse_semver(self):
+        assert hasattr(_modules_pkg, '_parse_semver')
+        assert callable(_modules_pkg._parse_semver)
+
+    def test_app_exports_sort_skills(self):
+        assert hasattr(_modules_pkg, '_sort_skills')
+        assert callable(_modules_pkg._sort_skills)
+
+    def test_app_exports_parse_pytest_line(self):
+        assert hasattr(_modules_pkg, '_parse_pytest_line')
+        assert callable(_modules_pkg._parse_pytest_line)
+
+    def test_app_exports_parse_pytest_summary(self):
+        assert hasattr(_modules_pkg, '_parse_pytest_summary')
+        assert callable(_modules_pkg._parse_pytest_summary)
+
+    def test_app_exports_csv_field(self):
+        assert hasattr(_modules_pkg, 'csv_field')
+        assert callable(_modules_pkg.csv_field)
+
 
 # --- start.sh script tests ---
 

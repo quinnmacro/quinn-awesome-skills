@@ -550,6 +550,12 @@ class TestBaseTemplateCssImprovements:
         assert ".md-rendered table th" in resp.text
         assert ".md-rendered table td" in resp.text
 
+    def test_base_md_rendered_img_styles(self, client):
+        """Base template should have image styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered img" in resp.text
+        assert "max-width" in resp.text
+
 
 # --- Health page overview table tests ---
 
