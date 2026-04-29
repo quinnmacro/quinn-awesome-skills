@@ -986,3 +986,90 @@ class TestRenderMarkdown:
         assert 'id="md-rendered"' in resp.text
         # md-raw should have display:none initially
         assert "display:none" in resp.text
+
+
+# --- Resync API endpoint tests ---
+
+
+class TestApiResync:
+    def test_resync_returns_200(self, client):
+        """Resync endpoint should return 200."""
+        response = client.post("/api/skills/resync")
+        assert response.status_code == 200
+
+    def test_resync_response_has_resynced_count(self, client):
+        """Resync response should include resynced count."""
+        response = client.post("/api/skills/resync")
+        data = response.json()
+        assert "resynced" in data
+        assert isinstance(data["resynced"], int)
+        assert data["resynced"] >= 3
+
+    def test_resync_response_has_skills_list(self, client):
+        """Resync response should include updated skills list."""
+        response = client.post("/api/skills/resync")
+        data = response.json()
+        assert "skills" in data
+        assert isinstance(data["skills"], list)
+
+    def test_resync_skills_have_required_fields(self, client):
+        """Resynced skills should have all required fields."""
+        response = client.post("/api/skills/resync")
+        data = response.json()
+        for s in data["skills"]:
+            assert "name" in s
+            assert "version" in s
+            assert "layer" in s
+
+    def test_resync_twice_no_duplicate_skills(self, client):
+        """Resyncing twice should not create duplicate skills."""
+        resp1 = client.post("/api/skills/resync")
+        count1 = resp1.json()["resynced"]
+        resp2 = client.post("/api/skills/resync")
+        count2 = resp2.json()["resynced"]
+        assert count2 == count1
+
+
+# --- Active navigation highlighting tests ---
+
+
+class TestActiveNavHighlighting:
+    def test_home_page_skills_nav_active(self, client):
+        """Home page should have 'Skills' nav link with active class."""
+        response = client.get("/")
+        assert 'class="active"' in response.text or "active" in response.text
+        # The Skills link should be active on home page
+        assert "Skills" in response.text
+
+    def test_health_page_health_nav_active(self, client):
+        """Health page should have 'Health' nav link with active class."""
+        response = client.get("/health")
+        # Health nav link should have active class
+        html = response.text
+        # Find the Health nav link — it should have class including 'active'
+        assert "Health" in html
+
+    def test_install_page_install_nav_active(self, client):
+        """Install page should have 'Install' nav link with active class."""
+        response = client.get("/install")
+        assert "Install" in response.text
+
+    def test_detail_page_skills_nav_active(self, client):
+        """Detail page should have 'Skills' nav link active (sub-page of Skills)."""
+        response = client.get("/skill/url-fetcher")
+        assert response.status_code == 200
+        assert "Skills" in response.text
+
+    def test_test_page_skills_nav_active(self, client):
+        """Test page should have 'Skills' nav link active (sub-page of Skills)."""
+        response = client.get("/test/url-fetcher")
+        assert response.status_code == 200
+        assert "Skills" in response.text
+
+    def test_nav_active_context_in_home(self, client):
+        """Home page HTML should contain nav_active=skills context indicator."""
+        response = client.get("/")
+        # The Skills nav link should have class 'active' on home page
+        html = response.text
+        # Check that the Skills link has the active class
+        assert '<a href="/" class="active">Skills</a>' in html

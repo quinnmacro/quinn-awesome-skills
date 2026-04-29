@@ -44,6 +44,7 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 | `/api/skills/{name}/versions` | GET | Get version history for a skill |
 | `/api/skills/{name}/check-deps` | POST | Check dependency installation status |
 | `/api/skills/export.csv` | GET | Export all skills as CSV |
+| `/api/skills/resync` | POST | Re-discover skills from filesystem and sync to database |
 | `/api/health` | GET | Health dashboard data |
 
 ## Dependencies

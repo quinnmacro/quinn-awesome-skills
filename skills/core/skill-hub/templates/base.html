@@ -106,9 +106,9 @@
 <body>
   <nav>
     <a href="/" class="logo">Skill Hub</a>
-    <a href="/">Skills</a>
-    <a href="/health">Health</a>
-    <a href="/install">Install</a>
+    <a href="/" class="{% if nav_active == 'skills' %}active{% endif %}">Skills</a>
+    <a href="/health" class="{% if nav_active == 'health' %}active{% endif %}">Health</a>
+    <a href="/install" class="{% if nav_active == 'install' %}active{% endif %}">Install</a>
   </nav>
   <div class="container">
     {% block content %}{% endblock %}

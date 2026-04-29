@@ -106,7 +106,7 @@ async def home(request: Request, q: Optional[str] = None):
         enriched = _enrich_with_discovered(skills, discovered)
     # Add test count per skill from latest test run
     enriched = await _add_test_counts(enriched, db)
-    return _render_template("home.html", {"skills": enriched, "query": q or "", "total": len(enriched)})
+    return _render_template("home.html", {"skills": enriched, "query": q or "", "total": len(enriched), "nav_active": "skills"})
 
 
 @app.get("/skill/{name}", response_class=HTMLResponse)
@@ -132,14 +132,14 @@ async def skill_detail(request: Request, name: str):
     versions = await get_versions(db, name)
     skill_md_rendered = _render_markdown(skill.get("skill_md", ""))
     config = _build_skill_config(skill)
-    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config, "skill_md_rendered": skill_md_rendered})
+    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config, "skill_md_rendered": skill_md_rendered, "nav_active": "skills"})
 
 
 @app.get("/health", response_class=HTMLResponse)
 async def health_page(request: Request):
     db = await get_db()
     stats = await get_health_stats(db)
-    return _render_template("health.html", {"stats": stats})
+    return _render_template("health.html", {"stats": stats, "nav_active": "health"})
 
 
 @app.get("/install", response_class=HTMLResponse)
@@ -159,6 +159,7 @@ async def install_page(request: Request):
         "skills_dir": str(DEFAULT_SKILLS_DIR),
         "skills": enriched,
         "all_deps": all_deps,
+        "nav_active": "install",
     })
 
 
@@ -169,7 +170,7 @@ async def test_page(request: Request, name: str):
     if skill is None:
         return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
     test_runs = await get_test_runs(db, name)
-    return _render_template("test.html", {"skill": skill, "test_runs": test_runs})
+    return _render_template("test.html", {"skill": skill, "test_runs": test_runs, "nav_active": "skills"})
 
 
 # --- REST API ---
@@ -247,6 +248,19 @@ async def api_skill_versions(name: str):
         return JSONResponse({"error": f"Skill '{name}' not found"}, status_code=404)
     versions = await get_versions(db, name)
     return {"skill_name": name, "current_version": skill.get("version", "0.0.0"), "versions": versions}
+
+
+@app.post("/api/skills/resync")
+async def api_resync_skills():
+    """Re-discover skills from filesystem and sync to database."""
+    db = await get_db()
+    skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+    discovered = discover_skills(skills_dir)
+    await sync_skills(db, discovered)
+    await sync_dependencies(db, discovered)
+    enriched = _enrich_with_discovered(await get_all_skills(db), discovered)
+    enriched = await _add_test_counts(enriched, db)
+    return {"resynced": len(enriched), "skills": enriched}
 
 
 @app.post("/api/skills/{name}/check-deps")
