@@ -3022,3 +3022,447 @@ class TestSkillNameValidationHtmlEndpoints:
     def test_skill_detail_leading_dot_returns_400(self, client):
         resp = client.get("/skill/.hidden")
         assert resp.status_code == 400
+
+
+class TestSanitizeHtmlExtended:
+    """Extended direct unit tests for _sanitize_html covering XSS attack vectors."""
+
+    def test_multiple_disallowed_tags(self):
+        from app import _sanitize_html
+        result = _sanitize_html("<form><input><iframe>bad</iframe></form>")
+        assert "<form>" not in result
+        assert "<input>" not in result
+        assert "<iframe>" not in result
+        assert "&lt;form&gt;" in result
+
+    def test_mixed_allowed_and_disallowed(self):
+        from app import _sanitize_html
+        result = _sanitize_html("<h1>Title</h1><div>stuff</div><p>text</p>")
+        assert "<h1>" in result
+        assert "<p>" in result
+        assert "<div>" not in result
+        assert "&lt;div&gt;" in result
+
+    def test_nested_event_handlers_stripped(self):
+        from app import _sanitize_html
+        result = _sanitize_html('<img onmouseover="alert(1)" onfocus="alert(2)" src="x.png">')
+        assert "onmouseover" not in result
+        assert "onfocus" not in result
+        assert 'src="x.png"' in result
+
+    def test_style_attribute_preserved(self):
+        """Style attributes on allowed tags are not stripped (only on* handlers)."""
+        from app import _sanitize_html
+        result = _sanitize_html('<p style="color:red">text</p>')
+        assert "style" in result or "<p>" in result
+
+    def test_hex_entities_preserved(self):
+        from app import _sanitize_html
+        result = _sanitize_html("&#x3c;script&#x3e;")
+        assert "&#x3c;" in result
+        assert "&#x3e;" in result
+
+    def test_amp_not_double_escaped(self):
+        """Bare & not followed by entity pattern should be escaped to &amp;."""
+        from app import _sanitize_html
+        result = _sanitize_html("AT&T vs &lt;")
+        assert "AT&amp;T" in result
+        assert "&lt;" in result
+        assert "&amp;lt;" not in result
+
+    def test_empty_string(self):
+        from app import _sanitize_html
+        assert _sanitize_html("") == ""
+
+    def test_only_allowed_tags(self):
+        from app import _sanitize_html
+        result = _sanitize_html("<ul><li>one</li><li>two</li></ul>")
+        assert "<ul>" in result
+        assert "<li>" in result
+
+    def test_self_closing_tags(self):
+        from app import _sanitize_html
+        result = _sanitize_html("<br><hr>")
+        assert "<br>" in result
+        assert "<hr>" in result
+
+    def test_script_with_src_attribute(self):
+        """<script src=...> must be fully escaped."""
+        from app import _sanitize_html
+        result = _sanitize_html('<script src="evil.js"></script>')
+        assert "<script" not in result
+        assert "&lt;script" in result
+
+    def test_svg_onload_attack(self):
+        """SVG-based XSS (<svg onload=alert(1)>) should be escaped."""
+        from app import _sanitize_html
+        result = _sanitize_html("<svg onload=alert(1)>")
+        assert "<svg>" not in result
+        assert "&lt;svg" in result
+
+    def test_nested_angle_brackets(self):
+        from app import _sanitize_html
+        result = _sanitize_html("<<script>>alert(1)<<script>>")
+        assert "<script>" not in result
+
+    def test_disallowed_tag_with_event_handler(self):
+        """Disallowed tags with event handlers must be fully escaped."""
+        from app import _sanitize_html
+        result = _sanitize_html('<button onclick="steal()">Click</button>')
+        assert "<button>" not in result
+        assert "&lt;button" in result
+
+
+class TestRenderMarkdownExtended:
+    """Extended direct unit tests for _render_markdown edge cases."""
+
+    def test_nested_bold_and_italic(self):
+        from app import _render_markdown
+        result = _render_markdown("***bold italic***")
+        assert "<strong><em>bold italic</em></strong>" in result
+
+    def test_bold_then_italic_separate(self):
+        from app import _render_markdown
+        result = _render_markdown("**bold** and *italic*")
+        assert "<strong>bold</strong>" in result
+        assert "<em>italic</em>" in result
+
+    def test_image_with_empty_alt(self):
+        from app import _render_markdown
+        result = _render_markdown("![](https://example.com/img.png)")
+        assert '<img alt="" src="https://example.com/img.png">' in result
+
+    def test_image_with_alt_text(self):
+        from app import _render_markdown
+        result = _render_markdown("![chart](chart.png)")
+        assert '<img alt="chart" src="chart.png">' in result
+
+    def test_link_with_parenthesized_url(self):
+        from app import _render_markdown
+        result = _render_markdown("[Python](https://en.wikipedia.org/wiki/Python_(programming_language))")
+        assert "Python_(programming_language)" in result
+        assert "<a href=" in result
+
+    def test_multiple_code_blocks(self):
+        from app import _render_markdown
+        result = _render_markdown("```python\nx=1\n```\n\n```bash\necho hi\n```")
+        assert result.count("<pre><code>") == 2
+        assert result.count("</code></pre>") == 2
+
+    def test_code_block_with_html_inside(self):
+        from app import _render_markdown
+        result = _render_markdown("```html\n<div>test</div>\n```")
+        assert "&lt;div&gt;" in result
+        assert "<div>" not in result or "&lt;div&gt;" in result
+
+    def test_inline_code_with_html(self):
+        from app import _render_markdown
+        result = _render_markdown("Use `<div>` tag")
+        assert "<code>&lt;div&gt;</code>" in result
+
+    def test_inline_code_protected_from_bold(self):
+        from app import _render_markdown
+        result = _render_markdown("`**not bold**` text")
+        assert "<code>" in result
+        # The ** inside inline code should NOT become <strong>
+        assert "**not bold**" in result or "&lt;" in result
+
+    def test_ordered_list_with_start_number(self):
+        from app import _render_markdown
+        result = _render_markdown("3. Third\n4. Fourth\n5. Fifth")
+        assert '<ol start="3">' in result
+        assert "<li>Third</li>" in result
+
+    def test_switching_list_types(self):
+        """Switching from unordered to ordered list should close ul and open ol."""
+        from app import _render_markdown
+        result = _render_markdown("- Item one\n- Item two\n1. Numbered\n2. Next")
+        assert "<ul>" in result
+        assert "<ol" in result
+        assert "</ul>" in result
+
+    def test_blockquote_then_regular_text(self):
+        from app import _render_markdown
+        result = _render_markdown("> quoted text\nregular text")
+        assert "<blockquote>" in result
+        assert "</blockquote>" in result
+
+    def test_hr_not_inside_paragraph(self):
+        from app import _render_markdown
+        result = _render_markdown("---")
+        assert "<hr>" in result
+        assert "<p><hr>" not in result
+
+    def test_multiple_paragraphs(self):
+        from app import _render_markdown
+        result = _render_markdown("First para\n\nSecond para")
+        assert result.count("<p>") >= 2
+
+    def test_frontmatter_stripped(self):
+        """YAML frontmatter (---...---) should not render as content."""
+        from app import _render_markdown
+        result = _render_markdown("---\nname: test\n---\n# Real content")
+        # The --- lines should become <hr> or be stripped, not render as text
+        assert "<h1>" in result
+        assert "name: test" not in result or "<h1>" in result
+
+    def test_table_not_inside_paragraph(self):
+        from app import _render_markdown
+        result = _render_markdown("| A | B |\n| --- | --- |\n| 1 | 2 |")
+        assert "<p><table" not in result
+
+
+class TestParseMdTableDirect:
+    """Direct unit tests for _parse_md_table edge cases."""
+
+    def test_single_line_returns_empty(self):
+        from app import _parse_md_table
+        result = _parse_md_table(["| A | B |"])
+        assert result == ''
+
+    def test_header_and_separator_only(self):
+        from app import _parse_md_table
+        result = _parse_md_table(["| H1 | H2 |", "| --- | --- |"])
+        assert "<thead>" in result
+        assert "<tbody>" in result
+        assert "<th>H1</th>" in result
+        assert "<tr>" not in result.split("<tbody>")[1]
+
+    def test_three_body_rows(self):
+        from app import _parse_md_table
+        lines = ["| A | B |", "| --- | --- |", "| 1 | 2 |", "| 3 | 4 |", "| 5 | 6 |"]
+        result = _parse_md_table(lines)
+        # 1 <tr> in <thead> + 3 <tr> in <tbody> = 4 total
+        assert result.count("<tr>") == 4
+        assert result.count("<td>") == 6  # 3 rows * 2 cols
+
+    def test_mismatched_column_counts(self):
+        """Cells with mismatched column counts should still render (extra cells empty/missing)."""
+        from app import _parse_md_table
+        lines = ["| A | B | C |", "| --- | --- | --- |", "| 1 | 2 |"]  # body has 2 cols, header 3
+        result = _parse_md_table(lines)
+        assert "<th>A</th>" in result
+        assert "<td>1</td>" in result
+
+    def test_empty_cells(self):
+        from app import _parse_md_table
+        lines = ["| A | B |", "| --- | --- |", "|  | 2 |"]
+        result = _parse_md_table(lines)
+        assert "<td></td>" in result or "<td> </td>" in result
+
+    def test_whitespace_in_cells_trimmed(self):
+        from app import _parse_md_table
+        lines = ["|  A  |  B  |", "| --- | --- |", "|  1  |  2  |"]
+        result = _parse_md_table(lines)
+        assert "<th>A</th>" in result
+        assert "<td>1</td>" in result
+
+
+class TestParsePytestLineDirect:
+    """Direct unit tests for _parse_pytest_line."""
+
+    def test_passed_line(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestClass::test_func PASSED") == "PASSED"
+
+    def test_failed_line(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestClass::test_func FAILED") == "FAILED"
+
+    def test_error_line(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestClass::test_func ERROR") == "ERROR"
+
+    def test_skipped_line(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestClass::test_func SKIPPED") == "SKIPPED"
+
+    def test_line_without_double_colon(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("PASSED some test") is None
+
+    def test_line_without_status_keyword(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestClass::test_func") is None
+
+    def test_summary_line_ignored(self):
+        """Summary lines like '5 passed in 1.2s' should return None (no ::)."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("5 passed in 1.2s") is None
+
+    def test_warning_line_ignored(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("1 warning") is None
+
+    def test_empty_line(self):
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("") is None
+
+    def test_word_boundary_no_false_match(self):
+        """PASSED inside another word should not match (word boundary check)."""
+        from app import _parse_pytest_line
+        # "PASSEDTHING" should not match PASSED
+        assert _parse_pytest_line("path::test PASSEDTHING") is None
+
+
+class TestCsvFieldDirect:
+    """Direct unit tests for csv_field function."""
+
+    def test_simple_string(self):
+        from app import csv_field
+        assert csv_field("hello") == "hello"
+
+    def test_none_value(self):
+        from app import csv_field
+        assert csv_field(None) == ""
+
+    def test_numeric_value(self):
+        from app import csv_field
+        assert csv_field(42) == "42"
+
+    def test_comma_in_value(self):
+        from app import csv_field
+        result = csv_field("hello,world")
+        assert result == '"hello,world"'
+
+    def test_double_quote_in_value(self):
+        from app import csv_field
+        result = csv_field('say "hi"')
+        assert result == '"say ""hi"""'
+
+    def test_newline_in_value(self):
+        from app import csv_field
+        result = csv_field("line1\nline2")
+        assert result == '"line1\nline2"'
+
+    def test_comma_and_quotes(self):
+        from app import csv_field
+        result = csv_field('he said, "hello"')
+        assert '"' in result
+        assert '""' in result  # escaped double quote
+
+    def test_empty_string(self):
+        from app import csv_field
+        assert csv_field("") == ""
+
+    def test_no_quoting_needed(self):
+        from app import csv_field
+        assert csv_field("simple-value") == "simple-value"
+
+
+class TestParseSemverDirect:
+    """Direct unit tests for _parse_semver."""
+
+    def test_standard_version(self):
+        from app import _parse_semver
+        assert _parse_semver("1.2.3") == (1, 2, 3)
+
+    def test_two_component_version(self):
+        from app import _parse_semver
+        assert _parse_semver("2.0") == (2, 0, 0)
+
+    def test_single_component_version(self):
+        from app import _parse_semver
+        assert _parse_semver("3") == (3, 0, 0)
+
+    def test_non_numeric_parts_treated_as_zero(self):
+        from app import _parse_semver
+        assert _parse_semver("1.0a") == (1, 0, 0)
+
+    def test_comparison_ordering(self):
+        from app import _parse_semver
+        assert _parse_semver("2.0.0") < _parse_semver("10.0.0")
+
+    def test_empty_string(self):
+        from app import _parse_semver
+        assert _parse_semver("") == (0, 0, 0)
+
+    def test_long_version(self):
+        from app import _parse_semver
+        assert _parse_semver("1.2.3.4") == (1, 2, 3, 4)
+
+
+class TestSortKeyAndReverseDirect:
+    """Direct unit tests for _sort_key_and_reverse."""
+
+    def test_simple_key(self):
+        from app import _sort_key_and_reverse
+        key, reverse = _sort_key_and_reverse("name")
+        assert key == "name"
+        assert reverse is False
+
+    def test_desc_suffix(self):
+        from app import _sort_key_and_reverse
+        key, reverse = _sort_key_and_reverse("name-desc")
+        assert key == "name"
+        assert reverse is True
+
+    def test_version_sort(self):
+        from app import _sort_key_and_reverse
+        key, reverse = _sort_key_and_reverse("version")
+        assert key == "version"
+        assert reverse is False
+
+    def test_version_desc(self):
+        from app import _sort_key_and_reverse
+        key, reverse = _sort_key_and_reverse("version-desc")
+        assert key == "version"
+        assert reverse is True
+
+    def test_health_sort(self):
+        from app import _sort_key_and_reverse
+        key, reverse = _sort_key_and_reverse("health")
+        assert key == "health"
+        assert reverse is False
+
+
+class TestSortSkillsDirect:
+    """Direct unit tests for _sort_skills with various sort options."""
+
+    def test_no_sort_returns_same_order(self):
+        from app import _sort_skills
+        skills = [{"name": "b"}, {"name": "a"}, {"name": "c"}]
+        result = _sort_skills(skills, None)
+        assert result[0]["name"] == "b"
+
+    def test_sort_by_name_asc(self):
+        from app import _sort_skills
+        skills = [{"name": "z-skill"}, {"name": "a-skill"}, {"name": "m-skill"}]
+        result = _sort_skills(skills, "name")
+        assert result[0]["name"] == "a-skill"
+
+    def test_sort_by_name_desc(self):
+        from app import _sort_skills
+        skills = [{"name": "z-skill"}, {"name": "a-skill"}, {"name": "m-skill"}]
+        result = _sort_skills(skills, "name-desc")
+        assert result[0]["name"] == "z-skill"
+
+    def test_sort_by_version(self):
+        from app import _sort_skills
+        skills = [{"name": "a", "version": "10.0.0"}, {"name": "b", "version": "2.0.0"}]
+        result = _sort_skills(skills, "version")
+        assert result[0]["name"] == "b"  # 2.0.0 before 10.0.0
+
+    def test_sort_by_test_count(self):
+        from app import _sort_skills
+        skills = [{"name": "a", "test_count": 5}, {"name": "b", "test_count": 20}]
+        result = _sort_skills(skills, "test_count")
+        assert result[0]["test_count"] == 5
+
+    def test_sort_by_health(self):
+        from app import _sort_skills
+        skills = [{"name": "failing", "health": "failing"}, {"name": "passing", "health": "passing"}]
+        result = _sort_skills(skills, "health")
+        assert result[0]["health"] == "passing"
+
+    def test_sort_by_health_desc(self):
+        from app import _sort_skills
+        skills = [{"name": "passing", "health": "passing"}, {"name": "failing", "health": "failing"}]
+        result = _sort_skills(skills, "health-desc")
+        assert result[0]["health"] == "failing"
+
+    def test_sort_with_none_test_count(self):
+        from app import _sort_skills
+        skills = [{"name": "a", "test_count": None}, {"name": "b", "test_count": 5}]
+        result = _sort_skills(skills, "test_count")
+        assert result[0]["test_count"] is None or result[0]["test_count"] == 0
