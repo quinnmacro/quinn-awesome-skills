@@ -50,8 +50,21 @@
     {% for dep in deps %}
     <tr>
       <td>{{ dep.dep_name }}</td>
-      <td><span class="badge">{{ dep.dep_type }}</span></td>
+      <td><span class="badge {{ dep.dep_type }}">{{ dep.dep_type }}</span></td>
       <td>{{ "Yes" if dep.installed else "No" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  {% if versions %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Version History</h2>
+  <table>
+    <tr><th>Version</th><th>Date</th></tr>
+    {% for v in versions %}
+    <tr>
+      <td><span class="badge">{{ v.version }}</span></td>
+      <td>{{ v.recorded_at[:19] }}</td>
     </tr>
     {% endfor %}
   </table>

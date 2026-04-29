@@ -17,6 +17,8 @@ from database import (
     sync_dependencies,
     upsert_dependency,
     get_dependencies,
+    record_version,
+    get_versions,
 )
 
 
@@ -588,3 +590,89 @@ class TestRecordTestRunEdgeCases:
         run_id = await record_test_run(db, result)
         runs = await get_test_runs(db, "test-skill")
         assert runs[0]["errors"] == 2
+
+
+# --- Version history tests ---
+
+
+class TestRecordVersion:
+    @pytest.mark.asyncio
+    async def test_record_version(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        vid = await record_version(db, "test-skill", "1.0.0")
+        assert vid > 0
+
+    @pytest.mark.asyncio
+    async def test_record_multiple_versions(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        await record_version(db, "test-skill", "1.0.0")
+        await record_version(db, "test-skill", "2.0.0")
+        versions = await get_versions(db, "test-skill")
+        assert len(versions) == 2
+
+    @pytest.mark.asyncio
+    async def test_version_has_version_and_date(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        await record_version(db, "test-skill", "1.0.0")
+        versions = await get_versions(db, "test-skill")
+        assert "version" in versions[0]
+        assert "recorded_at" in versions[0]
+        assert versions[0]["version"] == "1.0.0"
+
+
+class TestGetVersions:
+    @pytest.mark.asyncio
+    async def test_no_versions(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        versions = await get_versions(db, "test-skill")
+        assert versions == []
+
+    @pytest.mark.asyncio
+    async def test_versions_ordered_desc(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        await record_version(db, "test-skill", "1.0.0")
+        await record_version(db, "test-skill", "2.0.0")
+        versions = await get_versions(db, "test-skill")
+        assert versions[0]["version"] == "2.0.0"
+
+    @pytest.mark.asyncio
+    async def test_versions_limit(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        for v in ["1.0", "2.0", "3.0", "4.0", "5.0"]:
+            await record_version(db, "test-skill", v)
+        versions = await get_versions(db, "test-skill", limit=3)
+        assert len(versions) == 3
+
+    @pytest.mark.asyncio
+    async def test_versions_for_nonexistent_skill(self, db):
+        versions = await get_versions(db, "no-such-skill")
+        assert versions == []
+
+
+class TestSyncSkillsVersionRecording:
+    @pytest.mark.asyncio
+    async def test_sync_records_version_change(self, db, mock_skill_data):
+        """Sync should record version changes when version differs from DB."""
+        await upsert_skill(db, mock_skill_data)  # version 1.0.0
+        updated = dict(mock_skill_data, version="2.0.0")
+        await sync_skills(db, [updated])
+        versions = await get_versions(db, "test-skill")
+        assert len(versions) == 1
+        assert versions[0]["version"] == "2.0.0"
+
+    @pytest.mark.asyncio
+    async def test_sync_no_version_change_not_recorded(self, db, mock_skill_data):
+        """Sync should NOT record version when version is unchanged."""
+        await upsert_skill(db, mock_skill_data)  # version 1.0.0
+        same = dict(mock_skill_data, version="1.0.0")
+        await sync_skills(db, [same])
+        versions = await get_versions(db, "test-skill")
+        assert versions == []
+
+    @pytest.mark.asyncio
+    async def test_sync_new_skill_no_version_recorded(self, db):
+        """New skill (not in DB) should NOT record a version history entry."""
+        new_skill = {"name": "brand-new", "version": "1.0.0", "path": "/tmp/new"}
+        await sync_skills(db, [new_skill])
+        versions = await get_versions(db, "brand-new")
+        assert versions == []

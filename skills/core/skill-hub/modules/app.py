@@ -16,7 +16,7 @@ if MODULES_DIR not in sys.path:
     sys.path.insert(0, MODULES_DIR)
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 
 from skill_discovery import discover_skills, get_skill_by_name, search_skills, check_dep_installed, check_all_deps, _yaml_frontmatter
 from database import (
@@ -33,6 +33,8 @@ from database import (
     sync_dependencies,
     upsert_dependency,
     get_dependencies,
+    record_version,
+    get_versions,
 )
 
 # Resolve paths: app.py is in skill-hub/modules/
@@ -118,9 +120,9 @@ async def skill_detail(request: Request, name: str):
             return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
     test_runs = await get_test_runs(db, name)
     deps = await get_dependencies(db, name)
-    # Build config dict from frontmatter (exclude internal fields)
+    versions = await get_versions(db, name)
     config = _build_skill_config(skill)
-    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "config": config})
+    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config})
 
 
 @app.get("/health", response_class=HTMLResponse)
@@ -177,6 +179,18 @@ async def api_skills(q: Optional[str] = None):
     return enriched
 
 
+@app.get("/api/skills/export.csv", response_class=PlainTextResponse)
+async def api_export_csv():
+    """Export all skills as CSV."""
+    db = await get_db()
+    skills = await get_all_skills(db)
+    lines = ["name,version,layer,health,author,description,category,path"]
+    for s in skills:
+        desc = s.get("description", "").replace(",", ";")
+        lines.append(f"{s['name']},{s.get('version','')},{s.get('layer','')},{s.get('health','')},{s.get('author','')},{desc},{s.get('category','')},{s.get('path','')}")
+    return "\n".join(lines)
+
+
 @app.get("/api/skills/{name}")
 async def api_skill_detail(name: str):
     db = await get_db()
@@ -212,6 +226,17 @@ async def api_run_test(name: str):
 async def api_health():
     db = await get_db()
     return await get_health_stats(db)
+
+
+@app.get("/api/skills/{name}/versions")
+async def api_skill_versions(name: str):
+    """Get version history for a skill."""
+    db = await get_db()
+    skill = await get_skill(db, name)
+    if skill is None:
+        return JSONResponse({"error": f"Skill '{name}' not found"}, status_code=404)
+    versions = await get_versions(db, name)
+    return {"skill_name": name, "current_version": skill.get("version", "0.0.0"), "versions": versions}
 
 
 @app.post("/api/skills/{name}/check-deps")

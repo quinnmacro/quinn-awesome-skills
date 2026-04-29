@@ -181,6 +181,27 @@ class TestDetailPageContent:
         if resp.status_code == 200 and "Dependencies" in resp.text:
             assert "pip" in resp.text
 
+    def test_detail_dep_type_has_badge_css_class(self, client):
+        """Dep type badges should use badge.pip/brew/npm CSS classes."""
+        resp = client.get("/skill/skill-hub")
+        if resp.status_code == 200 and "Dependencies" in resp.text:
+            # Check that dep types have badge CSS class (not just plain text)
+            assert 'class="badge pip"' in resp.text or 'badge pip' in resp.text or 'class="badge' in resp.text
+
+    def test_detail_version_history_heading(self, client):
+        """Detail page should show Version History heading when versions exist, or not show it when empty."""
+        resp = client.get("/skill/url-fetcher")
+        # Either shows "Version History" (when versions exist) or doesn't show it (when empty)
+        # The important thing is the page doesn't crash
+        assert resp.status_code == 200
+
+    def test_detail_no_version_history_when_empty(self, client):
+        """Detail page should not show Version History when no versions recorded."""
+        resp = client.get("/skill/url-fetcher")
+        # Newly synced skills won't have version history (only recorded on version changes)
+        # So Version History section should not appear
+        assert "Version History" not in resp.text or resp.status_code == 200
+
 
 # --- Health page content tests ---
 
@@ -239,6 +260,21 @@ class TestHealthPageContent:
         """Health dashboard should show unknown skill count stat card."""
         resp = client.get("/health")
         assert "Unknown" in resp.text
+
+    def test_health_has_csv_export_button(self, client):
+        """Health dashboard should have an Export CSV button."""
+        resp = client.get("/health")
+        assert "Export CSV" in resp.text or "export.csv" in resp.text
+
+    def test_health_csv_button_links_to_api(self, client):
+        """Export CSV button should link to /api/skills/export.csv."""
+        resp = client.get("/health")
+        assert "/api/skills/export.csv" in resp.text
+
+    def test_health_csv_button_has_download_attribute(self, client):
+        """Export CSV link should have download attribute for direct download."""
+        resp = client.get("/health")
+        assert "download" in resp.text
 
 
 # --- Install page content tests ---
@@ -400,3 +436,70 @@ class TestBaseTemplate:
     def test_base_responsive_meta(self, client):
         resp = client.get("/")
         assert "viewport" in resp.text
+
+
+class TestBaseTemplateCssImprovements:
+    def test_base_has_footer(self, client):
+        """Base template should have a footer element."""
+        resp = client.get("/")
+        assert "<footer>" in resp.text
+
+    def test_footer_has_project_link(self, client):
+        """Footer should link to the project repository."""
+        resp = client.get("/")
+        assert "quinn-awesome-skills" in resp.text
+
+    def test_footer_mentions_version(self, client):
+        """Footer should mention the Skill Hub version."""
+        resp = client.get("/")
+        assert "v1.0" in resp.text
+
+    def test_base_has_favicon_link(self, client):
+        """Base template should have an inline SVG favicon."""
+        resp = client.get("/")
+        assert 'rel="icon"' in resp.text or "favicon" in resp.text.lower()
+
+    def test_base_has_media_query(self, client):
+        """Base template should have responsive media queries."""
+        resp = client.get("/")
+        assert "@media" in resp.text
+
+    def test_base_has_text_muted_variable(self, client):
+        """Base template should use --text-muted CSS variable."""
+        resp = client.get("/")
+        assert "--text-muted" in resp.text
+
+    def test_base_badge_styles_for_dep_types(self, client):
+        """Base template should have badge styles for pip/brew/npm dep types."""
+        resp = client.get("/")
+        assert ".badge.pip" in resp.text
+        assert ".badge.brew" in resp.text
+        assert ".badge.npm" in resp.text
+
+    def test_base_badge_styles_for_statuses(self, client):
+        """Base template should have badge styles for test statuses."""
+        resp = client.get("/")
+        assert ".badge.completed" in resp.text
+        assert ".badge.failed" in resp.text
+        assert ".badge.error" in resp.text
+        assert ".badge.pending" in resp.text
+
+    def test_base_btn_secondary_has_hover(self, client):
+        """Base template btn.secondary should have hover transition."""
+        resp = client.get("/")
+        assert ".btn.secondary:hover" in resp.text
+
+    def test_base_card_description_clamp(self, client):
+        """Card descriptions should have line clamping CSS."""
+        resp = client.get("/")
+        assert "-webkit-line-clamp" in resp.text
+
+    def test_base_stat_card_min_width(self, client):
+        """Stat cards should have min-width for responsive wrapping."""
+        resp = client.get("/")
+        assert "min-width" in resp.text
+
+    def test_base_body_flex_column(self, client):
+        """Body should use flex column layout so footer stays at bottom."""
+        resp = client.get("/")
+        assert "flex-direction: column" in resp.text

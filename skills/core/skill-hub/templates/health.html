@@ -55,4 +55,8 @@
 {% elif not stats.test_summary %}
 <div class="empty">No test results recorded yet. Run tests from skill detail pages.</div>
 {% endif %}
+
+<div style="margin-top:20px;">
+  <a href="/api/skills/export.csv" class="btn secondary" download="skills.csv">Export CSV</a>
+</div>
 {% endblock %}

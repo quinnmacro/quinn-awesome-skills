@@ -705,3 +705,87 @@ class TestTestPageHistory:
             resp = client.get("/test/url-fetcher")
             # Either shows "Recent Test Runs" or "No test runs"
             assert "Test Runs" in resp.text or "test runs" in resp.text
+
+
+# --- Versions API endpoint tests ---
+
+
+class TestApiSkillVersions:
+    def test_versions_endpoint_found(self, client):
+        """Versions endpoint should return 200 for existing skill."""
+        response = client.get("/api/skills/url-fetcher/versions")
+        assert response.status_code == 200
+        data = response.json()
+        assert "skill_name" in data
+        assert data["skill_name"] == "url-fetcher"
+        assert "current_version" in data
+        assert "versions" in data
+
+    def test_versions_endpoint_not_found(self, client):
+        """Versions endpoint should return 404 for nonexistent skill."""
+        response = client.get("/api/skills/nonexistent-skill/versions")
+        assert response.status_code == 404
+
+    def test_versions_current_version_matches_skill(self, client):
+        """Current version in versions response should match skill version."""
+        skill_resp = client.get("/api/skills/url-fetcher")
+        skill_data = skill_resp.json()
+        versions_resp = client.get("/api/skills/url-fetcher/versions")
+        versions_data = versions_resp.json()
+        assert versions_data["current_version"] == skill_data.get("version", "0.0.0")
+
+    def test_versions_list_is_list(self, client):
+        """Versions list should be a list."""
+        response = client.get("/api/skills/url-fetcher/versions")
+        data = response.json()
+        assert isinstance(data["versions"], list)
+
+    def test_versions_for_skill_hub(self, client):
+        """Versions endpoint for skill-hub should return data."""
+        response = client.get("/api/skills/skill-hub/versions")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["skill_name"] == "skill-hub"
+
+
+# --- CSV Export endpoint tests ---
+
+
+class TestApiExportCsv:
+    def test_export_csv_returns_200(self, client):
+        """CSV export endpoint should return 200."""
+        response = client.get("/api/skills/export.csv")
+        assert response.status_code == 200
+
+    def test_export_csv_has_header(self, client):
+        """CSV should have a header row with expected columns."""
+        response = client.get("/api/skills/export.csv")
+        lines = response.text.strip().split("\n")
+        assert lines[0] == "name,version,layer,health,author,description,category,path"
+
+    def test_export_csv_has_skills(self, client):
+        """CSV should contain at least one skill row."""
+        response = client.get("/api/skills/export.csv")
+        lines = response.text.strip().split("\n")
+        assert len(lines) >= 2
+
+    def test_export_csv_contains_skill_names(self, client):
+        """CSV should contain known skill names."""
+        response = client.get("/api/skills/export.csv")
+        assert "url-fetcher" in response.text or "skill-hub" in response.text
+
+    def test_export_csv_content_type(self, client):
+        """CSV response should have text content type."""
+        response = client.get("/api/skills/export.csv")
+        assert "text" in response.headers.get("content-type", "")
+
+    def test_export_csv_commas_in_description_escaped(self, client):
+        """Commas in descriptions should be replaced with semicolons."""
+        response = client.get("/api/skills/export.csv")
+        # Description fields should not contain raw commas that would break CSV format
+        lines = response.text.strip().split("\n")
+        # Check that no description field has raw commas (they'd create extra columns)
+        for line in lines[1:]:
+            fields = line.split(",")
+            # Should have exactly 8 fields (name, version, layer, health, author, description, category, path)
+            assert len(fields) == 8

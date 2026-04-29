@@ -10,16 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - ✨ **skill-hub** skill - Local web dashboard for browsing, searching, testing, and managing all Claude Code skills
   - FastAPI backend (async) + Jinja2 server-side rendering + vanilla HTML/CSS/JS
-  - SQLite for skill metadata and test history
+  - SQLite for skill metadata, test history, and version tracking
   - Auto-discover skills by scanning skills/core/*/SKILL.md and skills/external/*/SKILL.md
   - Home page: skill cards grid with name, version, layer, test count, health badge, description, search bar
-  - Skill detail page: render SKILL.md, list scripts/modules, show config, version history, dependencies
+  - Skill detail page: render SKILL.md, list scripts/modules, show config, dependencies, version history
   - Test panel: run pytest and stream results via WebSocket
-  - Health dashboard: aggregate stats, test pass rates, dependency status
+  - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
   - Install page: dynamic skills table with dependency install status, check-deps button
-  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps
-  - 300 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking)
-  - Server on localhost:8765, configurable via SKILL_HUB_PORT
+  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv
+  - Responsive CSS with mobile breakpoints, inline SVG favicon, footer, dep type badge styles
+  - Version history tracking (skill_versions table, records version changes on sync)
+  - 365 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export)
 
 ## [1.3.0] - 2026-04-28
 
@@ -128,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), dynamic dep checking, 300 tests |
+| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), version history, CSV export, dep checking, 365 tests |
 | 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs, daily-dev-pulse |
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |

@@ -28,9 +28,9 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 ## Features
 
 1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description. Search bar filters by name/description.
-2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, version history.
+2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies, version history.
 3. **Test panel** - Run pytest and stream results via WebSocket.
-4. **Health dashboard** - Aggregate stats, test pass rates, dependency status.
+4. **Health dashboard** - Aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export.
 5. **Install page** - Install commands, dependency check.
 6. **REST API** - `/api/skills`, `/api/skills/{name}`, `/api/skills/{name}/test`, `/api/health`.
 
@@ -41,6 +41,9 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 | `/api/skills` | GET | List all skills (with optional search filter) |
 | `/api/skills/{name}` | GET | Get skill detail by name |
 | `/api/skills/{name}/test` | POST | Run tests for a skill |
+| `/api/skills/{name}/versions` | GET | Get version history for a skill |
+| `/api/skills/{name}/check-deps` | POST | Check dependency installation status |
+| `/api/skills/export.csv` | GET | Export all skills as CSV |
 | `/api/health` | GET | Health dashboard data |
 
 ## Dependencies
@@ -59,4 +62,6 @@ pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyn
 
 - Auto-discovery scans `skills/core/*/SKILL.md` and `skills/external/*/SKILL.md`
 - WebSocket at `/ws/test/{name}` for live test result streaming
-- SQLite stores skill metadata and test run history
+- SQLite stores skill metadata, test run history, and version tracking
+- Responsive design with mobile breakpoints, inline SVG favicon
+- Version history recorded on skill version changes during sync

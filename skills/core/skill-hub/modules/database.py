@@ -53,6 +53,16 @@ CREATE TABLE IF NOT EXISTS dependencies (
 
 CREATE INDEX IF NOT EXISTS idx_test_runs_skill ON test_runs(skill_name);
 CREATE INDEX IF NOT EXISTS idx_test_runs_started ON test_runs(started_at);
+
+CREATE TABLE IF NOT EXISTS skill_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    skill_name TEXT NOT NULL,
+    version TEXT NOT NULL,
+    recorded_at TEXT NOT NULL,
+    FOREIGN KEY (skill_name) REFERENCES skills(name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_skill_versions_skill ON skill_versions(skill_name);
 """
 
 
@@ -243,9 +253,33 @@ async def get_dependencies(db: aiosqlite.Connection, skill_name: str) -> list[di
     return [{"dep_name": r[0], "dep_type": r[1], "installed": bool(r[2])} for r in rows]
 
 
+async def record_version(db: aiosqlite.Connection, skill_name: str, version: str) -> int:
+    """Record a skill version change."""
+    now = datetime.now(timezone.utc).isoformat()
+    cursor = await db.execute(
+        "INSERT INTO skill_versions (skill_name, version, recorded_at) VALUES (?, ?, ?)",
+        (skill_name, version, now),
+    )
+    await db.commit()
+    return cursor.lastrowid
+
+
+async def get_versions(db: aiosqlite.Connection, skill_name: str, limit: int = 20) -> list[dict]:
+    """Get version history for a skill."""
+    cursor = await db.execute(
+        "SELECT version, recorded_at FROM skill_versions WHERE skill_name = ? ORDER BY recorded_at DESC LIMIT ?",
+        (skill_name, limit),
+    )
+    rows = await cursor.fetchall()
+    return [{"version": r[0], "recorded_at": r[1]} for r in rows]
+
+
 async def sync_skills(db: aiosqlite.Connection, discovered: list[dict]) -> None:
-    """Sync discovered skills into the database."""
+    """Sync discovered skills into the database, recording version changes."""
     for skill in discovered:
+        existing = await get_skill(db, skill["name"])
+        if existing and existing["version"] != skill.get("version", "0.0.0"):
+            await record_version(db, skill["name"], skill.get("version", "0.0.0"))
         await upsert_skill(db, skill)
 
 
