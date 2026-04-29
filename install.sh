@@ -193,9 +193,17 @@ install_skill() {
     # 7. Set up skill-hub dependencies
     if [ "$SKILL_NAME" = "skill-hub" ]; then
         mkdir -p ~/.quinn-skills
-        echo -e "  ${BLUE}Installing skill-hub Python dependencies...${NC}"
-        pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio 2>/dev/null || pip3 install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio 2>/dev/null || true
-        echo -e "  ${GREEN}✅ Skill Hub ready — run with: bash ~/.claude/skills/skill-hub/scripts/start.sh${NC}"
+        info "  Installing skill-hub Python dependencies..."
+        if pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio 2>&1; then
+            ok "  ✅ Skill Hub dependencies installed"
+        elif pip3 install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio 2>&1; then
+            ok "  ✅ Skill Hub dependencies installed (via pip3)"
+        else
+            fail "  ❌ Failed to install skill-hub Python dependencies"
+            fail "  Please install manually: pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio"
+            return 1
+        fi
+        ok "  ✅ Skill Hub ready — run with: bash ~/.claude/skills/skill-hub/scripts/start.sh"
     fi
 
     # 6. 安装斜杠命令（从 commands/ 目录）

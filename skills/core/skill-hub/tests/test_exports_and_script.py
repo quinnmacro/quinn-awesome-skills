@@ -277,6 +277,59 @@ class TestStartScriptLogging:
         content = script.read_text()
         assert "$LOG_FILE" in content
 
+
+# --- install.sh skill-hub section tests ---
+
+
+INSTALL_SH = PROJECT_ROOT / "install.sh"
+
+
+class TestInstallShSkillHubSection:
+    """Test install.sh skill-hub dependency installation section."""
+
+    def test_install_sh_has_skill_hub_section(self):
+        if INSTALL_SH.is_file():
+            content = INSTALL_SH.read_text()
+            assert "skill-hub" in content
+
+    def test_install_sh_skill_hub_does_not_silently_swallow_failures(self):
+        """The old '|| true' pattern silently swallowed pip failures."""
+        if INSTALL_SH.is_file():
+            content = INSTALL_SH.read_text()
+            # Find the skill-hub pip install section
+            if "skill-hub" in content and "pip install" in content:
+                # Should NOT have the old pattern: || true at end of pip install
+                lines = content.split("\n")
+                for line in lines:
+                    if "pip" in line and "fastapi" in line and "|| true" in line:
+                        pytest.fail("install.sh pip install for skill-hub should not use '|| true' to swallow failures")
+
+    def test_install_sh_skill_hub_has_error_message_on_failure(self):
+        """install.sh should show an error message if pip install fails."""
+        if INSTALL_SH.is_file():
+            content = INSTALL_SH.read_text()
+            if "skill-hub" in content:
+                # Should have a failure message or return 1 on pip failure
+                assert "Failed" in content or "return 1" in content or "❌" in content
+
+    def test_install_sh_skill_hub_no_redirect_to_dev_null(self):
+        """pip install should not redirect stderr to /dev/null."""
+        if INSTALL_SH.is_file():
+            content = INSTALL_SH.read_text()
+            lines = content.split("\n")
+            for line in lines:
+                if "pip" in line and "fastapi" in line and "2>/dev/null" in line:
+                    pytest.fail("install.sh pip install for skill-hub should not suppress error output with 2>/dev/null")
+
+    def test_install_sh_skill_hub_lists_dependencies(self):
+        """install.sh should list all skill-hub Python dependencies."""
+        if INSTALL_SH.is_file():
+            content = INSTALL_SH.read_text()
+            if "skill-hub" in content:
+                required_deps = ["fastapi", "uvicorn", "jinja2", "aiosqlite", "httpx", "websockets"]
+                for dep in required_deps:
+                    assert dep in content, f"install.sh missing dependency: {dep}"
+
     def test_start_script_creates_log_dir(self):
         """Start.sh creates log directory before starting server."""
         script = SCRIPTS_DIR / "start.sh"

@@ -22,6 +22,8 @@ from database import (
     get_versions,
     delete_skill,
     delete_test_runs,
+    _row_to_skill,
+    _row_to_test_run,
 )
 
 
@@ -855,3 +857,79 @@ class TestGetRecentTestRuns:
             await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 1, "passed": 1, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.1, "output": "", "started_at": f"2026-04-29T10:{i:02d}:00", "finished_at": f"2026-04-29T10:{i:02d}:01"})
         runs = await get_recent_test_runs(db)
         assert len(runs) == 10
+
+
+# --- _row_to_skill tests ---
+
+
+class TestRowToSkill:
+    """Direct unit tests for _row_to_skill helper."""
+
+    def test_converts_all_fields(self):
+        row = ("my-skill", "1.0.0", "A skill desc", "core", "core", "/path", '["run.sh"]', '["mod.py"]', "quinn", "passing", "2026-01-01", "2026-04-01")
+        result = _row_to_skill(row)
+        assert result["name"] == "my-skill"
+        assert result["version"] == "1.0.0"
+        assert result["description"] == "A skill desc"
+        assert result["layer"] == "core"
+        assert result["scripts"] == ["run.sh"]
+        assert result["modules"] == ["mod.py"]
+        assert result["author"] == "quinn"
+        assert result["health"] == "passing"
+
+    def test_deserializes_scripts_json(self):
+        row = ("s", "0.0.0", "", "core", "core", "/p", '["a.sh","b.sh"]', '[]', "", "unknown", "", "")
+        result = _row_to_skill(row)
+        assert result["scripts"] == ["a.sh", "b.sh"]
+
+    def test_deserializes_empty_modules_json(self):
+        row = ("s", "0.0.0", "", "core", "core", "/p", '[]', '[]', "", "unknown", "", "")
+        result = _row_to_skill(row)
+        assert result["modules"] == []
+
+    def test_preserves_all_12_fields(self):
+        row = ("n", "v", "d", "l", "c", "/p", '[]', '[]', "a", "h", "da", "ua")
+        result = _row_to_skill(row)
+        assert len(result) == 12
+
+    def test_json_roundtrip_for_scripts(self):
+        import json
+        scripts = ["fetch.sh", "search.sh", "convert.sh"]
+        row = ("s", "0.0.0", "", "core", "core", "/p", json.dumps(scripts), '[]', "", "unknown", "", "")
+        result = _row_to_skill(row)
+        assert result["scripts"] == scripts
+
+
+# --- _row_to_test_run tests ---
+
+
+class TestRowToTestRun:
+    """Direct unit tests for _row_to_test_run helper."""
+
+    def test_converts_all_fields(self):
+        row = (1, "my-skill", "completed", 10, 8, 1, 0, 1, 1.5, "output text", "2026-04-29T08:00", "2026-04-29T08:01")
+        result = _row_to_test_run(row)
+        assert result["id"] == 1
+        assert result["skill_name"] == "my-skill"
+        assert result["status"] == "completed"
+        assert result["total_tests"] == 10
+        assert result["passed"] == 8
+        assert result["failed"] == 1
+        assert result["duration_seconds"] == 1.5
+
+    def test_preserves_all_12_fields(self):
+        row = (0, "n", "s", 0, 0, 0, 0, 0, 0.0, "o", "sa", "fa")
+        result = _row_to_test_run(row)
+        assert len(result) == 12
+
+    def test_failed_and_errors_fields(self):
+        row = (1, "s", "failed", 5, 2, 2, 1, 0, 3.0, "", "", "")
+        result = _row_to_test_run(row)
+        assert result["failed"] == 2
+        assert result["errors"] == 1
+        assert result["status"] == "failed"
+
+    def test_skipped_field(self):
+        row = (1, "s", "completed", 10, 7, 0, 0, 3, 0.5, "", "", "")
+        result = _row_to_test_run(row)
+        assert result["skipped"] == 3

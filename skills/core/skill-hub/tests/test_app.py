@@ -3466,3 +3466,49 @@ class TestSortSkillsDirect:
         skills = [{"name": "a", "test_count": None}, {"name": "b", "test_count": 5}]
         result = _sort_skills(skills, "test_count")
         assert result[0]["test_count"] is None or result[0]["test_count"] == 0
+
+
+# --- _render_error_page tests ---
+
+
+class TestRenderErrorPage:
+    """Direct unit tests for _render_error_page helper."""
+
+    @pytest.mark.asyncio
+    async def test_render_404_error(self):
+        from app import _render_error_page
+        html = await _render_error_page(404, "Skill not found")
+        assert "404" in html
+        assert "Skill not found" in html
+
+    @pytest.mark.asyncio
+    async def test_render_500_error(self):
+        from app import _render_error_page
+        html = await _render_error_page(500, "Internal server error")
+        assert "500" in html
+        assert "Internal server error" in html
+
+    @pytest.mark.asyncio
+    async def test_render_error_with_skill_name(self):
+        from app import _render_error_page
+        html = await _render_error_page(404, "Not found", skill_name="my-skill")
+        assert "my-skill" in html
+
+    @pytest.mark.asyncio
+    async def test_render_error_includes_nav_links(self):
+        from app import _render_error_page
+        html = await _render_error_page(404, "Not found")
+        assert "Skills" in html
+        assert "Health" in html
+
+    @pytest.mark.asyncio
+    async def test_render_error_includes_back_buttons(self):
+        from app import _render_error_page
+        html = await _render_error_page(404, "Not found")
+        assert "Back" in html
+
+    @pytest.mark.asyncio
+    async def test_render_error_extends_base_template(self):
+        from app import _render_error_page
+        html = await _render_error_page(400, "Bad request")
+        assert "<!DOCTYPE html>" in html

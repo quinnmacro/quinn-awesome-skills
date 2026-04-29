@@ -20,6 +20,8 @@ from skill_discovery import (
     _extract_dependencies,
     check_dep_installed,
     check_all_deps,
+    _add_skill,
+    _read_skill_md,
 )
 
 
@@ -742,3 +744,172 @@ class TestParseDescriptionAbbreviations:
     def test_vs_not_truncated(self):
         desc = _parse_description({"description": "Compares vs. other frameworks"})
         assert "other" in desc
+
+
+# --- _add_skill tests ---
+
+
+class TestAddSkill:
+    """Direct unit tests for _add_skill helper."""
+
+    def test_adds_skill_from_skill_md(self, tmp_path):
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: my-skill\nversion: 1.2.0\ndescription: A test skill\n---\n# Content\n"
+        )
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert len(skills) == 1
+        assert skills[0]["name"] == "my-skill"
+        assert skills[0]["version"] == "1.2.0"
+        assert skills[0]["description"] == "A test skill"
+
+    def test_layer_from_frontmatter_overrides_category(self, tmp_path):
+        skill_dir = tmp_path / "ext-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: ext-skill\nlayer: core\n---\n# Content\n"
+        )
+        skills = []
+        _add_skill(skills, skill_dir, "external")
+        assert skills[0]["layer"] == "core"
+
+    def test_layer_from_frontmatter_with_dot_suffix(self, tmp_path):
+        """Frontmatter layer 'core. Triggers: ...' -> 'core'"""
+        skill_dir = tmp_path / "dot-layer"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: dot-layer\nlayer: core. Triggers when used\n---\n# Content\n"
+        )
+        skills = []
+        _add_skill(skills, skill_dir, "external")
+        assert skills[0]["layer"] == "core"
+
+    def test_layer_from_category_when_no_frontmatter_layer(self, tmp_path):
+        skill_dir = tmp_path / "no-layer"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: no-layer\n---\n# Content\n"
+        )
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert skills[0]["layer"] == "core"
+
+    def test_name_defaults_to_dir_name(self, tmp_path):
+        skill_dir = tmp_path / "fallback-name"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\n---\n# Content\n")
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert skills[0]["name"] == "fallback-name"
+
+    def test_version_defaults_to_0_0_0(self, tmp_path):
+        skill_dir = tmp_path / "no-version"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: no-version\n---\n# Content\n")
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert skills[0]["version"] == "0.0.0"
+
+    def test_is_template_true_reads_template_md(self, tmp_path):
+        skill_dir = tmp_path / "template-skill"
+        skill_dir.mkdir()
+        (skill_dir / "template.md").write_text(
+            "---\nname: template-skill\nversion: 0.1.0\n---\n# Template Content\n"
+        )
+        skills = []
+        _add_skill(skills, skill_dir, "external", is_template=True)
+        assert len(skills) == 1
+        assert skills[0]["name"] == "template-skill"
+        assert "Template Content" in skills[0]["skill_md"]
+
+    def test_skill_md_contains_full_content(self, tmp_path):
+        skill_dir = tmp_path / "full-md"
+        skill_dir.mkdir()
+        md_content = "---\nname: full-md\n---\n# Title\nBody paragraph\n"
+        (skill_dir / "SKILL.md").write_text(md_content)
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert skills[0]["skill_md"] == md_content
+
+    def test_scripts_and_modules_populated(self, tmp_path):
+        skill_dir = tmp_path / "has-files"
+        skill_dir.mkdir()
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "run.sh").write_text("#!/bin/bash\n")
+        modules_dir = skill_dir / "modules"
+        modules_dir.mkdir()
+        (modules_dir / "helper.py").write_text("def help(): pass\n")
+        (skill_dir / "SKILL.md").write_text("---\nname: has-files\n---\n# Content\n")
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert "run.sh" in skills[0]["scripts"]
+        assert "helper.py" in skills[0]["modules"]
+
+    def test_dependencies_extracted_from_content(self, tmp_path):
+        skill_dir = tmp_path / "deps-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: deps-skill\n---\n# Setup\n```\npip install fastapi beautifulsoup4\n```\n"
+        )
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        dep_names = [d["dep_name"] for d in skills[0]["dependencies"]]
+        assert "fastapi" in dep_names
+        assert "beautifulsoup4" in dep_names
+
+    def test_health_default_is_unknown(self, tmp_path):
+        skill_dir = tmp_path / "health-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: health-skill\n---\n# Content\n")
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert skills[0]["health"] == "unknown"
+
+    def test_path_set_to_skill_dir_str(self, tmp_path):
+        skill_dir = tmp_path / "path-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: path-skill\n---\n# Content\n")
+        skills = []
+        _add_skill(skills, skill_dir, "core")
+        assert skills[0]["path"] == str(skill_dir)
+
+
+# --- _read_skill_md tests ---
+
+
+class TestReadSkillMd:
+    """Direct unit tests for _read_skill_md helper."""
+
+    def test_reads_existing_file(self, tmp_path):
+        skill_dir = tmp_path / "reader"
+        skill_dir.mkdir()
+        content = "# My Skill\nSome content here\n"
+        (skill_dir / "SKILL.md").write_text(content)
+        result = _read_skill_md(skill_dir)
+        assert result == content
+
+    def test_reads_unicode_content(self, tmp_path):
+        skill_dir = tmp_path / "unicode-skill"
+        skill_dir.mkdir()
+        content = "# Skill 中文\n描述内容\n"
+        (skill_dir / "SKILL.md").write_text(content)
+        result = _read_skill_md(skill_dir)
+        assert "中文" in result
+
+    def test_reads_empty_file(self, tmp_path):
+        skill_dir = tmp_path / "empty"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("")
+        result = _read_skill_md(skill_dir)
+        assert result == ""
+
+    def test_encoding_errors_replace(self, tmp_path):
+        skill_dir = tmp_path / "bad-encoding"
+        skill_dir.mkdir()
+        # Write bytes that aren't valid UTF-8
+        (skill_dir / "SKILL.md").write_bytes(b"---\nname: bad\n---\n\xff\xfe content\n")
+        result = _read_skill_md(skill_dir)
+        assert "name: bad" in result
