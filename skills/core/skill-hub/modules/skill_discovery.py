@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -283,7 +284,6 @@ def check_dep_installed(dep_name: str, dep_type: str) -> bool:
 
 def check_all_deps(deps: list[dict]) -> list[dict]:
     """Check installation status for all dependencies, returning updated list."""
-    import sys as _sys
     for d in deps:
         d["installed"] = check_dep_installed(d["dep_name"], d["dep_type"])
     return deps

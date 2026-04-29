@@ -17,7 +17,6 @@ if MODULES_DIR not in sys.path:
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
 
 from skill_discovery import discover_skills, get_skill_by_name, search_skills, check_dep_installed, check_all_deps
 from database import (
@@ -77,16 +76,17 @@ async def get_db():
     return _db
 
 
-# --- HTML Pages (Jinja2) ---
+# --- Jinja2 Environment (initialized once) ---
+from jinja2 import Environment, FileSystemLoader
+
+_jinja_env = Environment(
+    loader=FileSystemLoader(str(SKILL_HUB_DIR / "templates")),
+    autoescape=True,
+)
 
 def _render_template(template_name: str, context: dict) -> str:
     """Render a Jinja2 template from the templates/ directory."""
-    from jinja2 import Environment, FileSystemLoader
-    env = Environment(
-        loader=FileSystemLoader(str(SKILL_HUB_DIR / "templates")),
-        autoescape=True,
-    )
-    template = env.get_template(template_name)
+    template = _jinja_env.get_template(template_name)
     return template.render(**context)
 
 
@@ -457,4 +457,4 @@ def _parse_pytest_summary(result: dict, output: str) -> dict:
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=DEFAULT_PORT)
+    uvicorn.run(app, host="127.0.0.1", port=DEFAULT_PORT)

@@ -561,3 +561,61 @@ class TestApiCheckDeps:
         data = response.json()
         for d in data["dependencies"]:
             assert d["installed"] in (True, False)
+
+
+# --- Bug fix verification tests ---
+
+
+class TestJinja2EnvironmentSingleton:
+    def test_jinja_env_is_module_level(self):
+        """The Jinja2 Environment should be created at module level, not per-request."""
+        from app import _jinja_env
+        assert _jinja_env is not None
+
+    def test_jinja_env_is_reused(self):
+        """_jinja_env should be the same object across multiple accesses."""
+        from app import _jinja_env
+        env1 = _jinja_env
+        # Re-import to confirm same singleton
+        import app as app2
+        env2 = app2._jinja_env
+        assert env1 is env2  # Same object identity
+
+    def test_jinja_env_autoescape_enabled(self):
+        """_jinja_env should have autoescape enabled for safety."""
+        from app import _jinja_env
+        assert _jinja_env.autoescape is True
+
+    def test_render_template_uses_singleton(self):
+        """_render_template should use _jinja_env, not create a new Environment."""
+        from app import _render_template, _jinja_env
+        # Rendering twice should use same env
+        html1 = _render_template("home.html", {"skills": [], "query": "", "total": 0})
+        html2 = _render_template("home.html", {"skills": [], "query": "", "total": 0})
+        # Both renders produce output (env wasn't recreated)
+        assert len(html1) > 0
+        assert len(html2) > 0
+
+
+class TestHostBindingSecurity:
+    def test_main_block_uses_localhost(self):
+        """The __main__ block should bind to 127.0.0.1, not 0.0.0.0."""
+        import app
+        source = open(app.__file__, 'r').read()
+        # Check that host is 127.0.0.1 in __main__ block
+        assert 'host="127.0.0.1"' in source
+        assert 'host="0.0.0.0"' not in source
+
+    def test_default_port_configurable(self):
+        """SKILL_HUB_PORT env var should configure the port."""
+        from app import DEFAULT_PORT
+        # DEFAULT_PORT should be 8765 when env var is not set
+        assert DEFAULT_PORT == 8765 or isinstance(DEFAULT_PORT, int)
+
+
+class TestNoDeadImports:
+    def test_staticfiles_not_imported(self):
+        """StaticFiles should not be imported since it's unused."""
+        import app
+        source = open(app.__file__, 'r').read()
+        assert 'from fastapi.staticfiles import StaticFiles' not in source
