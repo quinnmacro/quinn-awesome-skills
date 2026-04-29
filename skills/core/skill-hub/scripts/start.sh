@@ -7,6 +7,10 @@ MODULES_DIR="$SCRIPT_DIR/../modules"
 PORT="${SKILL_HUB_PORT:-8765}"
 PID_FILE="${SKILL_HUB_PID_FILE:-$HOME/.quinn-skills/skill-hub.pid}"
 
+LOG_DIR="${SKILL_HUB_LOG_DIR:-$HOME/.quinn-skills}"
+LOG_FILE="$LOG_DIR/skill-hub.log"
+mkdir -p "$LOG_DIR"
+
 case "${1:-start}" in
   --stop|stop)
     if [ -f "$PID_FILE" ]; then
@@ -70,8 +74,8 @@ case "${1:-start}" in
     fi
 
     echo "Starting Skill Hub on http://localhost:$PORT"
-    # Start in background and save PID
-    nohup python3 "$MODULES_DIR/app.py" &>/dev/null &
+    # Start in background and save PID; log output to file
+    nohup python3 "$MODULES_DIR/app.py" >> "$LOG_FILE" 2>&1 &
     echo $! > "$PID_FILE"
     # Give server a moment to start
     sleep 1

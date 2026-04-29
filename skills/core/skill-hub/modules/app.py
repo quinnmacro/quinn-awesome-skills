@@ -78,6 +78,7 @@ async def _render_error_page(status_code: int, message: str, skill_name: str = "
         "message": message,
         "skill_name": skill_name,
         "nav_active": "",
+        "port": DEFAULT_PORT,
     })
 
 
@@ -178,6 +179,7 @@ async def home(request: Request, q: Optional[str] = None, layer: Optional[str] =
         "nav_active": "skills", "layer": layer or "", "health": health or "",
         "sort": sort or "", "all_layers": all_layers, "all_healths": all_healths,
         "health_counts": health_counts, "avg_pass_rate": avg_pass_rate,
+        "port": DEFAULT_PORT,
     })
 
 
@@ -205,7 +207,7 @@ async def skill_detail(request: Request, name: str):
     versions = await get_versions(db, name)
     skill_md_rendered = _render_markdown(skill.get("skill_md", ""))
     config = _build_skill_config(skill)
-    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config, "skill_md_rendered": skill_md_rendered, "nav_active": "skills"})
+    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config, "skill_md_rendered": skill_md_rendered, "nav_active": "skills", "port": DEFAULT_PORT})
 
 
 @app.get("/health", response_class=HTMLResponse)
@@ -218,7 +220,7 @@ async def health_page(request: Request):
     skills = await get_all_skills(db)
     enriched = _enrich_with_discovered(skills, discovered)
     enriched = await _add_test_counts(enriched, db)
-    return _render_template("health.html", {"stats": stats, "skills": enriched, "recent_runs": recent_runs, "nav_active": "health"})
+    return _render_template("health.html", {"stats": stats, "skills": enriched, "recent_runs": recent_runs, "nav_active": "health", "port": DEFAULT_PORT})
 
 
 @app.get("/install", response_class=HTMLResponse)
@@ -236,9 +238,11 @@ async def install_page(request: Request):
             all_deps[s["name"]] = deps
     return _render_template("install.html", {
         "skills_dir": str(DEFAULT_SKILLS_DIR),
+        "project_root": str(PROJECT_ROOT),
         "skills": enriched,
         "all_deps": all_deps,
         "nav_active": "install",
+        "port": DEFAULT_PORT,
     })
 
 
@@ -250,7 +254,7 @@ async def test_page(request: Request, name: str):
         html = await _render_error_page(404, f"Skill '{name}' not found", skill_name=name)
         return HTMLResponse(html, status_code=404)
     test_runs = await get_test_runs(db, name)
-    return _render_template("test.html", {"skill": skill, "test_runs": test_runs, "nav_active": "skills"})
+    return _render_template("test.html", {"skill": skill, "test_runs": test_runs, "nav_active": "skills", "port": DEFAULT_PORT})
 
 
 # --- REST API ---
@@ -538,6 +542,21 @@ def _parse_pytest_line(text: str) -> Optional[str]:
     return None
 
 
+def _parse_semver(version: str) -> tuple:
+    """Parse a version string into a comparable tuple of integers."""
+    parts = version.split('.')
+    result = []
+    for p in parts:
+        try:
+            result.append(int(p))
+        except ValueError:
+            result.append(0)
+    # Pad to at least 3 components so 1.0 sorts before 1.0.1
+    while len(result) < 3:
+        result.append(0)
+    return tuple(result)
+
+
 def _sort_skills(skills: list[dict], sort: Optional[str] = None) -> list[dict]:
     """Sort skills by a specified field. Options: name, name-desc, version, test_count, health."""
     if not sort:
@@ -549,7 +568,7 @@ def _sort_skills(skills: list[dict], sort: Optional[str] = None) -> list[dict]:
         health_order = {"passing": 0, "unknown": 1, "failing": 2}
         skills.sort(key=lambda s: health_order.get(s.get("health", "unknown"), 1), reverse=reverse)
     elif sort_key == "version":
-        skills.sort(key=lambda s: s.get("version", "0.0.0"), reverse=reverse)
+        skills.sort(key=lambda s: _parse_semver(s.get("version", "0.0.0")), reverse=reverse)
     elif sort_key == "name":
         skills.sort(key=lambda s: s.get("name", "").lower(), reverse=reverse)
     return skills

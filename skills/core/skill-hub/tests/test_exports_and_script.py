@@ -203,3 +203,42 @@ class TestStartScriptExecution:
         # Should either say "No PID file" or "not running" or "cleaned"
         output = result.stdout.lower()
         assert "no pid" in output or "not running" in output or "cleaned" in output or "stopped" in output
+
+
+class TestStartScriptLogging:
+    """Test start.sh server log output configuration."""
+
+    def test_start_script_has_log_dir(self):
+        script = SCRIPTS_DIR / "start.sh"
+        content = script.read_text()
+        assert "LOG_DIR" in content
+
+    def test_start_script_has_log_file(self):
+        script = SCRIPTS_DIR / "start.sh"
+        content = script.read_text()
+        assert "LOG_FILE" in content
+
+    def test_start_script_log_file_path(self):
+        """Log file path uses .quinn-skills directory."""
+        script = SCRIPTS_DIR / "start.sh"
+        content = script.read_text()
+        assert ".quinn-skills" in content
+
+    def test_start_script_no_dev_null_redirect(self):
+        """Start.sh no longer redirects all output to /dev/null."""
+        script = SCRIPTS_DIR / "start.sh"
+        content = script.read_text()
+        # The old pattern was &>/dev/null — the new pattern uses log file
+        assert "&>/dev/null" not in content
+
+    def test_start_script_redirects_to_log_file(self):
+        """Start.sh redirects output to log file instead of /dev/null."""
+        script = SCRIPTS_DIR / "start.sh"
+        content = script.read_text()
+        assert "$LOG_FILE" in content
+
+    def test_start_script_creates_log_dir(self):
+        """Start.sh creates log directory before starting server."""
+        script = SCRIPTS_DIR / "start.sh"
+        content = script.read_text()
+        assert "mkdir -p \"$LOG_DIR\"" in content

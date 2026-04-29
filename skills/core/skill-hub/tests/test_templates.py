@@ -1060,3 +1060,61 @@ class TestHealthPageRecentActivity:
         response = client.get("/health")
         html = response.text
         assert "badge completed" in html or "badge" in html
+
+
+class TestFooterDynamicPort:
+    """Footer uses dynamic port from template context instead of hardcoded 8765."""
+
+    def test_home_page_footer_has_port(self, client):
+        """Home page footer shows the configured port."""
+        resp = client.get("/")
+        assert "localhost:" in resp.text
+        # Should contain a numeric port (default 8765)
+        assert "8765" in resp.text
+
+    def test_health_page_footer_has_port(self, client):
+        """Health page footer shows the configured port."""
+        resp = client.get("/health")
+        assert "localhost:" in resp.text
+
+    def test_install_page_footer_has_port(self, client):
+        """Install page footer shows the configured port."""
+        resp = client.get("/install")
+        assert "localhost:" in resp.text
+
+    def test_detail_page_footer_has_port(self, client):
+        """Detail page footer shows the configured port."""
+        resp = client.get("/skill/url-fetcher")
+        assert "localhost:" in resp.text
+
+    def test_footer_does_not_use_hardcoded_port_in_template(self):
+        """Base template uses {{ port }} variable, not hardcoded 8765."""
+        from jinja2 import Environment, FileSystemLoader
+        import os
+        from pathlib import Path
+        SKILL_HUB_DIR = Path(__file__).resolve().parent.parent
+        env = Environment(loader=FileSystemLoader(str(SKILL_HUB_DIR / "templates")), autoescape=True)
+        base = env.get_template("base.html")
+        # Render with port=9000 to confirm it's dynamic
+        rendered = base.render(title="Test", port=9000, nav_active="skills")
+        assert "localhost:9000" in rendered
+        assert "localhost:8765" not in rendered
+
+
+class TestInstallPageProjectRoot:
+    """Install page shows project_root path in Quick Install command."""
+
+    def test_install_page_shows_install_sh_with_path(self, client):
+        """Quick Install section shows the full install.sh path, not just 'bash install.sh'."""
+        resp = client.get("/install")
+        assert "install.sh" in resp.text
+        # Should contain the project root directory path
+        assert "/quinn-awesome-skills" in resp.text
+
+    def test_install_page_project_root_in_context(self, client):
+        """Install page includes project_root in template context."""
+        resp = client.get("/install")
+        # The project_root should appear in the Quick Install command
+        html = resp.text
+        # Should not have bare "bash install.sh" (which was the broken reference)
+        assert "bash install.sh</div>" not in html or "quinn-awesome-skills" in html

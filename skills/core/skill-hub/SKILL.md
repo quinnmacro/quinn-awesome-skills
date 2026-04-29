@@ -69,8 +69,11 @@ pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyn
 - SQLite stores skill metadata, test run history, and version tracking
 - Responsive design with mobile breakpoints, inline SVG favicon
 - Version history recorded on skill version changes during sync
-- Sort options: name (asc/desc), version, test_count, health (priority order)
+- Sort options: name (asc/desc), version (semver-aware), test_count, health (priority order)
 - Skill cards show pass rate percentage and last-tested timestamp from recent test runs
 - Detail page has Check Dependencies button that calls /api/skills/{name}/check-deps and shows results
 - Detail page has Delete from DB button to remove skill data (does not remove filesystem files; re-sync restores)
 - Test page has Clear Test History button to clear all test runs and reset health to unknown
+- Footer shows dynamically configured port (not hardcoded 8765)
+- Install page shows project-level install.sh path for Quick Install command
+- Server logs output to ~/.quinn-skills/skill-hub.log instead of /dev/null

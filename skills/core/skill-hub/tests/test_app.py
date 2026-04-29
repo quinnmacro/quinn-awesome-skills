@@ -2489,3 +2489,68 @@ class TestApiHealthRecentRuns:
             assert "passed" in run
             assert "failed" in run
             assert "started_at" in run
+
+
+class TestParseSemver:
+    """Tests for _parse_semver helper that converts version strings to comparable tuples."""
+
+    def test_parse_basic_version(self):
+        from app import _parse_semver
+        assert _parse_semver("1.0.0") == (1, 0, 0)
+
+    def test_parse_two_component_version(self):
+        from app import _parse_semver
+        assert _parse_semver("2.0") == (2, 0, 0)
+
+    def test_parse_single_component_version(self):
+        from app import _parse_semver
+        assert _parse_semver("10") == (10, 0, 0)
+
+    def test_parse_version_with_non_numeric_parts(self):
+        from app import _parse_semver
+        result = _parse_semver("1.0.0-beta")
+        assert result[0] == 1
+        assert result[2] == 0  # non-numeric part becomes 0
+
+    def test_semver_sorts_correctly(self):
+        """Semver comparison: 2.0.0 < 10.0.0, unlike string comparison."""
+        from app import _parse_semver
+        assert _parse_semver("2.0.0") < _parse_semver("10.0.0")
+
+    def test_semver_sorts_with_major_versions(self):
+        """1.x sorts before 2.x."""
+        from app import _parse_semver
+        versions = ["10.0.0", "2.0.0", "1.5.3"]
+        sorted_versions = sorted(versions, key=_parse_semver)
+        assert sorted_versions == ["1.5.3", "2.0.0", "10.0.0"]
+
+    def test_semver_minor_version_ordering(self):
+        """1.1 sorts after 1.0."""
+        from app import _parse_semver
+        assert _parse_semver("1.1.0") > _parse_semver("1.0.0")
+
+    def test_version_sort_uses_semver(self):
+        """Version sort now uses semver, so 2.0 sorts before 10.0."""
+        from app import _sort_skills
+        skills = [
+            {"name": "skill-a", "version": "10.0.0"},
+            {"name": "skill-b", "version": "2.0.0"},
+            {"name": "skill-c", "version": "1.0.0"},
+        ]
+        result = _sort_skills(skills, "version")
+        assert result[0]["version"] == "1.0.0"
+        assert result[1]["version"] == "2.0.0"
+        assert result[2]["version"] == "10.0.0"
+
+    def test_version_sort_desc_uses_semver(self):
+        """Version sort descending with semver: 10.0 first, then 2.0, then 1.0."""
+        from app import _sort_skills
+        skills = [
+            {"name": "skill-a", "version": "1.0.0"},
+            {"name": "skill-b", "version": "2.0.0"},
+            {"name": "skill-c", "version": "10.0.0"},
+        ]
+        result = _sort_skills(skills, "version-desc")
+        assert result[0]["version"] == "10.0.0"
+        assert result[1]["version"] == "2.0.0"
+        assert result[2]["version"] == "1.0.0"
