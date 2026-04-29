@@ -15,8 +15,16 @@
     <option value="{{ h }}" {% if health == h %}selected{% endif %}>{{ h }}</option>
     {% endfor %}
   </select>
+  <select name="sort" style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">
+    <option value="">Default order</option>
+    <option value="name" {% if sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+    <option value="name-desc" {% if sort == 'name-desc' %}selected{% endif %}>Name (Z-A)</option>
+    <option value="version" {% if sort == 'version' %}selected{% endif %}>Version</option>
+    <option value="test_count" {% if sort == 'test_count' %}selected{% endif %}>Test count</option>
+    <option value="health" {% if sort == 'health' %}selected{% endif %}>Health</option>
+  </select>
   <button type="submit">Search</button>
-  {% if query or layer or health %}<a href="/" class="btn secondary">Clear</a>{% endif %}
+  {% if query or layer or health or sort %}<a href="/" class="btn secondary">Clear</a>{% endif %}
 </form>
 <div class="stats-row">
   <div class="stat-card"><div class="label">Total Skills</div><div class="value">{{ total }}</div></div>
@@ -40,4 +48,21 @@
 {% else %}
 <div class="empty">No skills found. {% if query or layer or health %}Try adjusting your filters or <a href="/" style="color:var(--accent);">clear all</a>.{% endif %}</div>
 {% endif %}
+<div style="margin-top:16px;display:flex;gap:12px;">
+  <button class="btn secondary" onclick="resyncSkills()">Re-sync Skills</button>
+  <span id="resync-status" style="font-size:13px;color:var(--text-muted);"></span>
+</div>
+<script>
+function resyncSkills() {
+  const statusEl = document.getElementById('resync-status');
+  statusEl.textContent = 'Syncing...';
+  fetch('/api/skills/resync', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      statusEl.textContent = 'Synced ' + data.resynced + ' skills. Refreshing...';
+      setTimeout(() => window.location.reload(), 800);
+    })
+    .catch(e => { statusEl.textContent = 'Error: ' + e.message; });
+}
+</script>
 {% endblock %}

@@ -132,7 +132,7 @@ def _render_template(template_name: str, context: dict) -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, q: Optional[str] = None, layer: Optional[str] = None, health: Optional[str] = None):
+async def home(request: Request, q: Optional[str] = None, layer: Optional[str] = None, health: Optional[str] = None, sort: Optional[str] = None):
     db = await get_db()
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
@@ -150,6 +150,8 @@ async def home(request: Request, q: Optional[str] = None, layer: Optional[str] =
         enriched = [s for s in enriched if s.get("layer") == layer]
     if health:
         enriched = [s for s in enriched if s.get("health") == health]
+    # Apply sort
+    enriched = _sort_skills(enriched, sort)
     # Collect unique layers and health values for filter dropdowns
     all_layers = sorted(set(s.get("layer", "") for s in enriched if s.get("layer")))
     all_healths = sorted(set(s.get("health", "") for s in enriched if s.get("health")))
@@ -162,7 +164,7 @@ async def home(request: Request, q: Optional[str] = None, layer: Optional[str] =
     return _render_template("home.html", {
         "skills": enriched, "query": q or "", "total": len(enriched),
         "nav_active": "skills", "layer": layer or "", "health": health or "",
-        "all_layers": all_layers, "all_healths": all_healths,
+        "sort": sort or "", "all_layers": all_layers, "all_healths": all_healths,
     })
 
 
@@ -235,7 +237,7 @@ async def test_page(request: Request, name: str):
 # --- REST API ---
 
 @app.get("/api/skills")
-async def api_skills(q: Optional[str] = None, layer: Optional[str] = None, health: Optional[str] = None):
+async def api_skills(q: Optional[str] = None, layer: Optional[str] = None, health: Optional[str] = None, sort: Optional[str] = None):
     db = await get_db()
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
@@ -250,6 +252,7 @@ async def api_skills(q: Optional[str] = None, layer: Optional[str] = None, healt
         enriched = [s for s in enriched if s.get("layer") == layer]
     if health:
         enriched = [s for s in enriched if s.get("health") == health]
+    enriched = _sort_skills(enriched, sort)
     return enriched
 
 
@@ -427,6 +430,32 @@ async def ws_test_stream(websocket: WebSocket, name: str):
 
 
 # --- Helpers ---
+
+
+def _sort_skills(skills: list[dict], sort: Optional[str] = None) -> list[dict]:
+    """Sort skills by a specified field. Options: name, name-desc, version, test_count, health."""
+    if not sort:
+        return skills
+    sort_key, reverse = _sort_key_and_reverse(sort)
+    if sort_key == "test_count":
+        skills.sort(key=lambda s: s.get("test_count", 0) or 0, reverse=reverse)
+    elif sort_key == "health":
+        health_order = {"passing": 0, "unknown": 1, "failing": 2}
+        skills.sort(key=lambda s: health_order.get(s.get("health", "unknown"), 1), reverse=reverse)
+    elif sort_key == "version":
+        skills.sort(key=lambda s: s.get("version", "0.0.0"), reverse=reverse)
+    elif sort_key == "name":
+        skills.sort(key=lambda s: s.get("name", "").lower(), reverse=reverse)
+    return skills
+
+
+def _sort_key_and_reverse(sort: str) -> tuple[str, bool]:
+    """Parse sort parameter into (key, reverse). Supports 'name', 'name-desc', etc."""
+    desc_suffix = "-desc"
+    if sort.endswith(desc_suffix):
+        return sort[:-len(desc_suffix)], True
+    return sort, False
+
 
 def _build_skill_config(skill: dict) -> dict:
     """Build a config dict from SKILL.md frontmatter, excluding internal fields."""

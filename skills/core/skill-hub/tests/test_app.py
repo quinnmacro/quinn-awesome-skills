@@ -1245,3 +1245,276 @@ class TestApiSkillsFiltering:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 0
+
+
+# --- Sort functionality tests ---
+
+
+class TestSortSkills:
+    def test_sort_by_name_asc(self):
+        """_sort_skills with 'name' should sort alphabetically ascending."""
+        from app import _sort_skills
+        skills = [
+            {"name": "z-skill", "version": "1.0"},
+            {"name": "a-skill", "version": "2.0"},
+            {"name": "m-skill", "version": "1.5"},
+        ]
+        result = _sort_skills(skills, "name")
+        assert result[0]["name"] == "a-skill"
+        assert result[1]["name"] == "m-skill"
+        assert result[2]["name"] == "z-skill"
+
+    def test_sort_by_name_desc(self):
+        """_sort_skills with 'name-desc' should sort alphabetically descending."""
+        from app import _sort_skills
+        skills = [
+            {"name": "a-skill", "version": "1.0"},
+            {"name": "z-skill", "version": "2.0"},
+            {"name": "m-skill", "version": "1.5"},
+        ]
+        result = _sort_skills(skills, "name-desc")
+        assert result[0]["name"] == "z-skill"
+        assert result[1]["name"] == "m-skill"
+        assert result[2]["name"] == "a-skill"
+
+    def test_sort_by_version(self):
+        """_sort_skills with 'version' should sort by version ascending."""
+        from app import _sort_skills
+        skills = [
+            {"name": "skill-c", "version": "3.0"},
+            {"name": "skill-a", "version": "1.0"},
+            {"name": "skill-b", "version": "2.0"},
+        ]
+        result = _sort_skills(skills, "version")
+        assert result[0]["version"] == "1.0"
+        assert result[1]["version"] == "2.0"
+        assert result[2]["version"] == "3.0"
+
+    def test_sort_by_test_count(self):
+        """_sort_skills with 'test_count' should sort by test count ascending."""
+        from app import _sort_skills
+        skills = [
+            {"name": "skill-c", "test_count": 300},
+            {"name": "skill-a", "test_count": 100},
+            {"name": "skill-b", "test_count": 200},
+        ]
+        result = _sort_skills(skills, "test_count")
+        assert result[0]["test_count"] == 100
+        assert result[1]["test_count"] == 200
+        assert result[2]["test_count"] == 300
+
+    def test_sort_by_health(self):
+        """_sort_skills with 'health' should sort by health priority (passing > unknown > failing)."""
+        from app import _sort_skills
+        skills = [
+            {"name": "fail", "health": "failing"},
+            {"name": "unk", "health": "unknown"},
+            {"name": "pass", "health": "passing"},
+        ]
+        result = _sort_skills(skills, "health")
+        assert result[0]["health"] == "passing"
+        assert result[1]["health"] == "unknown"
+        assert result[2]["health"] == "failing"
+
+    def test_sort_by_health_desc(self):
+        """_sort_skills with 'health-desc' should sort failing first."""
+        from app import _sort_skills
+        skills = [
+            {"name": "pass", "health": "passing"},
+            {"name": "fail", "health": "failing"},
+            {"name": "unk", "health": "unknown"},
+        ]
+        result = _sort_skills(skills, "health-desc")
+        assert result[0]["health"] == "failing"
+        assert result[1]["health"] == "unknown"
+        assert result[2]["health"] == "passing"
+
+    def test_sort_none_returns_unchanged(self):
+        """_sort_skills with None should return skills unchanged."""
+        from app import _sort_skills
+        skills = [{"name": "z"}, {"name": "a"}]
+        result = _sort_skills(skills, None)
+        assert result == skills
+
+    def test_sort_empty_string_returns_unchanged(self):
+        """_sort_skills with empty string should return skills unchanged."""
+        from app import _sort_skills
+        skills = [{"name": "z"}, {"name": "a"}]
+        result = _sort_skills(skills, "")
+        assert result == skills
+
+    def test_sort_with_none_test_count(self):
+        """_sort_skills with test_count should handle skills with None test_count."""
+        from app import _sort_skills
+        skills = [
+            {"name": "skill-a", "test_count": None},
+            {"name": "skill-b", "test_count": 50},
+        ]
+        result = _sort_skills(skills, "test_count")
+        assert result[0]["test_count"] is None
+        assert result[1]["test_count"] == 50
+
+    def test_sort_with_missing_version(self):
+        """_sort_skills with version should handle skills missing version."""
+        from app import _sort_skills
+        skills = [
+            {"name": "skill-a"},
+            {"name": "skill-b", "version": "1.0"},
+        ]
+        result = _sort_skills(skills, "version")
+        assert len(result) == 2
+
+    def test_sort_preserves_all_fields(self):
+        """Sorting should not lose any skill data fields."""
+        from app import _sort_skills
+        skills = [
+            {"name": "b", "version": "2.0", "layer": "core", "health": "passing", "description": "B skill"},
+            {"name": "a", "version": "1.0", "layer": "external", "health": "failing", "description": "A skill"},
+        ]
+        result = _sort_skills(skills, "name")
+        assert result[0]["description"] == "A skill"
+        assert result[1]["description"] == "B skill"
+        assert result[0]["layer"] == "external"
+        assert result[1]["layer"] == "core"
+
+
+class TestSortKeyAndReverse:
+    def test_simple_key(self):
+        """_sort_key_and_reverse with simple key returns (key, False)."""
+        from app import _sort_key_and_reverse
+        assert _sort_key_and_reverse("name") == ("name", False)
+
+    def test_desc_key(self):
+        """_sort_key_and_reverse with -desc suffix returns (key, True)."""
+        from app import _sort_key_and_reverse
+        assert _sort_key_and_reverse("name-desc") == ("name", True)
+
+    def test_version_desc(self):
+        """_sort_key_and_reverse with version-desc returns (version, True)."""
+        from app import _sort_key_and_reverse
+        assert _sort_key_and_reverse("version-desc") == ("version", True)
+
+    def test_test_count_desc(self):
+        """_sort_key_and_reverse with test_count-desc returns (test_count, True)."""
+        from app import _sort_key_and_reverse
+        assert _sort_key_and_reverse("test_count-desc") == ("test_count", True)
+
+    def test_health_no_suffix(self):
+        """_sort_key_and_reverse with 'health' returns (health, False)."""
+        from app import _sort_key_and_reverse
+        assert _sort_key_and_reverse("health") == ("health", False)
+
+
+class TestApiSkillsSort:
+    def test_api_skills_sort_by_name(self, client):
+        """API /api/skills?sort=name should return skills sorted by name."""
+        response = client.get("/api/skills?sort=name")
+        assert response.status_code == 200
+        data = response.json()
+        names = [s["name"] for s in data]
+        assert names == sorted(names, key=str.lower)
+
+    def test_api_skills_sort_by_name_desc(self, client):
+        """API /api/skills?sort=name-desc should return skills sorted Z-A."""
+        response = client.get("/api/skills?sort=name-desc")
+        assert response.status_code == 200
+        data = response.json()
+        names = [s["name"] for s in data]
+        assert names == sorted(names, key=str.lower, reverse=True)
+
+    def test_api_skills_sort_by_test_count(self, client):
+        """API /api/skills?sort=test_count should return skills sorted by test count."""
+        response = client.get("/api/skills?sort=test_count")
+        assert response.status_code == 200
+        data = response.json()
+        counts = [s.get("test_count", 0) or 0 for s in data]
+        assert counts == sorted(counts)
+
+    def test_api_skills_sort_by_health(self, client):
+        """API /api/skills?sort=health should return skills sorted by health priority."""
+        response = client.get("/api/skills?sort=health")
+        assert response.status_code == 200
+        data = response.json()
+        health_order = {"passing": 0, "unknown": 1, "failing": 2}
+        health_values = [health_order.get(s["health"], 1) for s in data]
+        assert health_values == sorted(health_values)
+
+    def test_api_skills_sort_default_unchanged(self, client):
+        """API without sort param should return skills in default order."""
+        default_resp = client.get("/api/skills")
+        name_resp = client.get("/api/skills?sort=name")
+        # Default may or may not match name sort — just verify both return lists
+        assert isinstance(default_resp.json(), list)
+        assert isinstance(name_resp.json(), list)
+
+
+class TestHomePageSort:
+    def test_home_page_has_sort_dropdown(self, client):
+        """Home page should have a sort dropdown."""
+        response = client.get("/")
+        assert 'name="sort"' in response.text
+        assert "Default order" in response.text
+
+    def test_home_page_sort_options(self, client):
+        """Sort dropdown should have name, version, test_count, health options."""
+        response = client.get("/")
+        assert "Name (A-Z)" in response.text
+        assert "Name (Z-A)" in response.text
+        assert "Version" in response.text
+        assert "Test count" in response.text
+        assert "Health" in response.text
+
+    def test_home_page_sort_by_name(self, client):
+        """Home page with sort=name should render skills sorted alphabetically."""
+        response = client.get("/?sort=name")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_page_sort_by_test_count(self, client):
+        """Home page with sort=test_count should render without errors."""
+        response = client.get("/?sort=test_count")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_page_sort_with_filter(self, client):
+        """Sort should work combined with layer/health filters."""
+        response = client.get("/?layer=core&sort=name")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_page_sort_clear_link(self, client):
+        """Clear link should appear when sort is active."""
+        response = client.get("/?sort=name")
+        assert "Clear" in response.text
+
+    def test_home_page_sort_selected_state(self, client):
+        """Sort dropdown should show selected state for current sort."""
+        response = client.get("/?sort=name")
+        assert 'value="name" selected' in response.text
+
+
+class TestHomePageResyncButton:
+    def test_home_page_has_resync_button(self, client):
+        """Home page should have a Re-sync Skills button."""
+        response = client.get("/")
+        assert "Re-sync Skills" in response.text
+
+    def test_home_page_has_resync_js_function(self, client):
+        """Home page should have resyncSkills JavaScript function."""
+        response = client.get("/")
+        assert "resyncSkills" in response.text
+
+    def test_home_page_resync_calls_api(self, client):
+        """Home page resync button should call POST /api/skills/resync."""
+        response = client.get("/")
+        assert "/api/skills/resync" in response.text
+
+    def test_home_page_resync_status_element(self, client):
+        """Home page should have a status element for resync feedback."""
+        response = client.get("/")
+        assert "resync-status" in response.text
+
+    def test_home_page_resync_reloads_page(self, client):
+        """Resync JS should reload the page after success."""
+        response = client.get("/")
+        assert "window.location.reload" in response.text

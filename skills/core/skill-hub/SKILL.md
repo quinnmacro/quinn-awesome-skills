@@ -27,7 +27,7 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 
 ## Features
 
-1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description. Search bar filters by name/description.
+1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description. Search bar filters by name/description. Sort by name, version, test count, health. Layer/health filter dropdowns. Re-sync skills button.
 2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies, version history.
 3. **Test panel** - Run pytest and stream results via WebSocket.
 4. **Health dashboard** - Aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export.
@@ -38,7 +38,7 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/skills` | GET | List all skills (with optional search filter) |
+| `/api/skills` | GET | List all skills (with optional search, layer, health, sort filters) |
 | `/api/skills/{name}` | GET | Get skill detail by name |
 | `/api/skills/{name}/test` | POST | Run tests for a skill |
 | `/api/skills/{name}/versions` | GET | Get version history for a skill |
@@ -66,3 +66,4 @@ pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyn
 - SQLite stores skill metadata, test run history, and version tracking
 - Responsive design with mobile breakpoints, inline SVG favicon
 - Version history recorded on skill version changes during sync
+- Sort options: name (asc/desc), version, test_count, health (priority order)
