@@ -28,7 +28,28 @@
 </div>
 {% endif %}
 
-{% if not stats.test_summary %}
+{% if stats.dep_summary %}
+<h2 style="font-size:16px;margin:20px 0 16px;">Dependency Status</h2>
+<div class="health-grid">
+  {% for name, deps in stats.dep_summary.items() %}
+  <div class="health-item">
+    <h3><a href="/skill/{{ name }}" style="color:var(--text);">{{ name }}</a></h3>
+    <div style="margin-top:8px;font-size:13px;">
+      {% for dep in deps %}
+      <div style="margin-bottom:4px;">
+        <span style="color:#8b949e;">{{ dep.dep_name }}</span>
+        <span class="badge">{{ dep.dep_type }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not stats.test_summary and not stats.dep_summary %}
+<div class="empty">No test results or dependencies recorded yet. Run tests from skill detail pages.</div>
+{% elif not stats.test_summary %}
 <div class="empty">No test results recorded yet. Run tests from skill detail pages.</div>
 {% endif %}
 {% endblock %}

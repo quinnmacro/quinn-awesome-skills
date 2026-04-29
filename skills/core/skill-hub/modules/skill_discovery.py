@@ -136,6 +136,58 @@ def discover_skills(skills_dir: Path) -> list[dict]:
     return skills
 
 
+def _extract_dependencies(skill_md_content: str) -> list[dict]:
+    """Extract dependency names/types from SKILL.md content.
+
+    Looks for 'pip install ...' and 'brew install ...' patterns in
+    ## Dependencies sections or anywhere in the document.
+    """
+    deps: list[dict] = []
+    # pip install patterns
+    for match in re.finditer(r"pip install\s+([^\n&]+)", skill_md_content):
+        packages = match.group(1).strip().split()
+        for pkg in packages:
+            if pkg.startswith("-"):
+                continue
+            # Strip version specifiers like >=1.0, ==2.0, >0.5
+            name = re.split(r"[><=!]", pkg)[0].strip()
+            if name:
+                deps.append({"dep_name": name, "dep_type": "pip"})
+    # brew install patterns
+    for match in re.finditer(r"brew install\s+([^\n&]+)", skill_md_content):
+        packages = match.group(1).strip().split()
+        for pkg in packages:
+            if pkg.startswith("-"):
+                continue
+            name = re.split(r"[><=!]", pkg)[0].strip()
+            if name:
+                deps.append({"dep_name": name, "dep_type": "brew"})
+    # npm install patterns
+    for match in re.finditer(r"npm\s+install\s+([^\n&]+)", skill_md_content):
+        packages = match.group(1).strip().split()
+        for pkg in packages:
+            if pkg.startswith("-"):
+                continue
+            name = re.split(r"[><=!@]", pkg)[0].strip()
+            if name and name != "install":
+                deps.append({"dep_name": name, "dep_type": "npm"})
+    # npx patterns (npx runs packages directly, no "install" keyword)
+    for match in re.finditer(r"npx\s+([^\n&\s]+)", skill_md_content):
+        pkg = match.group(1).strip()
+        name = re.split(r"[><=!@]", pkg)[0].strip()
+        if name:
+            deps.append({"dep_name": name, "dep_type": "npm"})
+    # Deduplicate by (dep_name, dep_type)
+    seen = set()
+    unique = []
+    for d in deps:
+        key = (d["dep_name"], d["dep_type"])
+        if key not in seen:
+            seen.add(key)
+            unique.append(d)
+    return unique
+
+
 def _add_skill(
     skills: list[dict],
     skill_dir: Path,
@@ -166,6 +218,7 @@ def _add_skill(
         "skill_md": content,
         "author": fm.get("author", ""),
         "health": "unknown",
+        "dependencies": _extract_dependencies(content),
     })
 
 

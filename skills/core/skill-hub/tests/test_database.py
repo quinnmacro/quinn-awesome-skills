@@ -14,6 +14,7 @@ from database import (
     get_test_runs,
     get_health_stats,
     sync_skills,
+    sync_dependencies,
     upsert_dependency,
     get_dependencies,
 )
@@ -322,6 +323,42 @@ class TestSyncSkills:
         assert skill["version"] == "3.0.0"
 
 
+class TestSyncDependencies:
+    @pytest.mark.asyncio
+    async def test_sync_dependencies_from_discovered(self, db, tmp_skills_dir):
+        from skill_discovery import discover_skills
+        discovered = discover_skills(tmp_skills_dir)
+        await sync_skills(db, discovered)
+        await sync_dependencies(db, discovered)
+        # Check that skill-hub (if discovered) has its deps
+        for skill in discovered:
+            if skill.get("dependencies"):
+                deps = await get_dependencies(db, skill["name"])
+                assert len(deps) >= len(skill["dependencies"])
+
+    @pytest.mark.asyncio
+    async def test_sync_dependencies_empty_list(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        discovered = [dict(mock_skill_data, dependencies=[])]
+        await sync_dependencies(db, discovered)
+        deps = await get_dependencies(db, "test-skill")
+        assert deps == []
+
+    @pytest.mark.asyncio
+    async def test_sync_dependencies_with_pip_deps(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        discovered = [dict(mock_skill_data, dependencies=[
+            {"dep_name": "fastapi", "dep_type": "pip"},
+            {"dep_name": "uvicorn", "dep_type": "pip"},
+        ])]
+        await sync_dependencies(db, discovered)
+        deps = await get_dependencies(db, "test-skill")
+        assert len(deps) == 2
+        names = [d["dep_name"] for d in deps]
+        assert "fastapi" in names
+        assert "uvicorn" in names
+
+
 # --- dependency tests ---
 
 
@@ -472,6 +509,34 @@ class TestHealthStatsEdgeCases:
         stats = await get_health_stats(db)
         assert "core" in stats["layers"]
         assert "external" in stats["layers"]
+
+    @pytest.mark.asyncio
+    async def test_dep_summary_in_stats(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        await upsert_dependency(db, "test-skill", "fastapi", "pip", 1)
+        await upsert_dependency(db, "test-skill", "uvicorn", "pip", 1)
+        stats = await get_health_stats(db)
+        assert "dep_summary" in stats
+        assert "test-skill" in stats["dep_summary"]
+        assert len(stats["dep_summary"]["test-skill"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_dep_summary_empty_when_no_deps(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        stats = await get_health_stats(db)
+        assert stats["dep_summary"] == {}
+
+    @pytest.mark.asyncio
+    async def test_dep_summary_with_installed_flag(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        await upsert_dependency(db, "test-skill", "fastapi", "pip", 1)
+        await upsert_dependency(db, "test-skill", "requests", "pip", 0)
+        stats = await get_health_stats(db)
+        deps = stats["dep_summary"]["test-skill"]
+        installed = [d for d in deps if d["installed"]]
+        not_installed = [d for d in deps if not d["installed"]]
+        assert len(installed) == 1
+        assert len(not_installed) == 1
 
 
 class TestRecordTestRunEdgeCases:

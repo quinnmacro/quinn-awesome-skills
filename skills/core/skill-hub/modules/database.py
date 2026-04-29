@@ -187,11 +187,28 @@ async def get_health_stats(db: aiosqlite.Connection) -> dict:
 
     avg_pass_rate = pass_rate / len(test_rows) if test_rows else 0.0
 
+    # Get dependency summary
+    dep_cursor = await db.execute(
+        "SELECT skill_name, dep_name, dep_type, installed FROM dependencies ORDER BY skill_name, dep_name"
+    )
+    dep_rows = await dep_cursor.fetchall()
+    dep_summary = {}
+    for r in dep_rows:
+        skill_name = r[0]
+        if skill_name not in dep_summary:
+            dep_summary[skill_name] = []
+        dep_summary[skill_name].append({
+            "dep_name": r[1],
+            "dep_type": r[2],
+            "installed": bool(r[3]),
+        })
+
     return {
         "total_skills": total,
         "layers": layers,
         "test_summary": test_summary,
         "avg_pass_rate": avg_pass_rate,
+        "dep_summary": dep_summary,
     }
 
 
@@ -220,6 +237,19 @@ async def sync_skills(db: aiosqlite.Connection, discovered: list[dict]) -> None:
     """Sync discovered skills into the database."""
     for skill in discovered:
         await upsert_skill(db, skill)
+
+
+async def sync_dependencies(db: aiosqlite.Connection, discovered: list[dict]) -> None:
+    """Sync discovered skill dependencies into the database."""
+    for skill in discovered:
+        for dep in skill.get("dependencies", []):
+            await upsert_dependency(
+                db,
+                skill_name=skill["name"],
+                dep_name=dep["dep_name"],
+                dep_type=dep.get("dep_type", "pip"),
+                installed=0,
+            )
 
 
 def _row_to_skill(row: Any) -> dict:

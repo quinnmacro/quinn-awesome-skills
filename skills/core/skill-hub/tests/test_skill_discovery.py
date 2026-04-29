@@ -17,6 +17,7 @@ from skill_discovery import (
     _list_scripts,
     _list_modules,
     _layer_from_category,
+    _extract_dependencies,
 )
 
 
@@ -503,3 +504,101 @@ class TestGetSkillByNameAdditional:
         skill = get_skill_by_name(REAL_SKILLS_DIR, "url-fetcher")
         assert isinstance(skill["scripts"], list)
         assert len(skill["scripts"]) > 0
+
+
+# --- _extract_dependencies tests ---
+
+
+class TestExtractDependencies:
+    def test_pip_install_line(self):
+        content = "## Dependencies\n\n```bash\npip install fastapi uvicorn jinja2\n```"
+        deps = _extract_dependencies(content)
+        assert len(deps) >= 3
+        names = [d["dep_name"] for d in deps]
+        assert "fastapi" in names
+        assert "uvicorn" in names
+        assert "jinja2" in names
+
+    def test_pip_with_version_specifiers(self):
+        content = "pip install pytest>=7.0 httpx==0.24"
+        deps = _extract_dependencies(content)
+        names = [d["dep_name"] for d in deps]
+        assert "pytest" in names
+        assert "httpx" in names
+
+    def test_brew_install_line(self):
+        content = "brew install poppler gh"
+        deps = _extract_dependencies(content)
+        names = [d["dep_name"] for d in deps]
+        assert "poppler" in names
+        assert "gh" in names
+        brew_deps = [d for d in deps if d["dep_type"] == "brew"]
+        assert len(brew_deps) >= 2
+
+    def test_mixed_pip_and_brew(self):
+        content = "pip install aiosqlite\nbrew install ffmpeg"
+        deps = _extract_dependencies(content)
+        pip_deps = [d for d in deps if d["dep_type"] == "pip"]
+        brew_deps = [d for d in deps if d["dep_type"] == "brew"]
+        assert len(pip_deps) >= 1
+        assert len(brew_deps) >= 1
+
+    def test_no_dependencies(self):
+        content = "# Simple Skill\nNo deps here."
+        deps = _extract_dependencies(content)
+        assert deps == []
+
+    def test_deduplication(self):
+        content = "pip install fastapi\npip install fastapi"
+        deps = _extract_dependencies(content)
+        fastapi_count = sum(1 for d in deps if d["dep_name"] == "fastapi")
+        assert fastapi_count == 1
+
+    def test_flags_excluded(self):
+        content = "pip install --no-cache-dir fastapi"
+        deps = _extract_dependencies(content)
+        names = [d["dep_name"] for d in deps]
+        assert "fastapi" in names
+        assert "--no-cache-dir" not in names
+
+    def test_npx_pattern(self):
+        content = "npx open-websearch@latest"
+        deps = _extract_dependencies(content)
+        npm_deps = [d for d in deps if d["dep_type"] == "npm"]
+        assert len(npm_deps) >= 1
+        assert npm_deps[0]["dep_name"] == "open-websearch"
+
+    def test_npm_install_pattern(self):
+        content = "npm install express react"
+        deps = _extract_dependencies(content)
+        npm_deps = [d for d in deps if d["dep_type"] == "npm"]
+        assert len(npm_deps) >= 2
+
+    def test_real_skill_hub_deps(self):
+        """Test against the real skill-hub SKILL.md content."""
+        skill = get_skill_by_name(REAL_SKILLS_DIR, "skill-hub")
+        if skill and skill["dependencies"]:
+            names = [d["dep_name"] for d in skill["dependencies"]]
+            assert "fastapi" in names
+            assert "uvicorn" in names
+
+    def test_discovered_skills_include_dependencies(self, tmp_skills_dir):
+        """Skills with deps in their SKILL.md should include dependencies."""
+        # Create a skill with pip deps
+        dep_dir = tmp_skills_dir / "core" / "dep-skill"
+        dep_dir.mkdir()
+        (dep_dir / "SKILL.md").write_text(
+            "---\nname: dep-skill\nversion: 1.0\n---\n\n"
+            "## Dependencies\n\npip install requests flask"
+        )
+        skills = discover_skills(tmp_skills_dir)
+        dep_skill = next((s for s in skills if s["name"] == "dep-skill"), None)
+        assert dep_skill is not None
+        assert len(dep_skill["dependencies"]) >= 2
+
+    def test_skill_without_deps_has_empty_list(self, tmp_skills_dir):
+        """Skills without dependency lines should have empty dependencies."""
+        skills = discover_skills(tmp_skills_dir)
+        for s in skills:
+            assert "dependencies" in s
+            assert isinstance(s["dependencies"], list)

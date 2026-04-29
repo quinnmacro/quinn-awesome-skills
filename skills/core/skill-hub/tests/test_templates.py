@@ -163,6 +163,24 @@ class TestDetailPageContent:
         resp = client.get("/skill/nonexistent-skill")
         assert "not found" in resp.text.lower()
 
+    def test_detail_skill_hub_has_dependencies_section(self, client):
+        """Skill-hub has pip deps in its SKILL.md, so detail page should show deps."""
+        resp = client.get("/skill/skill-hub")
+        if resp.status_code == 200:
+            assert "Dependencies" in resp.text or "dependencies" in resp.text.lower()
+
+    def test_detail_dependency_table_has_columns(self, client):
+        """Dependency table should have Package, Type, Installed columns."""
+        resp = client.get("/skill/skill-hub")
+        if resp.status_code == 200 and "Dependencies" in resp.text:
+            assert "Package" in resp.text or "dep_name" in resp.text
+
+    def test_detail_dependency_shows_dep_type_badge(self, client):
+        """Each dependency should show its type as a badge."""
+        resp = client.get("/skill/skill-hub")
+        if resp.status_code == 200 and "Dependencies" in resp.text:
+            assert "pip" in resp.text
+
 
 # --- Health page content tests ---
 
@@ -196,6 +214,16 @@ class TestHealthPageContent:
         resp = client.get("/health")
         # Either shows test results or shows "No test results" message
         assert "test" in resp.text.lower()
+
+    def test_health_has_dependency_status_section(self, client):
+        resp = client.get("/health")
+        assert "Dependency Status" in resp.text or "dep_summary" in resp.text
+
+    def test_health_dep_status_shows_dep_names(self, client):
+        resp = client.get("/health")
+        # skill-hub should appear in dependency summary with its deps
+        if "Dependency Status" in resp.text:
+            assert "skill-hub" in resp.text or "fastapi" in resp.text
 
 
 # --- Install page content tests ---

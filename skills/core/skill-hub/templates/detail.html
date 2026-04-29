@@ -34,6 +34,20 @@
   </ul>
   {% endif %}
 
+  {% if deps %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Dependencies</h2>
+  <table>
+    <tr><th>Package</th><th>Type</th><th>Installed</th></tr>
+    {% for dep in deps %}
+    <tr>
+      <td>{{ dep.dep_name }}</td>
+      <td><span class="badge">{{ dep.dep_type }}</span></td>
+      <td>{{ "Yes" if dep.installed else "No" }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
   {% if test_runs %}
   <h2 style="font-size:16px;margin:16px 0 8px;">Recent Test Runs</h2>
   <table>

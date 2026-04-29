@@ -31,6 +31,7 @@ from database import (
     get_test_runs,
     get_health_stats,
     sync_skills,
+    sync_dependencies,
     upsert_dependency,
     get_dependencies,
 )
@@ -51,6 +52,7 @@ async def lifespan(app: FastAPI):
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
     await sync_skills(_db, discovered)
+    await sync_dependencies(_db, discovered)
     yield
     # Shutdown: close DB connection
     if _db is not None:
