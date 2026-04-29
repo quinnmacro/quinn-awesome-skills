@@ -12,7 +12,7 @@ import urllib.error
 import urllib.parse
 from datetime import datetime, timedelta, timezone
 
-from config import get_tech_stack, get_preferences, load_config
+from config import get_tech_stack, get_preferences, load_config, SKILL_VERSION
 
 NVD_API_BASE = "https://services.nvd.nist.gov/rest/json/cves/2.0"
 NVD_RATE_LIMIT_SECONDS = 6  # Without API key, 5 requests per 30 seconds
@@ -55,16 +55,21 @@ def fetch_cves(product, version="", days=30):
     url = f"{NVD_API_BASE}?{query}"
 
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "daily-dev-pulse/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"})
         with urllib.request.urlopen(req, timeout=15) as resp:
             data = json.loads(resp.read().decode())
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         return []
 
     vulnerabilities = data.get("vulnerabilities", [])
+    if not isinstance(vulnerabilities, list):
+        return []
+
     results = []
 
     for vuln in vulnerabilities[:10]:
+        if not isinstance(vuln, dict):
+            continue
         cve = vuln.get("cve", {})
         cve_id = cve.get("id") or ""
         descriptions = cve.get("descriptions", [])

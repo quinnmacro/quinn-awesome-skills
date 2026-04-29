@@ -14,6 +14,8 @@ try:
 except ImportError:
     YAML_AVAILABLE = False
 
+SKILL_VERSION = "1.3.0"
+
 CONFIG_PATH = Path(os.environ.get(
     "PULSE_CONFIG_PATH",
     str(Path.home() / ".quinn-skills" / "pulse-config.yml")
@@ -106,9 +108,15 @@ def merge_config(default, user):
             result[key] = value
         elif isinstance(result[key], dict) and isinstance(value, dict):
             result[key] = merge_config(result[key], value)
+        elif isinstance(result[key], dict) and value is None:
+            # User explicitly set a dict field to null — keep default dict intact
+            pass
+        elif isinstance(result[key], list) and value is None:
+            # User explicitly set a list field to null — keep default list intact
+            pass
         elif isinstance(result[key], list) and not isinstance(value, list):
             # Scalar provided for a list field — wrap into a list
-            result[key] = [value] if value is not None else []
+            result[key] = [value]
         else:
             result[key] = value
 

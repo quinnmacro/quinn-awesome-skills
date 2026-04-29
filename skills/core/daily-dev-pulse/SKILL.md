@@ -83,7 +83,7 @@ The formatter automatically creates a todo section based on:
 - Stale PRs (open longer than stale_pr_days threshold)
 - Failing CI runs
 - Open issues created within lookback_days (capped at max_issues_per_repo per repo)
-- Available CVEs affecting your tech stack (severity-based filtering)
+- Available CVEs affecting your tech stack (CRITICAL and HIGH severity only)
 
 ## Output Format
 
@@ -147,7 +147,7 @@ Structured with `##` sections, tables, and checklist items. Used when Claude nee
 | `--repos` | `all`, `quinnpm,SanctionList,...` | Which repos to scan (default: all from config) |
 | `--focus` | `security`, `news`, `activity`, `all` | Focus area (default: all) |
 | `--format` | `terminal`, `md`, `json` | Output format (default: terminal) |
-| `--days` | `1`, `7`, `30` | Activity lookback period (default: 7) |
+| `--days` | any positive integer (e.g. `1`, `7`, `30`) | Activity lookback period (default: 7) |
 | `--config` | `/path/to/config.yml` | Custom config file path (default: ~/.quinn-skills/pulse-config.yml) |
 
 ## Dependencies
@@ -200,6 +200,7 @@ preferences:
 - News aggregation uses url-fetcher scripts as fallback when direct API (HN, Dev.to, Lobsters) returns no data
 - Package trend discovery uses presearch skill to find alternatives/trends for tech stack frameworks
 - Config is optional — defaults cover the author's repos and tech stack
+- Environment variable overrides: `PULSE_CONFIG_PATH` (config file path), `PULSE_LOOKBACK_DAYS` (lookback days), `PULSE_REPOS` (repos filter)
 
 ## Related Skills
 

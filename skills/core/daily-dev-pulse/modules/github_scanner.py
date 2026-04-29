@@ -34,6 +34,9 @@ def scan_commits(repo_owner, repo_name, days=7):
         ["api", f"/repos/{repo}/commits?since={since}&per_page=50"],
         fallback=[]
     )
+    if not isinstance(commits, list):
+        return []
+
     if not commits:
         return []
 
@@ -45,6 +48,7 @@ def scan_commits(repo_owner, repo_name, days=7):
             "date": (c.get("commit", {}).get("author", {}).get("date") or "")[:10],
         }
         for c in commits[:20]
+        if isinstance(c, dict)
     ]
 
 

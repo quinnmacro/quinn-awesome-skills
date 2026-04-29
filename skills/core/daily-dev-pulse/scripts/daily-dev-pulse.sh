@@ -112,7 +112,7 @@ fi
 # Merge all collected JSON files into combined output using Python
 # (shell string concatenation is fragile with JSON data)
 # Also include preferences (format, stale_pr_days, lookback_days) so the formatter uses config thresholds
-python3 -c "
+PULSE_MODULES_DIR="${MODULES_DIR}" PULSE_TMPDIR="${TMPDIR}" python3 -c "
 import json, os, sys
 from datetime import datetime, timezone
 
@@ -126,7 +126,11 @@ combined['scan_date'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'
 # Import config.py to get the full preferences dict automatically — no manual key enumeration needed
 # This ensures any new preference added to DEFAULT_CONFIG flows through without manual updates
 try:
-    sys.path.insert(0, os.environ.get('PULSE_MODULES_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'modules')))
+    modules_dir = os.environ.get('PULSE_MODULES_DIR', '')
+    if not modules_dir:
+        # __file__ is undefined in python3 -c mode, so env var is the only reliable path
+        sys.exit(1)
+    sys.path.insert(0, modules_dir)
     from config import load_config, get_preferences
     prefs = get_preferences(load_config())
     combined['preferences'] = prefs
@@ -143,11 +147,11 @@ for key in ['github', 'security', 'packages', 'news']:
             combined[key] = {'source': key, 'error': 'data_corrupted'}
 
 json.dump(combined, sys.stdout, ensure_ascii=False)
-" PULSE_MODULES_DIR="${MODULES_DIR}" PULSE_TMPDIR="${TMPDIR}" > "${TMPDIR}/combined.json"
+" > "${TMPDIR}/combined.json"
 
 # If --format was not explicitly passed, fall back to config preference
 if [[ -z "${FORMAT}" ]]; then
-    FORMAT=$(python3 -c "
+    FORMAT=$(PULSE_TMPDIR="${TMPDIR}" python3 -c "
 import json, os, sys
 tmpdir = os.environ.get('PULSE_TMPDIR', '')
 if not tmpdir:
@@ -156,7 +160,7 @@ if not tmpdir:
 with open(os.path.join(tmpdir, 'combined.json')) as f:
     data = json.load(f)
 print(data.get('preferences', {}).get('format', 'terminal'))
-" PULSE_TMPDIR="${TMPDIR}")
+")
 fi
 
 # Format output

@@ -2849,11 +2849,11 @@ class TestTestFileSelfConsistency(unittest.TestCase):
 
 
 class TestPathInjectionSafety(unittest.TestCase):
-    """Verify that shell script Python code uses env vars instead of shell interpolation.
+    """Verify that shell script Python string content uses env vars instead of shell interpolation.
 
-    Shell variables like ${TMPDIR} interpolated into Python string literals break
-    Python syntax if the path contains single quotes (same bug class fixed for
-    MODULES_DIR in iteration 26 — this class verifies the fix was applied to TMPDIR too).
+    Shell env var assignments BEFORE python3 (VAR="${SHELL_VAR}" python3 -c "...") are safe
+    shell syntax, NOT Python interpolation. The dangerous pattern is ${VAR} inside the
+    Python -c string content (between the opening and closing quotes).
     """
 
     def _read_shell_script(self):
@@ -2861,66 +2861,85 @@ class TestPathInjectionSafety(unittest.TestCase):
         with open(script_path) as f:
             return f.read()
 
+    def _extract_python_string_content(self, content):
+        """Extract just the Python string content from -c blocks (between opening and closing quotes).
+
+        This excludes shell env var assignments that appear BEFORE python3 on the same line,
+        since those are safe shell syntax, not Python interpolation. Also excludes shell
+        redirections that appear AFTER the closing quote on the same line.
+        """
+        result_parts = []
+        i = 0
+        lines = content.split("\n")
+        while i < len(lines):
+            line = lines[i]
+            if "python3 -c" in line:
+                # Find the opening quote for the -c argument
+                idx = line.find("python3 -c")
+                quote_idx = line.find('"', idx)
+                if quote_idx != -1:
+                    # Collect content starting from after the opening quote
+                    block_content = []
+                    # First line: content after the quote
+                    rest_of_line = line[quote_idx + 1:]
+                    # Check if the closing quote is on this same line
+                    close_idx = rest_of_line.rfind('"')
+                    if close_idx != -1 and rest_of_line.endswith('"'):
+                        # Single-line python3 -c "short code" — extract just between quotes
+                        block_content.append(rest_of_line[:close_idx])
+                        result_parts.append("\n".join(block_content))
+                    else:
+                        # Multi-line block: content after opening quote
+                        block_content.append(rest_of_line)
+                        i += 1
+                        # Continue until closing quote
+                        while i < len(lines):
+                            cur_line = lines[i]
+                            # Find the closing quote — it may be followed by shell redirection
+                            close_pos = cur_line.find('"')
+                            if close_pos != -1:
+                                # Content before the closing quote is Python code
+                                block_content.append(cur_line[:close_pos])
+                                break
+                            block_content.append(cur_line)
+                            i += 1
+                        result_parts.append("\n".join(block_content))
+            i += 1
+        return "\n".join(result_parts)
+
     def test_merge_section_no_tmpdir_shell_interpolation(self):
-        """The merge section Python code should not contain bare ${TMPDIR} interpolation."""
+        """The merge section Python string content should not contain bare ${TMPDIR} interpolation."""
         content = self._read_shell_script()
-        # Find the merge Python section (between "python3 -c" and closing quote)
-        # ${TMPDIR} inside Python string literals is dangerous — paths with single quotes break syntax
-        # The safe approach is os.environ.get('PULSE_TMPDIR') which reads the env var directly
         # Check that the Python code for tmpdir assignment uses os.environ, not shell interpolation
         assert "os.environ.get('PULSE_TMPDIR'" in content
-        # Verify no bare ${TMPDIR} inside Python code blocks (shell interpolation into Python strings)
-        # ${TMPDIR} is safe when used in shell redirections (>${TMPDIR}/combined.json) but dangerous
-        # inside Python string literals
-        python_blocks = []
-        in_python = False
-        current_block = []
-        for line in content.split("\n"):
-            if "python3 -c" in line and '"' in line:
-                in_python = True
-                current_block = []
-            if in_python:
-                current_block.append(line)
-                if line.strip() == '"' or line.strip().endswith('"'):
-                    in_python = False
-                    python_blocks.append("\n".join(current_block))
-        for block in python_blocks:
-            assert "${TMPDIR}" not in block, \
-                f"Shell interpolation ${TMPDIR} found inside Python code block — path injection risk"
+        # Shell env var assignments BEFORE python3 (VAR="${SHELL_VAR}" python3 -c "...") are safe
+        # shell syntax, NOT Python interpolation. The dangerous pattern is ${VAR} inside the
+        # Python -c string content. We extract just the string content (between opening and closing
+        # quotes of the -c argument) to check.
+        python_string_content = self._extract_python_string_content(content)
+        assert "${TMPDIR}" not in python_string_content, \
+            "Shell interpolation ${TMPDIR} found inside Python string content — path injection risk"
 
     def test_format_fallback_no_tmpdir_shell_interpolation(self):
-        """The format fallback Python code should not contain bare ${TMPDIR} interpolation."""
+        """The format fallback Python string content should not contain bare ${TMPDIR} interpolation."""
         content = self._read_shell_script()
         # The format fallback reads combined.json to determine format preference
-        # It should use os.environ.get('PULSE_TMPDIR') + '/combined.json' instead of
-        # bare ${TMPDIR}/combined.json interpolated into Python's open() call
-        assert "PULSE_TMPDIR" in content.split("FORMAT=$(python3")[1].split("fi")[0] if "FORMAT=$(python3" in content else ""
-        # Verify the format fallback block uses os.environ for the path
-        fallback_section = content[content.find("FORMAT=$(python3"):content.find("fi", content.find("FORMAT=$(python3"))]
+        # It should use os.environ.get('PULSE_TMPDIR') instead of bare ${TMPDIR} interpolation
+        fallback_section = content[content.find("FORMAT=$(PULSE_TMPDIR"):content.find("fi", content.find("FORMAT=$(PULSE_TMPDIR"))] if "FORMAT=$(PULSE_TMPDIR" in content else ""
+        if not fallback_section:
+            fallback_section = content[content.find("FORMAT=$(python3"):content.find("fi", content.find("FORMAT=$(python3"))]
         assert "os.environ.get('PULSE_TMPDIR'" in fallback_section, \
             "Format fallback must use env var for TMPDIR path, not shell interpolation"
 
     def test_modules_dir_env_var_used(self):
         """MODULES_DIR should also be passed via env var, not shell interpolation in Python."""
         content = self._read_shell_script()
-        # PULSE_MODULES_DIR env var was added in iteration 26 for MODULES_DIR
         assert "PULSE_MODULES_DIR" in content
-        # Verify no bare ${MODULES_DIR} inside Python code blocks
-        python_blocks = []
-        in_python = False
-        current_block = []
-        for line in content.split("\n"):
-            if "python3 -c" in line and '"' in line:
-                in_python = True
-                current_block = []
-            if in_python:
-                current_block.append(line)
-                if line.strip() == '"' or line.strip().endswith('"'):
-                    in_python = False
-                    python_blocks.append("\n".join(current_block))
-        for block in python_blocks:
-            assert "${MODULES_DIR}" not in block, \
-                f"Shell interpolation ${MODULES_DIR} found inside Python code block — path injection risk"
+        # Shell env var assignments BEFORE python3 are safe shell syntax.
+        # Only check for ${MODULES_DIR} inside Python string content (between -c quotes).
+        python_string_content = self._extract_python_string_content(content)
+        assert "${MODULES_DIR}" not in python_string_content, \
+            "Shell interpolation ${MODULES_DIR} found inside Python string content — path injection risk"
 
     def test_env_vars_always_passed(self):
         """PULSE_TMPDIR and PULSE_MODULES_DIR must be passed on the Python command line."""
@@ -3601,15 +3620,15 @@ class TestMergeConfigTypeMismatch(unittest.TestCase):
         assert sources == ["hn"], \
             f"Expected ['hn'], got {sources}"
 
-    def test_none_scalar_produces_empty_list(self):
-        """A None value for a list field must produce an empty list."""
+    def test_none_for_list_preserves_defaults(self):
+        """A None value for a list field must preserve default list intact."""
         user_config = {"tech_stack": {"frameworks": None}}
         result = config.merge_config(config.DEFAULT_CONFIG, user_config)
         frameworks = result["tech_stack"]["frameworks"]
         assert isinstance(frameworks, list), \
             f"frameworks must be a list, got {type(frameworks).__name__}"
-        assert frameworks == [], \
-            f"Expected [], got {frameworks}"
+        assert frameworks == config.DEFAULT_CONFIG["tech_stack"]["frameworks"], \
+            f"None should preserve defaults, got {frameworks}"
 
     def test_list_value_preserved_as_list(self):
         """A proper list value must be preserved as-is."""
@@ -4403,3 +4422,272 @@ class TestPulseTmpdirSafety(unittest.TestCase):
             content = f.read()
         assert "'/combined.json'" not in content, \
             "Must not use bare string concatenation for file paths"
+
+class TestShellEnvVarPlacement(unittest.TestCase):
+    """Verify env vars are placed BEFORE python3 commands, not after (Issue 18-19)."""
+
+    SHELL_SCRIPT = os.path.join(SCRIPTS_DIR, "daily-dev-pulse.sh")
+
+    def test_merge_block_env_vars_before_command(self):
+        """Merge Python block must have env vars BEFORE python3, not as positional args."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        # Find the line that runs python3 for the merge block
+        # The env vars must come BEFORE python3 -c, not after the closing quote
+        # Pattern: VAR=value python3 -c "..."  (correct)
+        # NOT: python3 -c "..." VAR=value      (wrong - these become sys.argv)
+        assert "PULSE_MODULES_DIR=\"${MODULES_DIR}\" PULSE_TMPDIR=\"${TMPDIR}\" python3" in content, \
+            "Env vars must be placed BEFORE python3 command for the merge block"
+
+    def test_merge_block_env_vars_not_after_command(self):
+        """Merge block must NOT have env vars after the closing Python quote."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        # The old pattern was: python3 -c "..." PULSE_MODULES_DIR=...
+        # This is wrong because VAR=value after the command becomes sys.argv
+        assert '" PULSE_MODULES_DIR=' not in content, \
+            "Env vars must NOT appear after the closing Python quote (would be positional args)"
+
+    def test_format_fallback_env_vars_before_command(self):
+        """Format fallback Python block must have env vars BEFORE python3."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        assert "PULSE_TMPDIR=\"${TMPDIR}\" python3" in content, \
+            "Format fallback env var must be BEFORE python3 command"
+
+    def test_no___file___in_python_c_blocks(self):
+        """python3 -c blocks must not reference __file__ (undefined in -c mode)."""
+        with open(self.SHELL_SCRIPT) as f:
+            content = f.read()
+        # __file__ is undefined when running python3 -c
+        # Check that it's not used in the inline Python code blocks
+        # We check by looking for __file__ references that aren't in comments
+        lines = content.split('\n')
+        for line in lines:
+            stripped = line.strip()
+            if '__file__' in stripped and not stripped.startswith('#'):
+                # If __file__ appears in actual code (not a comment), it's a bug
+                assert False, f"__file__ reference found in shell script code: {stripped}"
+
+
+class TestMergeConfigNullDict(unittest.TestCase):
+    """Verify merge_config preserves defaults when user provides null for dict fields."""
+
+    def test_null_preferences_preserves_defaults(self):
+        """merge_config('preferences': null) must keep default preferences intact."""
+        user_config = {"preferences": None}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        # None should NOT replace the preferences dict - defaults must be preserved
+        assert result["preferences"] == config.DEFAULT_CONFIG["preferences"], \
+            "Null preferences must not destroy default preferences dict"
+
+    def test_null_tech_stack_preserves_defaults(self):
+        """merge_config('tech_stack': null) must keep default tech_stack intact."""
+        user_config = {"tech_stack": None}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        assert result["tech_stack"] == config.DEFAULT_CONFIG["tech_stack"], \
+            "Null tech_stack must not destroy default tech_stack dict"
+
+    def test_null_dependencies_preserves_defaults(self):
+        """merge_config('dependencies': null) must keep default dependencies intact."""
+        user_config = {"dependencies": None}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        assert result["dependencies"] == config.DEFAULT_CONFIG["dependencies"], \
+            "Null dependencies must not destroy default dependencies dict"
+
+    def test_null_list_field_preserves_defaults(self):
+        """merge_config('repos': null) must keep default repos intact."""
+        user_config = {"repos": None}
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        assert result["repos"] == config.DEFAULT_CONFIG["repos"], \
+            "Null repos must not destroy default repos list"
+
+    def test_partial_override_with_null_sibling(self):
+        """merge_config must handle partial override while sibling is null."""
+        user_config = {
+            "tech_stack": None,
+            "preferences": {"lookback_days": 14},
+        }
+        result = config.merge_config(config.DEFAULT_CONFIG, user_config)
+        # tech_stack should remain default (null didn't destroy it)
+        assert result["tech_stack"] == config.DEFAULT_CONFIG["tech_stack"]
+        # preferences should have lookback_days overridden but other defaults preserved
+        assert result["preferences"]["lookback_days"] == 14
+        assert result["preferences"]["format"] == "terminal"
+
+
+class TestUserAgentVersion(unittest.TestCase):
+    """Verify User-Agent headers use centralized SKILL_VERSION, not hardcoded 1.0."""
+
+    def test_skill_version_constant_exists(self):
+        """config.py must define SKILL_VERSION constant."""
+        assert hasattr(config, 'SKILL_VERSION'), \
+            "SKILL_VERSION must be defined in config.py"
+        assert config.SKILL_VERSION == "1.3.0", \
+            f"SKILL_VERSION must match SKILL.md version, got {config.SKILL_VERSION}"
+
+    def test_security_checker_imports_skill_version(self):
+        """security_checker.py must import SKILL_VERSION from config."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "SKILL_VERSION" in content, \
+            "security_checker must import SKILL_VERSION from config"
+
+    def test_security_checker_user_agent_dynamic(self):
+        """security_checker.py User-Agent must use f-string with SKILL_VERSION."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "f\"daily-dev-pulse/{SKILL_VERSION}\"" in content, \
+            "User-Agent must use dynamic SKILL_VERSION, not hardcoded 1.0"
+
+    def test_news_aggregator_user_agent_dynamic(self):
+        """news_aggregator.py User-Agent must use f-string with SKILL_VERSION."""
+        with open(os.path.join(MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        assert "f\"daily-dev-pulse/{SKILL_VERSION}\"" in content, \
+            "news_aggregator User-Agent must use dynamic SKILL_VERSION"
+
+    def test_package_watcher_user_agent_dynamic(self):
+        """package_watcher.py User-Agent must use f-string with SKILL_VERSION."""
+        with open(os.path.join(MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        assert "f\"daily-dev-pulse/{SKILL_VERSION}\"" in content, \
+            "package_watcher User-Agent must use dynamic SKILL_VERSION"
+
+    def test_no_hardcoded_user_agent_1_0(self):
+        """No module should have hardcoded User-Agent 'daily-dev-pulse/1.0'."""
+        module_files = ["security_checker.py", "news_aggregator.py", "package_watcher.py"]
+        for mf in module_files:
+            with open(os.path.join(MODULES_DIR, mf)) as f:
+                content = f.read()
+            assert "daily-dev-pulse/1.0" not in content, \
+                f"{mf} must not contain hardcoded 'daily-dev-pulse/1.0'"
+
+
+class TestExceptionCatchClarity(unittest.TestCase):
+    """Verify redundant Exception catch tuples have been cleaned up."""
+
+    def test_security_checker_no_redundant_exception_tuple(self):
+        """security_checker.py must not have (URLError, HTTPError, JSONDecodeError, Exception)."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception" not in content, \
+            "security_checker must not have redundant exception tuple (specific+Exception)"
+
+    def test_news_aggregator_no_redundant_exception_tuple(self):
+        """news_aggregator.py must not have (URLError, HTTPError, JSONDecodeError, Exception)."""
+        with open(os.path.join(MODULES_DIR, "news_aggregator.py")) as f:
+            content = f.read()
+        assert "urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception" not in content, \
+            "news_aggregator must not have redundant exception tuple"
+
+    def test_package_watcher_no_redundant_exception_tuple(self):
+        """package_watcher.py must not have (URLError, HTTPError, JSONDecodeError, Exception)."""
+        with open(os.path.join(MODULES_DIR, "package_watcher.py")) as f:
+            content = f.read()
+        assert "urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception" not in content, \
+            "package_watcher must not have redundant exception tuple"
+
+
+class TestGithubScannerIsinstanceGuards(unittest.TestCase):
+    """Verify github_scanner.py has isinstance guards on commits iteration."""
+
+    def test_commits_isinstance_guard(self):
+        """scan_commits must check isinstance(commits, list) before iteration."""
+        with open(os.path.join(MODULES_DIR, "github_scanner.py")) as f:
+            content = f.read()
+        assert "isinstance(commits, list)" in content, \
+            "scan_commits must guard commits with isinstance(list)"
+
+    def test_commit_items_isinstance_guard(self):
+        """scan_commits must check isinstance(c, dict) in comprehension."""
+        with open(os.path.join(MODULES_DIR, "github_scanner.py")) as f:
+            content = f.read()
+        assert "isinstance(c, dict)" in content, \
+            "scan_commits comprehension must guard individual commits with isinstance(dict)"
+
+    def test_non_list_commits_returns_empty(self):
+        """scan_commits must return [] when gh returns non-list data."""
+        with patch.object(github_scanner, 'run_gh', return_value={"error": "not a list"}):
+            result = github_scanner.scan_commits("quinnmacro", "test-repo")
+            assert result == [], f"Expected empty list for non-list gh output, got {result}"
+
+
+class TestSecurityCheckerIsinstanceGuards(unittest.TestCase):
+    """Verify security_checker.py has isinstance guards on vulnerabilities iteration."""
+
+    def test_vulnerabilities_isinstance_guard(self):
+        """fetch_cves must check isinstance(vulnerabilities, list) before iteration."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "isinstance(vulnerabilities, list)" in content, \
+            "fetch_cves must guard vulnerabilities with isinstance(list)"
+
+    def test_vuln_items_isinstance_guard(self):
+        """fetch_cves must check isinstance(vuln, dict) in loop."""
+        with open(os.path.join(MODULES_DIR, "security_checker.py")) as f:
+            content = f.read()
+        assert "isinstance(vuln, dict)" in content, \
+            "fetch_cves must guard individual vuln items with isinstance(dict)"
+
+    def test_non_list_vulnerabilities_returns_empty(self):
+        """fetch_cves must return [] when NVD returns non-list vulnerabilities."""
+        # Mock the urllib.request.urlopen to return non-list data
+        mock_data = json.dumps({"vulnerabilities": "not a list"}).encode()
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = mock_data
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        with patch('urllib.request.urlopen', return_value=mock_resp):
+            result = security_checker.fetch_cves("python", "3.13", days=30)
+            assert result == [], f"Expected empty list for non-list vulnerabilities, got {result}"
+
+    def test_dict_vuln_items_skipped(self):
+        """fetch_cves must skip non-dict vuln items in iteration."""
+        # Mock vulnerabilities list with mixed dict and non-dict items
+        mock_data = json.dumps({
+            "vulnerabilities": [
+                None,
+                "string_item",
+                {"cve": {"id": "CVE-2025-0001", "descriptions": [], "metrics": {}, "published": "2025-01-01T00:00:00Z"}},
+            ]
+        }).encode()
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = mock_data
+        mock_resp.__enter__ = MagicMock(return_value=mock_resp)
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        with patch('urllib.request.urlopen', return_value=mock_resp):
+            result = security_checker.fetch_cves("python", "3.13", days=30)
+            # Only the dict item should produce a result (1 result, not 3)
+            assert len(result) == 1, f"Expected 1 result (only dict item), got {len(result)}"
+
+
+class TestSkillMdDocumentationAccuracyV3(unittest.TestCase):
+    """Verify SKILL.md documentation accuracy for iteration 36 fixes."""
+
+    SKILL_MD = os.path.join(MODULES_DIR, "..", "SKILL.md")
+
+    def test_severity_filtering_specifies_critical_and_high(self):
+        """SKILL.md must specify CRITICAL and HIGH severity for action items."""
+        with open(self.SKILL_MD) as f:
+            content = f.read()
+        assert "CRITICAL and HIGH" in content, \
+            "Action items severity filtering must specify 'CRITICAL and HIGH severity only'"
+
+    def test_days_argument_accepts_any_positive_integer(self):
+        """SKILL.md --days argument must say 'any positive integer', not just 1/7/30."""
+        with open(self.SKILL_MD) as f:
+            content = f.read()
+        assert "positive integer" in content, \
+            "--days documentation must specify 'any positive integer', not limited to 1/7/30"
+
+    def test_env_var_overrides_documented(self):
+        """SKILL.md must document PULSE_CONFIG_PATH, PULSE_LOOKBACK_DAYS, PULSE_REPOS env vars."""
+        with open(self.SKILL_MD) as f:
+            content = f.read()
+        assert "PULSE_CONFIG_PATH" in content, \
+            "PULSE_CONFIG_PATH env var override must be documented"
+        assert "PULSE_LOOKBACK_DAYS" in content, \
+            "PULSE_LOOKBACK_DAYS env var override must be documented"
+        assert "PULSE_REPOS" in content, \
+            "PULSE_REPOS env var override must be documented"

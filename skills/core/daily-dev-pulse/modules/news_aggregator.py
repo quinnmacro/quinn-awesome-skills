@@ -1,6 +1,6 @@
 """News aggregator for Daily Dev Pulse.
 
-Fetches top stories from HN, Dev.to, Lobsters, and other dev news sources.
+Fetches top stories from HN, Dev.to, and Lobsters.
 Uses url-fetcher skill for article content extraction as a fallback.
 """
 
@@ -12,7 +12,7 @@ import urllib.error
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
-from config import get_preferences, load_config
+from config import get_preferences, load_config, SKILL_VERSION
 
 HN_API = "https://hacker-news.firebaseio.com/v0"
 DEVTO_API = "https://dev.to/api/articles"
@@ -105,7 +105,7 @@ def _fetch_hn_item(sid):
     try:
         item_req = urllib.request.Request(
             f"{HN_API}/item/{sid}.json",
-            headers={"User-Agent": "daily-dev-pulse/1.0"}
+            headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"}
         )
         with urllib.request.urlopen(item_req, timeout=5) as item_resp:
             item = json.loads(item_resp.read().decode())
@@ -118,7 +118,7 @@ def _fetch_hn_item(sid):
                 "comments": item.get("descendants", 0),
                 "source": "hn",
             }
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         pass
     return None
 
@@ -128,7 +128,7 @@ def fetch_hn_top(limit=10):
     try:
         req = urllib.request.Request(
             f"{HN_API}/topstories.json",
-            headers={"User-Agent": "daily-dev-pulse/1.0"}
+            headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = json.loads(resp.read().decode())
@@ -147,7 +147,7 @@ def fetch_hn_top(limit=10):
         stories.sort(key=lambda s: id_order.get(s.get("id", ""), 0))
 
         return stories
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         return []
 
 
@@ -156,7 +156,7 @@ def fetch_devto_top(limit=10):
     try:
         req = urllib.request.Request(
             f"{DEVTO_API}?per_page={limit}&top=7",
-            headers={"User-Agent": "daily-dev-pulse/1.0"}
+            headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = json.loads(resp.read().decode())
@@ -175,7 +175,7 @@ def fetch_devto_top(limit=10):
             for a in articles[:limit]
             if isinstance(a, dict)
         ]
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         return []
 
 
@@ -184,7 +184,7 @@ def fetch_lobsters_top(limit=10):
     try:
         req = urllib.request.Request(
             f"{LOBSTERS_API}",
-            headers={"User-Agent": "daily-dev-pulse/1.0"}
+            headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             raw = json.loads(resp.read().decode())
@@ -203,7 +203,7 @@ def fetch_lobsters_top(limit=10):
             for s in stories[:limit]
             if isinstance(s, dict)
         ]
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         return []
 
 

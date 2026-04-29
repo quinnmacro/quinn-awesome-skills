@@ -11,7 +11,7 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone
 
-from config import get_dependencies, get_tech_stack, load_config
+from config import get_dependencies, get_tech_stack, load_config, SKILL_VERSION
 
 NPM_API = "https://registry.npmjs.org"
 PYPI_API = "https://pypi.org/pypi"
@@ -74,7 +74,7 @@ def fetch_npm_info(package):
     try:
         req = urllib.request.Request(
             f"{NPM_API}/{package}/latest",
-            headers={"User-Agent": "daily-dev-pulse/1.0"}
+            headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
@@ -87,7 +87,7 @@ def fetch_npm_info(package):
             "homepage": data.get("homepage") or "",
             "license": data.get("license") or "",
         }
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         return {
             "package": package,
             "registry": "npm",
@@ -101,7 +101,7 @@ def fetch_pypi_info(package):
     try:
         req = urllib.request.Request(
             f"{PYPI_API}/{package}/json",
-            headers={"User-Agent": "daily-dev-pulse/1.0"}
+            headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"}
         )
         with urllib.request.urlopen(req, timeout=10) as resp:
             data = json.loads(resp.read().decode())
@@ -127,7 +127,7 @@ def fetch_pypi_info(package):
             "changelog_url": changelog_url or "",
             "license": info.get("license") or "",
         }
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, Exception):
+    except Exception:
         return {
             "package": package,
             "registry": "pypi",
