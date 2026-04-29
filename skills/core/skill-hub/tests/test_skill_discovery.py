@@ -342,3 +342,155 @@ class TestSearchSkills:
     def test_search_real_project(self):
         results = search_skills(REAL_SKILLS_DIR, "fetch")
         assert len(results) >= 1
+
+    def test_search_empty_string(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "")
+        # Empty query matches everything
+        assert len(results) >= 3
+
+    def test_search_special_chars(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "@#$")
+        assert len(results) == 0
+
+
+# --- Additional discovery edge case tests ---
+
+
+class TestYamlFrontmatterAdditional:
+    def test_frontmatter_only_equals_name(self):
+        text = "---\nname: only-name\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "only-name"
+        assert len(result) == 1
+
+    def test_frontmatter_with_boolean_like_values(self):
+        text = "---\nname: bool-test\nprivate: false\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "bool-test"
+        assert result["private"] == "false"
+
+    def test_frontmatter_with_numeric_version(self):
+        text = "---\nname: num\nversion: 42\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["version"] == "42"
+
+    def test_frontmatter_malformed_no_closing(self):
+        text = "---\nname: broken\nno closing dashes"
+        result = _yaml_frontmatter(text)
+        assert result == {}
+
+    def test_frontmatter_with_spaces_in_value(self):
+        text = "---\nname: spaced\nauthor: Some Person\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["author"] == "Some Person"
+
+
+class TestDiscoverSkillsAdditional:
+    def test_discover_skill_health_is_unknown(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        for s in skills:
+            assert s["health"] == "unknown"
+
+    def test_discover_skill_path_is_absolute(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        for s in skills:
+            assert Path(s["path"]).is_absolute()
+
+    def test_discover_no_skills_in_empty_category(self, tmp_path):
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        (skills_dir / "empty_category").mkdir()
+        skills = discover_skills(skills_dir)
+        assert skills == []
+
+    def test_discover_skill_dir_without_skill_md(self, tmp_path):
+        """A directory without SKILL.md should not appear as a top-level skill."""
+        skills_dir = tmp_path / "skills"
+        core = skills_dir / "core"
+        core.mkdir(parents=True)
+        no_md = core / "no-md-skill"
+        no_md.mkdir()
+        (no_md / "README.md").write_text("# Not a skill")
+        skills = discover_skills(skills_dir)
+        names = [s["name"] for s in skills]
+        assert "no-md-skill" not in names
+
+    def test_discover_category_dot_dirs_skipped(self, tmp_path):
+        skills_dir = tmp_path / "skills"
+        dot = skills_dir / ".hidden_cat"
+        dot.mkdir(parents=True)
+        skill_dir = dot / "some-skill"
+        skill_dir.mkdir()
+        (skill_dir / "SKILL.md").write_text("---\nname: should-skip\n---\n")
+        skills = discover_skills(skills_dir)
+        assert "should-skip" not in [s["name"] for s in skills]
+
+    def test_discover_returns_correct_layer(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        core_skills = [s for s in skills if s["layer"] == "core"]
+        ext_skills = [s for s in skills if s["layer"] == "external"]
+        assert len(core_skills) >= 2
+        assert len(ext_skills) >= 1
+
+
+class TestListScriptsAdditional:
+    def test_python_scripts_listed(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "process.py").write_text("pass")
+        result = _list_scripts(skill_dir)
+        assert "process.py" in result
+
+    def test_empty_scripts_dir(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir()
+        result = _list_scripts(skill_dir)
+        assert result == []
+
+
+class TestListModulesAdditional:
+    def test_only_py_in_modules(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        modules_dir = skill_dir / "modules"
+        modules_dir.mkdir()
+        (modules_dir / "app.py").write_text("pass")
+        (modules_dir / "config.toml").write_text("")
+        result = _list_modules(skill_dir)
+        assert "app.py" in result
+        assert "config.toml" not in result
+
+    def test_empty_modules_dir(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        modules_dir = skill_dir / "modules"
+        modules_dir.mkdir()
+        result = _list_modules(skill_dir)
+        assert result == []
+
+
+class TestLayerFromCategoryAdditional:
+    def test_numeric_category(self):
+        assert _layer_from_category("123") == "123"
+
+    def test_empty_category(self):
+        assert _layer_from_category("") == ""
+
+    def test_category_with_hyphens(self):
+        assert _layer_from_category("some-layer") == "some-layer"
+
+
+class TestGetSkillByNameAdditional:
+    def test_real_skill_has_modules(self):
+        skill = get_skill_by_name(REAL_SKILLS_DIR, "url-fetcher")
+        # url-fetcher doesn't have a modules dir
+        assert isinstance(skill["modules"], list)
+
+    def test_real_skill_has_scripts(self):
+        skill = get_skill_by_name(REAL_SKILLS_DIR, "url-fetcher")
+        assert isinstance(skill["scripts"], list)
+        assert len(skill["scripts"]) > 0

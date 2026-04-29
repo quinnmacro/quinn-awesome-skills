@@ -364,3 +364,136 @@ class TestDependencies:
         await upsert_skill(db, mock_skill_data)
         deps = await get_dependencies(db, "test-skill")
         assert deps == []
+
+    @pytest.mark.asyncio
+    async def test_dependency_dep_type_values(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        await upsert_dependency(db, "test-skill", "node", "npm", 1)
+        deps = await get_dependencies(db, "test-skill")
+        assert deps[0]["dep_type"] == "npm"
+
+    @pytest.mark.asyncio
+    async def test_get_dependencies_for_nonexistent_skill(self, db):
+        deps = await get_dependencies(db, "no-such-skill")
+        assert deps == []
+
+
+# --- Additional database edge case tests ---
+
+
+class TestUpsertSkillEdgeCases:
+    @pytest.mark.asyncio
+    async def test_skill_with_empty_scripts(self, db):
+        skill = {"name": "empty-scripts", "path": "/tmp", "scripts": [], "modules": ["m.py"]}
+        await upsert_skill(db, skill)
+        result = await get_skill(db, "empty-scripts")
+        assert result["scripts"] == []
+
+    @pytest.mark.asyncio
+    async def test_skill_with_empty_modules(self, db):
+        skill = {"name": "empty-mods", "path": "/tmp", "scripts": ["s.sh"], "modules": []}
+        await upsert_skill(db, skill)
+        result = await get_skill(db, "empty-mods")
+        assert result["modules"] == []
+
+    @pytest.mark.asyncio
+    async def test_skill_with_unicode_description(self, db):
+        skill = {"name": "unicode-skill", "path": "/tmp", "description": "技能测试 中文描述"}
+        await upsert_skill(db, skill)
+        result = await get_skill(db, "unicode-skill")
+        assert "中文" in result["description"]
+
+    @pytest.mark.asyncio
+    async def test_skill_with_long_description(self, db):
+        long_desc = "A" * 5000
+        skill = {"name": "long-desc", "path": "/tmp", "description": long_desc}
+        await upsert_skill(db, skill)
+        result = await get_skill(db, "long-desc")
+        assert result["description"] == long_desc
+
+    @pytest.mark.asyncio
+    async def test_skill_with_special_chars_in_name(self, db):
+        skill = {"name": "url-fetcher-v2", "path": "/tmp"}
+        await upsert_skill(db, skill)
+        result = await get_skill(db, "url-fetcher-v2")
+        assert result["name"] == "url-fetcher-v2"
+
+    @pytest.mark.asyncio
+    async def test_upsert_preserves_discovered_at(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        first = await get_skill(db, "test-skill")
+        first_discovered = first["discovered_at"]
+        mock_skill_data["version"] = "5.0.0"
+        await upsert_skill(db, mock_skill_data)
+        second = await get_skill(db, "test-skill")
+        assert second["discovered_at"] == first_discovered
+        assert second["version"] == "5.0.0"
+
+
+class TestSearchEdgeCases:
+    @pytest.mark.asyncio
+    async def test_search_exact_name_match(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        results = await search_skills_db(db, "test-skill")
+        assert len(results) >= 1
+
+    @pytest.mark.asyncio
+    async def test_search_case_sensitivity(self, db, mock_skill_data):
+        mock_skill_data["description"] = "UPPERCASE Description"
+        await upsert_skill(db, mock_skill_data)
+        results = await search_skills_db(db, "UPPERCASE")
+        assert len(results) >= 1
+
+    @pytest.mark.asyncio
+    async def test_search_partial_name(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        results = await search_skills_db(db, "test")
+        assert len(results) >= 1
+
+
+class TestHealthStatsEdgeCases:
+    @pytest.mark.asyncio
+    async def test_pass_rate_zero_with_no_tests(self, db):
+        await upsert_skill(db, {"name": "no-tests", "path": "/tmp"})
+        stats = await get_health_stats(db)
+        assert stats["avg_pass_rate"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_multiple_skills_same_layer(self, db):
+        for name in ["a", "b", "c"]:
+            await upsert_skill(db, {"name": name, "path": "/tmp/" + name, "layer": "core"})
+        stats = await get_health_stats(db)
+        assert stats["layers"]["core"] == 3
+
+    @pytest.mark.asyncio
+    async def test_layers_dict_has_all_layers(self, db):
+        await upsert_skill(db, {"name": "core1", "path": "/tmp", "layer": "core"})
+        await upsert_skill(db, {"name": "ext1", "path": "/tmp", "layer": "external"})
+        stats = await get_health_stats(db)
+        assert "core" in stats["layers"]
+        assert "external" in stats["layers"]
+
+
+class TestRecordTestRunEdgeCases:
+    @pytest.mark.asyncio
+    async def test_all_passed(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        result = {"skill_name": "test-skill", "status": "completed", "total_tests": 5, "passed": 5, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "5 passed", "started_at": "2026-04-29", "finished_at": "2026-04-29"}
+        run_id = await record_test_run(db, result)
+        assert run_id > 0
+
+    @pytest.mark.asyncio
+    async def test_all_failed(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        result = {"skill_name": "test-skill", "status": "failed", "total_tests": 3, "passed": 0, "failed": 3, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "3 failed", "started_at": "2026-04-29", "finished_at": "2026-04-29"}
+        run_id = await record_test_run(db, result)
+        runs = await get_test_runs(db, "test-skill")
+        assert runs[0]["failed"] == 3
+
+    @pytest.mark.asyncio
+    async def test_test_run_with_errors(self, db, mock_skill_data):
+        await upsert_skill(db, mock_skill_data)
+        result = {"skill_name": "test-skill", "status": "error", "total_tests": 5, "passed": 2, "failed": 1, "errors": 2, "skipped": 0, "duration_seconds": 1.0, "output": "", "started_at": "2026-04-29", "finished_at": "2026-04-29"}
+        run_id = await record_test_run(db, result)
+        runs = await get_test_runs(db, "test-skill")
+        assert runs[0]["errors"] == 2

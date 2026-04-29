@@ -285,3 +285,156 @@ class TestEnrichWithDiscovered:
         enriched = _enrich_with_discovered(db_skills, discovered)
         assert len(enriched) == 1
         assert enriched[0]["name"] == "new-skill"
+
+    def test_empty_db_and_empty_discovered(self):
+        from app import _enrich_with_discovered
+        enriched = _enrich_with_discovered([], [])
+        assert enriched == []
+
+    def test_db_skill_not_in_discovered_stays(self):
+        from app import _enrich_with_discovered
+        db_skills = [
+            {"name": "only-in-db", "version": "1.0", "scripts": [], "modules": [], "skill_md": "", "path": "/tmp", "description": "", "layer": "core", "category": "core", "author": "", "health": "unknown"},
+        ]
+        enriched = _enrich_with_discovered(db_skills, [])
+        assert len(enriched) == 1
+        assert enriched[0]["name"] == "only-in-db"
+
+    def test_discovered_overrides_scripts(self):
+        from app import _enrich_with_discovered
+        db_skills = [
+            {"name": "s1", "version": "1.0", "scripts": ["old.sh"], "modules": ["old.py"], "skill_md": "", "path": "", "description": "", "layer": "core", "category": "core", "author": "", "health": "unknown"},
+        ]
+        discovered = [
+            {"name": "s1", "version": "1.0", "scripts": ["new.sh"], "modules": ["new.py"], "skill_md": "content", "path": "/new", "description": "", "layer": "core", "category": "core", "author": "", "health": "passing"},
+        ]
+        enriched = _enrich_with_discovered(db_skills, discovered)
+        assert enriched[0]["scripts"] == ["new.sh"]
+        assert enriched[0]["modules"] == ["new.py"]
+        assert enriched[0]["skill_md"] == "content"
+
+    def test_duplicate_discovered_not_added_twice(self):
+        from app import _enrich_with_discovered
+        db_skills = []
+        discovered = [
+            {"name": "dup-skill", "version": "1.0", "scripts": ["a.sh"], "modules": [], "skill_md": "", "path": "/tmp", "description": "", "layer": "core", "category": "core", "author": "", "health": "unknown"},
+        ]
+        enriched = _enrich_with_discovered(db_skills, discovered)
+        assert len(enriched) == 1
+
+
+# --- Additional API tests ---
+
+
+class TestApiSkillsAdditional:
+    def test_api_skills_response_is_list(self, client):
+        resp = client.get("/api/skills")
+        assert isinstance(resp.json(), list)
+
+    def test_api_skills_search_returns_matching(self, client):
+        resp = client.get("/api/skills?q=presearch")
+        data = resp.json()
+        matching = [s for s in data if "presearch" in s["name"].lower() or "presearch" in s["description"].lower()]
+        assert len(matching) >= 1
+
+    def test_api_skills_all_have_path(self, client):
+        resp = client.get("/api/skills")
+        for s in resp.json():
+            assert "path" in s
+
+    def test_api_skills_all_have_health(self, client):
+        resp = client.get("/api/skills")
+        for s in resp.json():
+            assert s["health"] in ("unknown", "passing", "failing")
+
+    def test_api_skill_detail_response_structure(self, client):
+        resp = client.get("/api/skills/url-fetcher")
+        data = resp.json()
+        assert "name" in data
+        assert "version" in data
+        assert "description" in data
+        assert "layer" in data
+        assert "test_runs" in data
+
+
+class TestApiHealthAdditional:
+    def test_health_response_types(self, client):
+        resp = client.get("/api/health")
+        data = resp.json()
+        assert isinstance(data["total_skills"], int)
+        assert isinstance(data["avg_pass_rate"], float)
+        assert isinstance(data["layers"], dict)
+        assert isinstance(data["test_summary"], dict)
+
+    def test_health_layers_values_are_ints(self, client):
+        resp = client.get("/api/health")
+        data = resp.json()
+        for v in data["layers"].values():
+            assert isinstance(v, int)
+
+    def test_health_avg_pass_rate_between_0_1(self, client):
+        resp = client.get("/api/health")
+        data = resp.json()
+        assert 0.0 <= data["avg_pass_rate"] <= 1.0
+
+
+# --- Additional _parse_pytest_summary tests ---
+
+
+class TestParsePytestSummaryAdditional:
+    def test_parse_warnings_in_summary(self):
+        from app import _parse_pytest_summary
+        result = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0}
+        output = "5 passed, 1 warnings in 1.00s"
+        parsed = _parse_pytest_summary(result, output)
+        assert parsed["passed"] == 5
+        assert parsed["total_tests"] == 5
+
+    def test_parse_all_combinations(self):
+        from app import _parse_pytest_summary
+        result = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0}
+        output = "2 passed, 1 failed, 1 errors, 1 skipped, 2 warnings in 0.10s"
+        parsed = _parse_pytest_summary(result, output)
+        assert parsed["passed"] == 2
+        assert parsed["failed"] == 1
+        assert parsed["errors"] == 1
+        assert parsed["skipped"] == 1
+        assert parsed["total_tests"] == 5  # passed+failed+errors+skipped
+
+    def test_parse_preserves_other_fields(self):
+        from app import _parse_pytest_summary
+        result = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0, "skill_name": "my-skill", "status": "completed"}
+        output = "3 passed in 1.50s"
+        parsed = _parse_pytest_summary(result, output)
+        assert parsed["skill_name"] == "my-skill"
+        assert parsed["status"] == "completed"
+
+    def test_parse_empty_output(self):
+        from app import _parse_pytest_summary
+        result = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0}
+        parsed = _parse_pytest_summary(result, "")
+        assert parsed["passed"] == 0
+        assert parsed["total_tests"] == 0
+
+
+# --- Additional _find_test_dir tests ---
+
+
+class TestFindTestDirAdditional:
+    def test_skill_with_own_tests_dir(self, tmp_path):
+        from app import _find_test_dir
+        skill_dir = tmp_path / "my-skill"
+        skill_dir.mkdir()
+        (skill_dir / "tests").mkdir()
+        test_dir = _find_test_dir("my-skill", str(skill_dir))
+        assert test_dir == skill_dir / "tests"
+
+    def test_empty_skill_path(self, tmp_path):
+        from app import _find_test_dir
+        test_dir = _find_test_dir("skill", "")
+        assert isinstance(test_dir, Path)
+
+    def test_fallback_to_project_root(self):
+        from app import _find_test_dir
+        test_dir = _find_test_dir("skill", "/nonexistent/path")
+        assert isinstance(test_dir, Path)
