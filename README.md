@@ -2,8 +2,8 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills Count](https://img.shields.io/badge/skills-2-brightgreen)
-![Commands](https://img.shields.io/badge/commands-2-blue)
+![Skills Count](https://img.shields.io/badge/skills-3-brightgreen)
+![Commands](https://img.shields.io/badge/commands-3-blue)
 ![External Prompts](https://img.shields.io/badge/external_prompts-7-orange)
 ![MCP Ready](https://img.shields.io/badge/MCP-ready-purple)
 ![Claude Code](https://img.shields.io/badge/Claude_Code-compatible-orange)
@@ -39,7 +39,8 @@ quinn-awesome-skills/
 ├── skills/                    # Skills (auto-triggered domain knowledge)
 │   ├── core/                  # Core utilities
 │   │   ├── url-fetcher/       # URL → Markdown converter
-│   │   └── presearch/         # Developer resource search
+│   │   ├── presearch/         # Developer resource search
+│   │   └── daily-dev-pulse/   # Personalized dev morning briefing
 │   └── external/              # External data source prompts
 │       ├── bloomberg/         # Bloomberg AI (ASKB) prompts
 │       │   ├── company/       # Company perspective (4 templates)
@@ -79,6 +80,7 @@ This separation means:
 |-------|-------------|---------|--------|
 | [url-fetcher](skills/core/url-fetcher/) | Fetch any URL as clean Markdown. WeChat, Feishu, PDF, Web search. | `/url-fetcher` | ✅ Production |
 | [presearch](skills/core/presearch/) | Search developer resources. GitHub, npm, PyPI, Docker Hub, arXiv. | `/presearch` | ✅ Production |
+| [daily-dev-pulse](skills/core/daily-dev-pulse/) | Personalized dev morning briefing. GitHub activity, security alerts, news, todos. | `/daily-dev-pulse` | ✅ Production |
 
 #### External Skills — Bloomberg AI Prompts
 
@@ -148,11 +150,29 @@ Before building, search existing solutions:
 /presearch "machine learning library" poetry # Poetic description
 ```
 
-### Detailed Features
+#### Daily Dev Pulse — Personalized Morning Briefing
 
-#### URL Fetcher — Universal Content Extraction
+One command, full picture of your dev world:
 
-#### Prerequisites
+| Section | Source | What You Get |
+|---------|--------|--------------|
+| **GitHub Activity** | gh CLI | Commits, PRs, issues, CI status across your repos |
+| **Security Alerts** | NVD API | CVEs affecting your tech stack |
+| **Package Updates** | npm/PyPI registry | Latest versions of your dependencies |
+| **Dev News** | HN, Dev.to, Lobsters | Top trending articles |
+| **Action Items** | Auto-generated | Stale PRs, failing CI, security patches |
+
+**Output Modes**: `terminal` (ASCII charts + colors) | `md` (structured markdown) | `json` (raw data)
+
+```bash
+/daily-dev-pulse                  # Full morning briefing (terminal)
+/daily-dev-pulse --focus security # Security-only briefing
+/daily-dev-pulse --format md      # Markdown output for Claude
+/daily-dev-pulse --format json    # Raw JSON data
+/daily-dev-pulse --days 30        # 30-day activity review
+```
+
+### Prerequisites & Installation
 
 | Requirement | Installation |
 |-------------|--------------|
@@ -197,6 +217,9 @@ bash install.sh url-fetcher   # Install only url-fetcher
 /url-fetcher "search query"           # Web search
 /presearch "React framework"
 /presearch "Python async" emoji       # Fun format
+/daily-dev-pulse                      # Full morning briefing
+/daily-dev-pulse --focus security     # Security-only briefing
+/daily-dev-pulse --format md          # Markdown output for Claude
 ```
 
 #### Skill Auto-Trigger
@@ -207,12 +230,14 @@ Skills automatically activate based on context:
 |-----------------|-----------------|
 | URL in message | url-fetcher |
 | "找库", "找轮子", "有没有现成的" | presearch |
+| "good morning", "morning brief", "start my day", "早上好", "早报" | daily-dev-pulse |
 
 ### Dependencies
 
 | Feature | Dependencies | Install Command |
 |---------|--------------|-----------------|
 | **Core** | bash, curl, python3 | System package manager |
+| **Daily Dev Pulse** | gh CLI, PyYAML | `brew install gh` + `pip install pyyaml` |
 | **WeChat** | playwright, beautifulsoup4, lxml | `uv pip install playwright beautifulsoup4 lxml && playwright install chromium` |
 | **Feishu** | `FEISHU_APP_ID` + `FEISHU_APP_SECRET` | Set environment variables |
 | **PDF** | marker-pdf or poppler | `uv pip install marker-pdf` or `brew install poppler` |
@@ -254,6 +279,7 @@ FRED_API_KEY=your_key
 |------|------|------|------|
 | [url-fetcher](skills/core/url-fetcher/) | 将任意 URL 转为 Markdown。微信公众号、飞书、PDF、网页搜索。 | `/url-fetcher` | ✅ 生产可用 |
 | [presearch](skills/core/presearch/) | 开发前搜索现有方案。GitHub、npm、PyPI、Docker Hub、arXiv。 | `/presearch` | ✅ 生产可用 |
+| [daily-dev-pulse](skills/core/daily-dev-pulse/) | 开发者早报。GitHub活动、安全警报、包更新、新闻、待办。 | `/daily-dev-pulse` | ✅ 生产可用 |
 
 #### 外部技能 — Bloomberg AI Prompts
 
@@ -308,6 +334,20 @@ Bloomberg 终端 `{AKSB <GO>}` AI 助手的结构化 prompts。
 
 **输出格式**: `default` | `emoji` | `meme` | `poetry`
 
+#### Daily Dev Pulse — 开发者早报
+
+一个命令，全面了解你的开发世界：
+
+| 模块 | 数据源 | 内容 |
+|------|--------|------|
+| **GitHub 活动** | gh CLI | 跨仓库的 commits、PRs、issues、CI 状态 |
+| **安全警报** | NVD API | 影响你技术栈的 CVE |
+| **包更新** | npm/PyPI registry | 依赖的最新版本 |
+| **技术新闻** | HN、Dev.to、Lobsters | 热门趋势文章 |
+| **待办事项** | 自动生成 | 过期 PRs、失败 CI、安全补丁 |
+
+**输出模式**: `terminal` (ASCII 图表+颜色) | `md` (结构化 markdown) | `json` (原始数据)
+
 ### 安装
 
 ```bash
@@ -326,6 +366,9 @@ bash install.sh presearch
 # 核心
 /url-fetcher https://mp.weixin.qq.com/s/xxx
 /presearch "Python web framework" emoji
+/daily-dev-pulse                      # 完整早报
+/daily-dev-pulse --focus security     # 只看安全警报
+/daily-dev-pulse --format md          # Markdown 输出
 ```
 
 ### 环境配置
@@ -384,7 +427,8 @@ quinn-awesome-skills/
 ├── skills/                    # 按领域划分的技能
 │   ├── core/                  # 核心技能
 │   │   ├── url-fetcher/       # URL 抓取
-│   │   └── presearch/         # 开发前搜索
+│   │   ├── presearch/         # 开发前搜索
+│   │   └── daily-dev-pulse/   # 开发者早报
 │   └── external/              # 外部数据源 prompts
 │       ├── bloomberg/         # Bloomberg AI prompts
 │       │   ├── company/       # 公司视角

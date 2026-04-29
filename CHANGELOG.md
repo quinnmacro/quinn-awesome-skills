@@ -14,12 +14,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Credit Strategy (Custom) - Credit market strategy framework
   - Company Snapshot, Management & Governance, Performance Tracker, Trends Analysis
 - ✨ **Wind** skill placeholder (external) - Wind financial data terminal integration
+- ✨ **daily-dev-pulse** skill - Personalized developer morning briefing
+  - GitHub activity scanner (commits, PRs, issues, CI status via gh CLI)
+  - Security/CVE checker (NVD API for tech stack vulnerabilities)
+  - News aggregator (HN, Dev.to, Lobsters via public APIs)
+  - Package watcher (npm + PyPI latest versions for dependencies)
+  - Three output modes: terminal (ASCII charts + colors), markdown, JSON
+  - Auto-generated action items from stale PRs, failing CI, security alerts
+  - Configurable via ~/.quinn-skills/pulse-config.yml
+- 🔧 Added github-activity and rss-fetch MCP server entries
 - 🧪 **pytest** unit tests for presearch core modules
   - keyword_extractor (19 tests): extraction, stopwords, dedup, translation
   - ranking (19 tests): popularity, activity, quality, community scoring
   - translator (18 tests): Chinese detection, local dict, API fallback
   - formatter (35 tests): timestamps, stars, health indicators, GitHub/arXiv formatting
 - 🔧 Reorganized skills into core/ and external/ directory structure
+- 📝 Updated README with 3 skills (bilingual)
+- 📝 Updated install.sh for daily-dev-pulse config setup
 
 ## [1.2.0] - 2025-04-08
 
@@ -101,7 +112,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+<<<<<<< HEAD
 | 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs |
+=======
+| 1.3.0 | 2026-04-29 | Add daily-dev-pulse skill (personalized dev morning briefing) |
+>>>>>>> origin/gnhf/build-a-comprehensiv-999ed0
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |
 | 1.0.1 | 2025-04-08 | Add LLM Agent, environment config, bilingual README |

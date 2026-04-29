@@ -1,0 +1,148 @@
+"""Security/CVE checker for Daily Dev Pulse.
+
+Checks public CVE databases for vulnerabilities in configured tech stack.
+Uses NVD API (National Vulnerability Database) — no key required (rate-limited).
+Respects NVD rate limit: 5 requests per 30 seconds without API key.
+"""
+
+import json
+import time
+import urllib.request
+import urllib.error
+import urllib.parse
+from datetime import datetime, timedelta, timezone
+
+from config import get_tech_stack, get_preferences, load_config, SKILL_VERSION
+
+NVD_API_BASE = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+NVD_RATE_LIMIT_SECONDS = 6  # Without API key, 5 requests per 30 seconds
+
+
+def build_search_terms(tech_stack):
+    """Build CVE search terms from tech stack config."""
+    terms = []
+
+    python_version = tech_stack.get("python", "")
+    if python_version:
+        terms.append({"product": "python", "version": python_version})
+
+    for framework in tech_stack.get("frameworks", []):
+        terms.append({"product": framework.lower(), "version": ""})
+
+    for db in tech_stack.get("databases", []):
+        terms.append({"product": db.lower(), "version": ""})
+
+    for lib in tech_stack.get("libraries", []):
+        terms.append({"product": lib.lower(), "version": ""})
+
+    return terms
+
+
+def fetch_cves(product, version="", days=30):
+    """Fetch recent CVEs for a product from NVD API."""
+    start_date = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT00:00:00.000+00:00")
+
+    params = {
+        "keywordSearch": product,
+        "pubStartDate": start_date,
+        "resultsPerPage": 10,
+    }
+
+    if version:
+        params["keywordSearch"] = f"{product} {version}"
+
+    query = "&".join(f"{k}={urllib.parse.quote(str(v), safe='')}" for k, v in params.items())
+    url = f"{NVD_API_BASE}?{query}"
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": f"daily-dev-pulse/{SKILL_VERSION}"})
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read().decode())
+    except Exception:
+        return []
+
+    vulnerabilities = data.get("vulnerabilities", [])
+    if not isinstance(vulnerabilities, list):
+        return []
+
+    results = []
+
+    for vuln in vulnerabilities[:10]:
+        if not isinstance(vuln, dict):
+            continue
+        cve = vuln.get("cve", {})
+        cve_id = cve.get("id") or ""
+        descriptions = cve.get("descriptions", [])
+        desc = ""
+        for d in descriptions:
+            if d.get("lang") == "en":
+                desc = d.get("value") or ""
+                break
+
+        metrics = cve.get("metrics", {})
+        severity = "unknown"
+        score = 0.0
+
+        cvss_v31 = metrics.get("cvssMetricV31", [])
+        if isinstance(cvss_v31, list) and cvss_v31 and cvss_v31[0] is not None:
+            severity = (cvss_v31[0].get("cvssData", {}).get("baseSeverity") or "unknown")
+            score = cvss_v31[0].get("cvssData", {}).get("baseScore") or 0.0
+        else:
+            cvss_v30 = metrics.get("cvssMetricV30", [])
+            if isinstance(cvss_v30, list) and cvss_v30 and cvss_v30[0] is not None:
+                severity = (cvss_v30[0].get("cvssData", {}).get("baseSeverity") or "unknown")
+                score = cvss_v30[0].get("cvssData", {}).get("baseScore") or 0.0
+
+        results.append({
+            "cve_id": cve_id,
+            "product": product,
+            "severity": severity,
+            "score": score,
+            "description": desc[:200],
+            "published": (cve.get("published") or "")[:10],
+        })
+
+    return results
+
+
+def check_security(config=None):
+    """Check all tech stack components for recent CVEs."""
+    cfg = config or load_config()
+    tech_stack = get_tech_stack(cfg)
+    terms = build_search_terms(tech_stack)
+
+    # Rate limit and lookback days from config preferences
+    prefs = get_preferences(cfg)
+    rate_limit = prefs.get("nvd_rate_limit", NVD_RATE_LIMIT_SECONDS)
+    days = prefs.get("security_lookback_days", 30)
+
+    all_alerts = []
+    for i, term in enumerate(terms):
+        # Sleep between consecutive NVD API calls to respect rate limit
+        if i > 0 and rate_limit > 0:
+            time.sleep(rate_limit)
+        cves = fetch_cves(term.get("product") or "", term.get("version", ""), days)
+        all_alerts.extend(cves)
+
+    # Sort by severity score descending
+    all_alerts.sort(key=lambda x: x.get("score", 0), reverse=True)
+
+    # Deduplicate by CVE ID
+    seen = set()
+    unique_alerts = []
+    for alert in all_alerts:
+        if alert.get("cve_id") not in seen:
+            seen.add(alert.get("cve_id"))
+            unique_alerts.append(alert)
+
+    return {
+        "source": "security",
+        "alerts": unique_alerts[:20],
+        "scan_date": datetime.now(timezone.utc).isoformat(),
+        "tech_stack_checked": tech_stack,
+    }
+
+
+if __name__ == "__main__":
+    data = check_security()
+    print(json.dumps(data, indent=2))

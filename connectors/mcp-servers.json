@@ -36,6 +36,43 @@
       "skills": ["*"],
       "args": ["--root", "${HOME}/Downloads"]
     },
+    "github-activity": {
+      "command": "mcp-github-activity",
+      "description": "GitHub activity and CI status monitoring for daily-dev-pulse",
+      "skills": ["daily-dev-pulse"],
+      "enabled": true,
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "dataTypes": [
+        "commits",
+        "pull-requests",
+        "issues",
+        "ci-runs",
+        "repo-activity"
+      ],
+      "usage": {
+        "dailyBriefing": "Morning dev briefing with repo activity",
+        "ciStatus": "Check CI/CD pipeline status across repos"
+      }
+    },
+    "rss-fetch": {
+      "command": "mcp-rss-fetch",
+      "description": "RSS and API feed aggregation for dev news",
+      "skills": ["daily-dev-pulse"],
+      "enabled": true,
+      "dataTypes": [
+        "hackernews",
+        "devto",
+        "lobsters",
+        "tech-rss"
+      ],
+      "usage": {
+        "newsBriefing": "Aggregate trending dev news from multiple sources",
+        "hnTop": "Hacker News top stories",
+        "devtoTrending": "Dev.to trending articles"
+      }
+    },
     "fetch": {
       "command": "mcp-fetch",
       "description": "HTTP fetch for URL content retrieval",
