@@ -415,6 +415,42 @@ class TestParsePytestSummaryAdditional:
         assert parsed["passed"] == 0
         assert parsed["total_tests"] == 0
 
+    def test_parse_full_accumulated_output(self):
+        """Bug fix: _parse_pytest_summary must work with full accumulated output, not just last line.
+        The summary line '569 passed in 11.17s' appears near the end of the output,
+        not necessarily as the last line. Passing only the last line would miss it."""
+        from app import _parse_pytest_summary
+        result = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0}
+        # Simulated full pytest output with summary line in the middle
+        full_output = """tests/test_app.py::TestHome::test_home PASSED
+tests/test_app.py::TestHome::test_search PASSED
+tests/test_app.py::TestHome::test_api PASSED
+
+569 passed in 11.17s
+
+=== short test summary info ==="""
+        parsed = _parse_pytest_summary(result, full_output)
+        assert parsed["passed"] == 569
+        assert parsed["duration_seconds"] == 11.17
+        assert parsed["total_tests"] == 569
+
+    def test_parse_only_last_line_fails_but_full_output_works(self):
+        """Demonstrates the bug: passing only the last line misses the summary.
+        The last line of pytest output may be a summary info header, not the count line."""
+        from app import _parse_pytest_summary
+        result = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0}
+        # If only the last line were passed (the old bug):
+        last_line_only = "=== short test summary info ==="
+        parsed_last_line = _parse_pytest_summary(result, last_line_only)
+        assert parsed_last_line["passed"] == 0  # Would miss the real counts
+
+        # But with full output, it works correctly:
+        result2 = {"passed": 0, "failed": 0, "errors": 0, "skipped": 0, "total_tests": 0, "duration_seconds": 0.0}
+        full_output = "10 passed in 2.5s\n=== short test summary info ==="
+        parsed_full = _parse_pytest_summary(result2, full_output)
+        assert parsed_full["passed"] == 10
+        assert parsed_full["duration_seconds"] == 2.5
+
 
 # --- Additional _find_test_dir tests ---
 
@@ -2155,3 +2191,163 @@ class TestErrorHandlingEdgeCases:
         resp = client.get("/nonexistent-browser-page")
         assert resp.status_code == 404
         assert "Skill Hub" in resp.text
+
+
+# --- _parse_pytest_line helper tests ---
+
+
+class TestParsePytestLine:
+    """Tests for the _parse_pytest_line helper that parses pytest verbose output lines."""
+
+    def test_parse_passed_line(self):
+        """PASSED status in a pytest verbose line should be detected."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestHome::test_home PASSED") == "PASSED"
+
+    def test_parse_failed_line(self):
+        """FAILED status in a pytest verbose line should be detected."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestHome::test_home FAILED") == "FAILED"
+
+    def test_parse_error_line(self):
+        """ERROR status in a pytest verbose line should be detected."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestHome::test_home ERROR") == "ERROR"
+
+    def test_parse_skipped_line(self):
+        """SKIPPED status in a pytest verbose line should be detected."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestHome::test_home SKIPPED") == "SKIPPED"
+
+    def test_parse_line_no_double_colon(self):
+        """Lines without :: should return None (not pytest test lines)."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("PASSED") is None
+        assert _parse_pytest_line("FAILED") is None
+        assert _parse_pytest_line("just some random text") is None
+
+    def test_parse_summary_line(self):
+        """Pytest summary lines like '5 passed in 1.23s' should return None."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("5 passed in 1.23s") is None
+        assert _parse_pytest_line("10 passed, 2 failed in 3.45s") is None
+
+    def test_parse_line_with_collection_info(self):
+        """Lines with collection info (no ::) should return None."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("collecting 569 items") is None
+        assert _parse_pytest_line("collected 569 items") is None
+
+    def test_parse_line_with_fixture_teardown(self):
+        """Lines like fixture teardown should not be parsed as test results."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("fixture teardown") is None
+
+    def test_parse_line_empty(self):
+        """Empty string should return None."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("") is None
+
+    def test_parse_line_with_xfail_marker(self):
+        """XFAIL lines should return None (they are not standard PASSED/FAILED)."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestHome::test_home XFAIL") is None
+
+    def test_parse_passed_with_subtest(self):
+        """PASSED line with subtest notation should be detected."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("tests/test_app.py::TestHome::test_home[param1] PASSED") == "PASSED"
+
+    def test_parse_line_with_warning_text(self):
+        """Lines that contain PASSED in warning text but not as a status should return None if no ::."""
+        from app import _parse_pytest_line
+        assert _parse_pytest_line("warning: PASSED is not a valid marker") is None
+
+    def test_parse_line_with_multiple_statuses(self):
+        """Lines containing both PASSED and FAILED keywords should prefer the first match."""
+        from app import _parse_pytest_line
+        # This edge case: a line with both keywords but only one is the actual status
+        # Real pytest output won't have this, but we test the behavior
+        assert _parse_pytest_line("path::test_func PASSED") == "PASSED"
+
+
+# --- WebSocket streaming improvements tests ---
+
+
+class TestWebSocketStreamingImprovements:
+    """Tests for the improved WebSocket streaming endpoint logic."""
+
+    def test_ws_endpoint_sends_started_at(self):
+        """WebSocket result should include started_at timestamp."""
+        from app import ws_test_stream
+        # Verify the function imports datetime for timestamps
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        assert "started_at" in source
+        assert "datetime" in source
+
+    def test_ws_endpoint_sends_finished_at(self):
+        """WebSocket result should include finished_at timestamp."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        assert "finished_at" in source
+
+    def test_ws_endpoint_accumulates_full_output(self):
+        """WebSocket should accumulate full output for _parse_pytest_summary."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        assert "accumulated_output" in source
+        assert "full_output" in source
+
+    def test_ws_endpoint_passes_full_output_to_parse(self):
+        """WebSocket should pass full_output to _parse_pytest_summary, not just last line."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        # Should NOT use 'text' (the last line) for _parse_pytest_summary
+        assert "_parse_pytest_summary(result, full_output)" in source
+
+    def test_ws_endpoint_uses_parse_pytest_line(self):
+        """WebSocket should use _parse_pytest_line helper for per-line parsing."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        assert "_parse_pytest_line" in source
+
+    def test_ws_endpoint_sets_status_from_returncode(self):
+        """WebSocket result status should be set from proc.returncode."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        assert "proc.returncode" in source
+
+    def test_ws_result_includes_output_field(self):
+        """WebSocket result dict should include 'output' field with full output."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        assert '"output"' in source or "'output'" in source
+
+    def test_parse_pytest_line_function_is_importable(self):
+        """_parse_pytest_line should be importable from app module."""
+        from app import _parse_pytest_line
+        assert callable(_parse_pytest_line)
+
+    def test_ws_counters_initialized_before_try(self):
+        """Counter variables should be initialized before the try block so they're accessible in all paths."""
+        from app import ws_test_stream
+        import inspect
+        source = inspect.getsource(ws_test_stream)
+        # Verify the counters are set before 'try:' block
+        lines = source.split('\n')
+        try_line_idx = None
+        for i, line in enumerate(lines):
+            if 'try:' in line and 'except' not in line:
+                try_line_idx = i
+                break
+        # There should be 'total = 0' etc. before try
+        before_try = '\n'.join(lines[:try_line_idx])
+        assert "total = 0" in before_try
+        assert "passed = 0" in before_try

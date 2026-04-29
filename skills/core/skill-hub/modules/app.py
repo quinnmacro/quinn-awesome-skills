@@ -409,7 +409,15 @@ async def ws_test_stream(websocket: WebSocket, name: str):
     # Find test directory
     test_dir = _find_test_dir(name, skill_path)
 
+    total = 0
+    passed = 0
+    failed = 0
+    errors = 0
+    skipped = 0
+
     try:
+        from datetime import datetime, timezone
+        started_at = datetime.now(timezone.utc).isoformat()
         proc = await asyncio.create_subprocess_exec(
             sys.executable, "-m", "pytest",
             str(test_dir), "-v", "--tb=short",
@@ -417,30 +425,30 @@ async def ws_test_stream(websocket: WebSocket, name: str):
             stderr=asyncio.subprocess.STDOUT,
         )
 
-        total = 0
-        passed = 0
-        failed = 0
-        errors = 0
-        skipped = 0
+        accumulated_output = []
 
         while True:
             line = await proc.stdout.readline()
             if not line:
                 break
             text = line.decode("utf-8", errors="replace").rstrip()
+            accumulated_output.append(text)
             await websocket.send_json({"line": text})
 
-            # Parse pytest output for counts
-            if text.startswith("PASSED"):
+            # Parse pytest verbose output lines
+            parsed = _parse_pytest_line(text)
+            if parsed == "PASSED":
                 passed += 1; total += 1
-            elif text.startswith("FAILED"):
+            elif parsed == "FAILED":
                 failed += 1; total += 1
-            elif text.startswith("ERROR"):
+            elif parsed == "ERROR":
                 errors += 1; total += 1
-            elif text.startswith("SKIPPED"):
+            elif parsed == "SKIPPED":
                 skipped += 1; total += 1
 
         await proc.wait()
+        full_output = '\n'.join(accumulated_output)
+        finished_at = datetime.now(timezone.utc).isoformat()
 
         result = {
             "skill_name": name,
@@ -451,10 +459,13 @@ async def ws_test_stream(websocket: WebSocket, name: str):
             "errors": errors,
             "skipped": skipped,
             "duration_seconds": 0.0,
-            "output": "",
+            "output": full_output,
+            "started_at": started_at,
+            "finished_at": finished_at,
         }
-        # Parse summary line for accurate counts
-        result = _parse_pytest_summary(result, text if text else "")
+        # Parse full output for accurate counts from summary line
+        result = _parse_pytest_summary(result, full_output)
+        result["status"] = "completed" if proc.returncode == 0 else "failed"
         run_id = await record_test_run(db, result)
         health = "passing" if result["failed"] == 0 and result["errors"] == 0 and result["passed"] > 0 else "failing"
         skill["health"] = health
@@ -470,6 +481,20 @@ async def ws_test_stream(websocket: WebSocket, name: str):
 
 
 # --- Helpers ---
+
+
+def _parse_pytest_line(text: str) -> Optional[str]:
+    """Parse a pytest verbose output line and return the result type (PASSED/FAILED/ERROR/SKIPPED) or None."""
+    if '::' in text:
+        if re.search(r'\bPASSED\b', text):
+            return "PASSED"
+        elif re.search(r'\bFAILED\b', text):
+            return "FAILED"
+        elif re.search(r'\bERROR\b', text):
+            return "ERROR"
+        elif re.search(r'\bSKIPPED\b', text):
+            return "SKIPPED"
+    return None
 
 
 def _sort_skills(skills: list[dict], sort: Optional[str] = None) -> list[dict]:

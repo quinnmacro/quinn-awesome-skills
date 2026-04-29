@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Blockquote support: > lines rendered as <blockquote> with accent-colored left border
   - Horizontal rule support: --- / *** / ___ lines rendered as <hr>
   - CSS styles for ol, blockquote, hr, and markdown tables within .md-rendered
-- 569 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table)
+- 593 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table, _parse_pytest_line helper for WebSocket per-line parsing, _parse_pytest_summary with full accumulated output fix, WebSocket started_at/finished_at/duration/status improvements)
 
 ## [1.3.0] - 2026-04-28
 
