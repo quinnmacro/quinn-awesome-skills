@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - FastAPI backend (async) + Jinja2 server-side rendering + vanilla HTML/CSS/JS
   - SQLite for skill metadata, test history, and version tracking
   - Auto-discover skills by scanning skills/core/*/SKILL.md and skills/external/*/SKILL.md
-  - Home page: skill cards grid with name, version, layer, test count, health badge, description, pass rate, last-tested timestamp, search bar, health summary stat cards (Passing/Failing/Unknown/Avg Pass Rate)
+  - Home page: skill cards grid with name, version, layer, test count, health badge, description, pass rate (None for untested, numeric for tested), last-tested timestamp, search bar, health summary stat cards (Passing/Failing/Unknown/Avg Pass Rate computed from filtered skills)
   - Skill detail page: render SKILL.md as HTML with toggle raw/rendered view, list scripts/modules, show config, dependencies (with Check Dependencies button), version history
   - Test panel: run pytest and stream results via WebSocket
   - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
@@ -28,12 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - HTTP exception handlers (404, 500, RequestValidationError) with API-aware JSON/HTML response switching
   - Responsive CSS with mobile breakpoints, inline SVG favicon, footer, dep type badge styles, active navigation highlighting
   - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, unordered lists, ordered lists, markdown tables, blockquotes, horizontal rules)
+  - Inline code content protected from bold/italic/link processing via placeholder approach
+  - Link regex handles parenthesized URLs (Wikipedia-style disambiguation links)
   - Markdown table support: parses | col | col | patterns into HTML <table> with <thead>/<tbody>
   - Ordered list support: numbered items (1. item) rendered as <ol start="N">
   - Blockquote support: > lines rendered as <blockquote> with accent-colored left border
   - Horizontal rule support: --- / *** / ___ lines rendered as <hr>
   - CSS styles for ol, blockquote, hr, and markdown tables within .md-rendered
-- 705 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table, _parse_pytest_line helper for WebSocket per-line parsing, _parse_pytest_summary with full accumulated output fix, WebSocket started_at/finished_at/duration/status improvements, delete_skill/delete_test_runs database operations, DELETE API endpoints for skill removal and test history cleanup, UI delete/clear-history buttons, recent activity on health dashboard, get_recent_test_runs database/API/template, home page health summary stat cards, _parse_semver for version sort, dynamic footer port, install page project_root reference, start.sh log file)
+- 731 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table, _parse_pytest_line helper for WebSocket per-line parsing, _parse_pytest_summary with full accumulated output fix, WebSocket started_at/finished_at/duration/status improvements, delete_skill/delete_test_runs database operations, DELETE API endpoints for skill removal and test history cleanup, UI delete/clear-history buttons, recent activity on health dashboard, get_recent_test_runs database/API/template, home page health summary stat cards, _parse_semver for version sort, dynamic footer port, install page project_root reference, start.sh log file, pass_rate=None for untested skills instead of 0.0, avg_pass_rate computed from enriched skills for filter context, inline code protected from bold/italic/link processing via placeholder, link regex handles parenthesized URLs (Wikipedia-style), CSV export uses RFC 4180 quoting for commas in fields, _parse_description handles abbreviations e.g./i.e./etc./vs.)
 
 ## [1.3.0] - 2026-04-28
 
@@ -142,7 +144,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), version history, CSV export, dep checking, resync, nav highlighting, recent activity, delete/cleanup, health stat cards on home page, semver sort, dynamic port, log file, 705 tests |
+| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), version history, CSV export (RFC 4180), dep checking, resync, nav highlighting, recent activity, delete/cleanup, health stat cards on home page, semver sort, dynamic port, log file, pass_rate=None for untested, inline code protection, parenthesized URL links, abbreviation-safe description parsing, 731 tests |
 | 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs, daily-dev-pulse |
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |

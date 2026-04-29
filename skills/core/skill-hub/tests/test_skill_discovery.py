@@ -107,9 +107,9 @@ class TestParseDescription:
     def test_missing_description_key(self):
         assert _parse_description({}) == ""
 
-    def test_multiline_description_first_line(self):
+    def test_multiline_description_first_sentence(self):
         desc = _parse_description({"description": "Line one. Line two. Line three"})
-        assert "Line one" == desc
+        assert desc == "Line one."
 
     def test_description_single_period(self):
         desc = _parse_description({"description": "One sentence"})
@@ -719,3 +719,26 @@ class TestCheckAllDeps:
         # Use httpx as it's always installed in our test environment
         result = check_dep_installed("httpx", "pip")
         assert result is True
+
+
+# --- _parse_description abbreviation tests ---
+
+
+class TestParseDescriptionAbbreviations:
+    """Tests that _parse_description handles abbreviations correctly."""
+
+    def test_eg_not_truncated(self):
+        desc = _parse_description({"description": "Uses e.g. pytest for testing"})
+        assert "pytest" in desc
+
+    def test_ie_not_truncated(self):
+        desc = _parse_description({"description": "Uses i.e. python scripts"})
+        assert "python" in desc
+
+    def test_etc_not_truncated(self):
+        desc = _parse_description({"description": "A tool etc. for processing data"})
+        assert "processing" in desc
+
+    def test_vs_not_truncated(self):
+        desc = _parse_description({"description": "Compares vs. other frameworks"})
+        assert "other" in desc

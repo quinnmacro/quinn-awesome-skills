@@ -171,8 +171,8 @@ async def home(request: Request, q: Optional[str] = None, layer: Optional[str] =
         h = s.get("health", "unknown")
         if h in health_counts:
             health_counts[h] += 1
-    # Compute avg pass rate from skills with pass_rate data
-    rates = [s.get("pass_rate", 0) for s in enriched if s.get("pass_rate") is not None]
+    # Compute avg pass rate only from skills with actual test data (pass_rate is not None)
+    rates = [s.get("pass_rate") for s in enriched if s.get("pass_rate") is not None]
     avg_pass_rate = sum(rates) / len(rates) if rates else 0.0
     return _render_template("home.html", {
         "skills": enriched, "query": q or "", "total": len(enriched),
@@ -281,13 +281,26 @@ async def api_skills(q: Optional[str] = None, layer: Optional[str] = None, healt
 
 @app.get("/api/skills/export.csv", response_class=PlainTextResponse)
 async def api_export_csv():
-    """Export all skills as CSV."""
+    """Export all skills as CSV using RFC 4180 quoting."""
     db = await get_db()
     skills = await get_all_skills(db)
+    def csv_field(val):
+        s = str(val) if val else ""
+        if ',' in s or '"' in s or '\n' in s:
+            return '"' + s.replace('"', '""') + '"'
+        return s
     lines = ["name,version,layer,health,author,description,category,path"]
     for s in skills:
-        desc = s.get("description", "").replace(",", ";")
-        lines.append(f"{s['name']},{s.get('version','')},{s.get('layer','')},{s.get('health','')},{s.get('author','')},{desc},{s.get('category','')},{s.get('path','')}")
+        lines.append(','.join([
+            csv_field(s.get('name','')),
+            csv_field(s.get('version','')),
+            csv_field(s.get('layer','')),
+            csv_field(s.get('health','')),
+            csv_field(s.get('author','')),
+            csv_field(s.get('description','')),
+            csv_field(s.get('category','')),
+            csv_field(s.get('path','')),
+        ]))
     return "\n".join(lines)
 
 
@@ -645,7 +658,7 @@ async def _add_test_counts(skills: list[dict], db) -> list[dict]:
             else:
                 s["test_count"] = 0
             s["last_tested_at"] = ""
-            s["pass_rate"] = 0.0
+            s["pass_rate"] = None
     return skills
 
 
@@ -736,8 +749,12 @@ def _render_markdown(text: str) -> str:
         return f'<CODE_BLOCK_{len(code_blocks) - 1}>'
     text = re.sub(r'```(\w*)\n(.*?)```', _save_code, text, flags=re.DOTALL)
 
-    # Inline code
-    text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+    # Inline code (use placeholder to protect content from bold/italic/link processing)
+    inline_codes = []
+    def _save_inline(m):
+        inline_codes.append(m.group(1))
+        return f'<INLINE_CODE_{len(inline_codes) - 1}>'
+    text = re.sub(r'`([^`]+)`', _save_inline, text)
 
     # Horizontal rules (---, ***, ___ on their own line)
     text = re.sub(r'^\s*[-*_]{3,}\s*$', '<hr>', text, flags=re.MULTILINE)
@@ -753,8 +770,9 @@ def _render_markdown(text: str) -> str:
     text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
     text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
 
-    # Links
-    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+    # Links (handle URLs containing parenthesized segments, e.g. Wikipedia links)
+    # Match: [label](url) where url can contain balanced () pairs like (disambiguation)
+    text = re.sub(r'\[([^\]]+)\]\(([^()]+(?:\([^()]*\)[^()]*)*)\)', r'<a href="\2">\1</a>', text)
 
     # Blockquotes (lines starting with >)
     lines = text.split('\n')
@@ -891,6 +909,11 @@ def _render_markdown(text: str) -> str:
         # Escape HTML entities in code
         escaped = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
         text = text.replace(f'<CODE_BLOCK_{i}>', f'<pre><code>{escaped}</code></pre>')
+
+    # Restore inline code
+    for i, content in enumerate(inline_codes):
+        escaped = content.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        text = text.replace(f'<INLINE_CODE_{i}>', f'<code>{escaped}</code>')
 
     return text
 

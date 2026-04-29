@@ -842,16 +842,19 @@ class TestApiExportCsv:
         response = client.get("/api/skills/export.csv")
         assert "text" in response.headers.get("content-type", "")
 
-    def test_export_csv_commas_in_description_escaped(self, client):
-        """Commas in descriptions should be replaced with semicolons."""
+    def test_export_csv_fields_are_rfc4180_quoted(self, client):
+        """Fields containing commas should be RFC 4180 quoted (double-quoted)."""
         response = client.get("/api/skills/export.csv")
-        # Description fields should not contain raw commas that would break CSV format
         lines = response.text.strip().split("\n")
-        # Check that no description field has raw commas (they'd create extra columns)
-        for line in lines[1:]:
-            fields = line.split(",")
-            # Should have exactly 8 fields (name, version, layer, health, author, description, category, path)
-            assert len(fields) == 8
+        # Header row should have 8 fields
+        import csv
+        reader = csv.reader(lines)
+        rows = list(reader)
+        assert len(rows) >= 1
+        assert len(rows[0]) == 8
+        # All subsequent rows should also have 8 fields
+        for row in rows[1:]:
+            assert len(row) == 8
 
 
 # --- _render_markdown tests ---
@@ -1967,22 +1970,24 @@ class TestAddTestCountsExtended:
         for skill in data:
             assert "pass_rate" in skill
 
-    def test_api_skills_pass_rate_is_numeric(self, client):
-        """pass_rate should be a float between 0 and 1."""
+    def test_api_skills_pass_rate_is_numeric_or_none(self, client):
+        """pass_rate should be a float between 0 and 1, or None if untested."""
         response = client.get("/api/skills")
         data = response.json()
         for skill in data:
-            assert isinstance(skill["pass_rate"], (int, float))
-            assert 0.0 <= skill["pass_rate"] <= 1.0
+            pr = skill["pass_rate"]
+            assert pr is None or isinstance(pr, (int, float))
+            if pr is not None:
+                assert 0.0 <= pr <= 1.0
 
-    def test_api_skills_no_tests_pass_rate_zero(self, client):
-        """Skills without test runs should have pass_rate of 0.0."""
+    def test_api_skills_no_tests_pass_rate_none(self, client):
+        """Skills without test runs should have pass_rate of None."""
         response = client.get("/api/skills")
         data = response.json()
         # Most skills won't have been tested in the test env
         for skill in data:
             if not skill.get("last_tested_at"):
-                assert skill["pass_rate"] == 0.0
+                assert skill["pass_rate"] is None
 
     def test_api_skills_last_tested_at_string(self, client):
         """last_tested_at should be a string (ISO date or empty)."""
@@ -2059,8 +2064,8 @@ class TestAddTestCountsExtended:
 
         asyncio.run(_test())
 
-    def test_add_test_counts_pass_rate_zero_when_no_tests(self, tmp_path):
-        """_add_test_counts should set pass_rate to 0.0 when skill has no test runs."""
+    def test_add_test_counts_pass_rate_none_when_no_tests(self, tmp_path):
+        """_add_test_counts should set pass_rate to None when skill has no test runs."""
         from app import _add_test_counts
         import asyncio
         from database import init_db, upsert_skill
@@ -2077,7 +2082,7 @@ class TestAddTestCountsExtended:
             skills = [skill.copy()]
             skills = await _add_test_counts(skills, db)
             assert skills[0]["last_tested_at"] == ""
-            assert skills[0]["pass_rate"] == 0.0
+            assert skills[0]["pass_rate"] is None
             await db.close()
 
         asyncio.run(_test())
@@ -2554,3 +2559,201 @@ class TestParseSemver:
         assert result[0]["version"] == "10.0.0"
         assert result[1]["version"] == "2.0.0"
         assert result[2]["version"] == "1.0.0"
+
+
+# --- Bug fix verification tests (iteration 25) ---
+
+
+class TestPassRateNoneInsteadOfZero:
+    """Tests that pass_rate is None for untested skills instead of 0.0."""
+
+    def test_api_skills_pass_rate_none_when_untested(self, client):
+        """Skills without test runs should have pass_rate=None, not 0.0."""
+        response = client.get("/api/skills")
+        data = response.json()
+        untested = [s for s in data if not s.get("last_tested_at")]
+        if untested:
+            assert all(s["pass_rate"] is None for s in untested)
+
+    def test_api_skills_pass_rate_numeric_when_tested(self, client):
+        """Skills with test runs should have numeric pass_rate."""
+        response = client.get("/api/skills")
+        data = response.json()
+        tested = [s for s in data if s.get("last_tested_at")]
+        if tested:
+            assert all(isinstance(s["pass_rate"], (int, float)) for s in tested)
+
+    def test_add_test_counts_sets_none_for_no_runs(self, tmp_path):
+        """_add_test_counts sets pass_rate to None when no test runs exist."""
+        from app import _add_test_counts
+        import asyncio
+        from database import init_db, upsert_skill
+
+        async def _test():
+            db = await init_db(str(tmp_path / "test.db"))
+            skill = {"name": "untested-skill", "version": "1.0.0", "layer": "core",
+                     "health": "unknown", "author": "test", "description": "test",
+                     "category": "core", "path": str(tmp_path), "scripts_json": "[]", "modules_json": "[]"}
+            await upsert_skill(db, skill)
+            skills = [skill.copy()]
+            skills = await _add_test_counts(skills, db)
+            assert skills[0]["pass_rate"] is None
+            assert skills[0]["last_tested_at"] == ""
+            await db.close()
+        asyncio.run(_test())
+
+    def test_home_page_pass_rate_display_uses_none(self):
+        """Home page template should handle pass_rate=None gracefully."""
+        from app import _render_template
+        skills = [{"name": "test", "version": "1.0", "layer": "core", "health": "unknown",
+                   "description": "test", "test_count": 0, "pass_rate": None, "last_tested_at": "",
+                   "scripts": [], "modules": []}]
+        html = _render_template("home.html", {
+            "skills": skills, "query": "", "total": 1, "nav_active": "skills",
+            "layer": "", "health": "", "sort": "", "all_layers": ["core"],
+            "all_healths": ["unknown"], "health_counts": {"passing": 0, "failing": 0, "unknown": 1},
+            "avg_pass_rate": 0.0, "port": 8765,
+        })
+        # pass_rate=None should not cause template error or display wrong value
+        assert "0% pass" not in html or "0 tests" in html
+
+
+class TestInlineCodeProtection:
+    """Tests that inline code content is protected from bold/italic/link processing."""
+
+    def test_inline_code_with_bold_markers(self):
+        """Bold markers inside inline code should NOT be processed."""
+        from app import _render_markdown
+        result = _render_markdown("Use `**bold**` carefully")
+        assert "<code>**bold**</code>" in result
+        assert "<strong>" not in result
+
+    def test_inline_code_with_italic_markers(self):
+        """Italic markers inside inline code should NOT be processed."""
+        from app import _render_markdown
+        result = _render_markdown("The `*italic*` syntax")
+        assert "<code>*italic*</code>" in result
+        assert "<em>" not in result
+
+    def test_inline_code_with_link_syntax(self):
+        """Link syntax inside inline code should NOT be processed."""
+        from app import _render_markdown
+        result = _render_markdown("See `[link](url)` for docs")
+        assert "<code>[link](url)</code>" in result
+        assert "<a href" not in result
+
+    def test_inline_code_html_escaped(self):
+        """HTML entities inside inline code should be escaped."""
+        from app import _render_markdown
+        result = _render_markdown("Use `<div>` element")
+        assert "<code>&lt;div&gt;</code>" in result
+        assert "<div>" not in result
+
+    def test_inline_code_preserved_in_paragraph(self):
+        """Inline code in a paragraph should not be corrupted by bold/italic."""
+        from app import _render_markdown
+        result = _render_markdown("Run `**test**` and see results")
+        assert "<code>**test**</code>" in result
+
+
+class TestLinkWithParentheses:
+    """Tests that links with parenthesized URLs are correctly parsed."""
+
+    def test_wikipedia_disambiguation_link(self):
+        """Wikipedia-style links with (disambiguation) in URL should render correctly."""
+        from app import _render_markdown
+        result = _render_markdown("[Apple](https://en.wikipedia.org/wiki/Apple_(disambiguation))")
+        assert '<a href="https://en.wikipedia.org/wiki/Apple_(disambiguation)">Apple</a>' in result
+
+    def test_simple_link_still_works(self):
+        """Simple links without parentheses should still work correctly."""
+        from app import _render_markdown
+        result = _render_markdown("[docs](https://example.com)")
+        assert '<a href="https://example.com">docs</a>' in result
+
+    def test_link_with_nested_parens(self):
+        """Links with nested parentheses in URL should render."""
+        from app import _render_markdown
+        result = _render_markdown("[ref](https://example.com/page_(sub))")
+        assert '<a href="https://example.com/page_(sub)">ref</a>' in result
+
+
+class TestCsvExportRfc4180:
+    """Tests that CSV export follows RFC 4180 quoting for commas in fields."""
+
+    def test_csv_fields_with_commas_are_quoted(self, client):
+        """Fields containing commas should be double-quoted per RFC 4180."""
+        response = client.get("/api/skills/export.csv")
+        import csv
+        reader = csv.reader(response.text.strip().split("\n"))
+        rows = list(reader)
+        # Each row should have exactly 8 fields
+        for row in rows:
+            assert len(row) == 8
+
+    def test_csv_header_fields(self, client):
+        """CSV header row should have standard field names."""
+        response = client.get("/api/skills/export.csv")
+        import csv
+        reader = csv.reader(response.text.strip().split("\n"))
+        rows = list(reader)
+        assert rows[0] == ["name", "version", "layer", "health", "author", "description", "category", "path"]
+
+    def test_csv_quoted_description_preserves_commas(self, client):
+        """Descriptions with commas should be preserved in quoted fields."""
+        response = client.get("/api/skills/export.csv")
+        import csv
+        reader = csv.reader(response.text.strip().split("\n"))
+        rows = list(reader)
+        # Find a row whose description contains commas (real skills have them)
+        for row in rows[1:]:
+            if "," in row[5] or ";" in row[5]:
+                # The description field should preserve the content correctly
+                assert len(row) == 8
+
+
+class TestParseDescriptionAbbreviations:
+    """Tests that _parse_description handles abbreviations correctly."""
+
+    def test_eg_abbreviation_not_truncated(self):
+        """Descriptions with 'e.g.' should not be truncated at the abbreviation."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "Uses e.g. pytest for testing"})
+        assert "pytest" in desc
+        assert desc == "Uses e.g. pytest for testing"
+
+    def test_ie_abbreviation_not_truncated(self):
+        """Descriptions with 'i.e.' should not be truncated at the abbreviation."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "Uses i.e. python scripts"})
+        assert "python" in desc
+
+    def test_etc_abbreviation_not_truncated(self):
+        """Descriptions with 'etc.' should not be truncated at the abbreviation."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "A tool etc. for processing data"})
+        assert "processing" in desc
+
+    def test_real_sentence_still_extracted(self):
+        """Real sentences should still be extracted correctly (first sentence)."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "Line one. Line two. Line three"})
+        assert desc == "Line one."
+
+    def test_single_word_sentence(self):
+        """Single-word sentences should work correctly."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "Done. More text here"})
+        assert desc == "Done."
+
+    def test_question_mark_sentence(self):
+        """Question marks should also serve as sentence boundaries."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "What is this? A tool for testing"})
+        assert desc == "What is this?"
+
+    def test_exclamation_sentence(self):
+        """Exclamation marks should also serve as sentence boundaries."""
+        from skill_discovery import _parse_description
+        desc = _parse_description({"description": "Amazing! This tool works well"})
+        assert desc == "Amazing!"

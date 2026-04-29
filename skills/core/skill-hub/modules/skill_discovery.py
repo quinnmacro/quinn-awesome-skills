@@ -56,10 +56,27 @@ def _parse_description(fm: dict) -> str:
     desc = fm.get("description", "")
     if not desc:
         return ""
-    # Remove trigger phrases and extra whitespace
-    lines = desc.split(".")
-    cleaned = lines[0].strip().rstrip(".")
-    return cleaned if cleaned else desc.strip().split("\n")[0].strip()
+    # Take first meaningful sentence (up to first period followed by space or end)
+    # Avoids truncating on abbreviations like "e.g.", "i.e.", "etc."
+    abbrevs = {"e.g.", "i.e.", "etc.", "vs.", "cf.", "approx.", "viz.", "ca.", "al.", "a.s."}
+    text = desc.strip()
+    # Walk through the text, looking for period+space boundaries that aren't abbreviations
+    for i in range(len(text)):
+        if text[i] in '.!?':
+            # Extract the word preceding this punctuation
+            preceding_word_start = i
+            while preceding_word_start > 0 and text[preceding_word_start - 1] not in ' \t\n':
+                preceding_word_start -= 1
+            preceding_word = text[preceding_word_start:i + 1].lower()
+            # If preceding word is an abbreviation, skip this punctuation as a sentence end
+            if preceding_word in abbrevs:
+                continue
+            # Check if this is followed by a space/end (sentence boundary)
+            next_char = text[i + 1] if i + 1 < len(text) else ''
+            if next_char in (' ', '\t', '\n', '') or i == len(text) - 1:
+                return text[:i + 1].strip()
+    # No sentence-ending punctuation found — return first line
+    return text.split('\n')[0].strip()
 
 
 def _list_scripts(skill_dir: Path) -> list[str]:

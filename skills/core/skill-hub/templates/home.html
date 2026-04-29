@@ -45,7 +45,7 @@
       {% if skill.scripts %}<span class="version">{{ skill.scripts|length }} scripts</span>{% endif %}
       {% if skill.modules %}<span class="version">{{ skill.modules|length }} modules</span>{% endif %}
       {% if skill.test_count %}<span class="version">{{ skill.test_count }} tests</span>{% endif %}
-      {% if skill.pass_rate %}<span class="version">{{ "%.0f" | format(skill.pass_rate * 100) }}% pass</span>{% endif %}
+      {% if skill.pass_rate is not none %}<span class="version">{{ "%.0f" | format(skill.pass_rate * 100) }}% pass</span>{% endif %}
     </div>
     {% if skill.last_tested_at %}<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">Last tested: {{ skill.last_tested_at[:16] }}</div>{% endif %}
   </div>
