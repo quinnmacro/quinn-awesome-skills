@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-04-29
+
+### Added
+- ✨ **skill-hub** skill - Local web dashboard for browsing, searching, testing, and managing all Claude Code skills
+  - FastAPI backend (async) + Jinja2 server-side rendering + vanilla HTML/CSS/JS
+  - SQLite for skill metadata and test history
+  - Auto-discover skills by scanning skills/core/*/SKILL.md and skills/external/*/SKILL.md
+  - Home page: skill cards grid with name, version, layer, test count, health badge, description, search bar
+  - Skill detail page: render SKILL.md, list scripts/modules, show config, version history
+  - Test panel: run pytest and stream results via WebSocket
+  - Health dashboard: aggregate stats, test pass rates, dependency status
+  - Install page: install commands, dependency check
+  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health
+  - 123 tests (skill_discovery, database, API endpoints, HTML pages, pytest summary parsing)
+  - Server on localhost:8765, configurable via SKILL_HUB_PORT
+
 ## [1.3.0] - 2026-04-28
 
 ### Added
@@ -112,11 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
-<<<<<<< HEAD
-| 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs |
-=======
-| 1.3.0 | 2026-04-29 | Add daily-dev-pulse skill (personalized dev morning briefing) |
->>>>>>> origin/gnhf/build-a-comprehensiv-999ed0
+| 1.4.0 | 2026-04-29 | Add skill-hub web dashboard (FastAPI + Jinja2 + SQLite), 123 tests |
+| 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs, daily-dev-pulse |
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |
 | 1.0.1 | 2025-04-08 | Add LLM Agent, environment config, bilingual README |

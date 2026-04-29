@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% set title = "Test " + skill.name %}
+{% block content %}
+<div class="detail">
+  <h1>Test {{ skill.name }}</h1>
+  <div class="meta-row">
+    <span class="badge {{ skill.layer }}">{{ skill.layer }}</span>
+    <span class="badge {{ skill.health }}">{{ skill.health }}</span>
+  </div>
+
+  <div style="margin-top:20px;display:flex;gap:12px;">
+    <button class="btn" onclick="runTest()">Run Tests</button>
+    <button class="btn secondary" onclick="runTestWS()">Stream Tests (WebSocket)</button>
+  </div>
+
+  <div id="test-output" class="test-output" style="margin-top:16px;min-height:200px;display:none;"></div>
+  <div id="test-summary" style="margin-top:12px;display:none;"></div>
+</div>
+
+<script>
+function runTest() {
+  const outputDiv = document.getElementById('test-output');
+  const summaryDiv = document.getElementById('test-summary');
+  outputDiv.style.display = 'block';
+  outputDiv.textContent = 'Running tests...';
+  summaryDiv.style.display = 'none';
+
+  fetch('/api/skills/{{ skill.name }}/test', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      outputDiv.textContent = data.output || 'No output';
+      summaryDiv.style.display = 'block';
+      summaryDiv.innerHTML = `<div class="stats-row">
+        <div class="stat-card"><div class="label">Passed</div><div class="value">${data.passed}</div></div>
+        <div class="stat-card"><div class="label">Failed</div><div class="value" style="color:var(--red)">${data.failed}</div></div>
+        <div class="stat-card"><div class="label">Errors</div><div class="value" style="color:var(--red)">${data.errors}</div></div>
+        <div class="stat-card"><div class="label">Duration</div><div class="value">${data.duration_seconds}s</div></div>
+      </div>`;
+    })
+    .catch(e => { outputDiv.textContent = 'Error: ' + e.message; });
+}
+
+function runTestWS() {
+  const outputDiv = document.getElementById('test-output');
+  const summaryDiv = document.getElementById('test-summary');
+  outputDiv.style.display = 'block';
+  outputDiv.textContent = '';
+  summaryDiv.style.display = 'none';
+
+  const ws = new WebSocket(`ws://${location.host}/ws/test/{{ skill.name }}`);
+  ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.line) {
+      outputDiv.textContent += data.line + '\n';
+    }
+    if (data.result) {
+      summaryDiv.style.display = 'block';
+      const r = data.result;
+      summaryDiv.innerHTML = `<div class="stats-row">
+        <div class="stat-card"><div class="label">Passed</div><div class="value">${r.passed}</div></div>
+        <div class="stat-card"><div class="label">Failed</div><div class="value" style="color:var(--red)">${r.failed}</div></div>
+        <div class="stat-card"><div class="label">Errors</div><div class="value" style="color:var(--red)">${r.errors}</div></div>
+        <div class="stat-card"><div class="label">Duration</div><div class="value">${r.duration_seconds}s</div></div>
+      </div>`;
+    }
+    if (data.error) {
+      outputDiv.textContent += 'Error: ' + data.error + '\n';
+    }
+  };
+  ws.onerror = function(e) { outputDiv.textContent += 'WebSocket error\n'; };
+}
+</script>
+{% endblock %}

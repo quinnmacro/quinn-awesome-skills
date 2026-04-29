@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% set title = "Skills" %}
+{% block content %}
+<form class="search-bar" method="get" action="/">
+  <input type="text" name="q" placeholder="Search skills by name or description..." value="{{ query }}">
+  <button type="submit">Search</button>
+  {% if query %}<a href="/" class="btn secondary">Clear</a>{% endif %}
+</form>
+<div class="stats-row">
+  <div class="stat-card"><div class="label">Total Skills</div><div class="value">{{ total }}</div></div>
+</div>
+{% if skills %}
+<div class="grid">
+  {% for skill in skills %}
+  <div class="card">
+    <h3><a href="/skill/{{ skill.name }}">{{ skill.name }}</a> <span class="version">v{{ skill.version }}</span></h3>
+    <div class="desc">{{ skill.description }}</div>
+    <div class="meta">
+      <span class="badge {{ skill.layer }}">{{ skill.layer }}</span>
+      <span class="badge {{ skill.health }}">{{ skill.health }}</span>
+      {% if skill.scripts %}<span class="version">{{ skill.scripts|length }} scripts</span>{% endif %}
+      {% if skill.modules %}<span class="version">{{ skill.modules|length }} modules</span>{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">No skills found.</div>
+{% endif %}
+{% endblock %}

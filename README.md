@@ -2,7 +2,7 @@
 
 [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-![Skills Count](https://img.shields.io/badge/skills-3-brightgreen)
+![Skills Count](https://img.shields.io/badge/skills-4-brightgreen)
 ![Commands](https://img.shields.io/badge/commands-3-blue)
 ![External Prompts](https://img.shields.io/badge/external_prompts-7-orange)
 ![MCP Ready](https://img.shields.io/badge/MCP-ready-purple)
@@ -40,7 +40,8 @@ quinn-awesome-skills/
 │   ├── core/                  # Core utilities
 │   │   ├── url-fetcher/       # URL → Markdown converter
 │   │   ├── presearch/         # Developer resource search
-│   │   └── daily-dev-pulse/   # Personalized dev morning briefing
+│   │   ├── daily-dev-pulse/   # Personalized dev morning briefing
+│   │   └── skill-hub/         # Skill management web dashboard
 │   └── external/              # External data source prompts
 │       ├── bloomberg/         # Bloomberg AI (ASKB) prompts
 │       │   ├── company/       # Company perspective (4 templates)
@@ -81,6 +82,7 @@ This separation means:
 | [url-fetcher](skills/core/url-fetcher/) | Fetch any URL as clean Markdown. WeChat, Feishu, PDF, Web search. | `/url-fetcher` | ✅ Production |
 | [presearch](skills/core/presearch/) | Search developer resources. GitHub, npm, PyPI, Docker Hub, arXiv. | `/presearch` | ✅ Production |
 | [daily-dev-pulse](skills/core/daily-dev-pulse/) | Personalized dev morning briefing. GitHub activity, security alerts, news, todos. | `/daily-dev-pulse` | ✅ Production |
+| [skill-hub](skills/core/skill-hub/) | Local web dashboard for browsing, searching, testing, and managing skills. FastAPI + Jinja2 + SQLite. | `/skill-hub` | ✅ Production |
 
 #### External Skills — Bloomberg AI Prompts
 
@@ -280,6 +282,7 @@ FRED_API_KEY=your_key
 | [url-fetcher](skills/core/url-fetcher/) | 将任意 URL 转为 Markdown。微信公众号、飞书、PDF、网页搜索。 | `/url-fetcher` | ✅ 生产可用 |
 | [presearch](skills/core/presearch/) | 开发前搜索现有方案。GitHub、npm、PyPI、Docker Hub、arXiv。 | `/presearch` | ✅ 生产可用 |
 | [daily-dev-pulse](skills/core/daily-dev-pulse/) | 开发者早报。GitHub活动、安全警报、包更新、新闻、待办。 | `/daily-dev-pulse` | ✅ 生产可用 |
+| [skill-hub](skills/core/skill-hub/) | 技能管理仪表盘。浏览、搜索、测试、管理所有技能。FastAPI + Jinja2 + SQLite。 | `/skill-hub` | ✅ 生产可用 |
 
 #### 外部技能 — Bloomberg AI Prompts
 
@@ -428,7 +431,8 @@ quinn-awesome-skills/
 │   ├── core/                  # 核心技能
 │   │   ├── url-fetcher/       # URL 抓取
 │   │   ├── presearch/         # 开发前搜索
-│   │   └── daily-dev-pulse/   # 开发者早报
+│   │   ├── daily-dev-pulse/   # 开发者早报
+│   │   └── skill-hub/         # 技能管理仪表盘
 │   └── external/              # 外部数据源 prompts
 │       ├── bloomberg/         # Bloomberg AI prompts
 │       │   ├── company/       # 公司视角

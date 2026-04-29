@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skill Hub - {{ title }}</title>
+  <style>
+    :root { --bg: #0d1117; --card: #161b22; --border: #30363d; --text: #c9d1d9; --accent: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922; --purple: #bc8cff; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; min-height: 100vh; }
+    nav { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; gap: 20px; }
+    nav a { color: var(--text); text-decoration: none; font-size: 14px; }
+    nav a:hover { color: var(--accent); }
+    nav .logo { font-weight: 700; font-size: 18px; color: var(--accent); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .search-bar { display: flex; gap: 12px; margin-bottom: 24px; }
+    .search-bar input { flex: 1; padding: 10px 16px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 14px; }
+    .search-bar input:focus { outline: none; border-color: var(--accent); }
+    .search-bar button { padding: 10px 20px; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; }
+    .stats-row { display: flex; gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; flex: 1; }
+    .stat-card .label { font-size: 12px; color: #8b949e; }
+    .stat-card .value { font-size: 28px; font-weight: 700; color: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 20px; transition: border-color 0.2s; }
+    .card:hover { border-color: var(--accent); }
+    .card h3 { font-size: 16px; color: var(--text); margin-bottom: 8px; }
+    .card h3 a { color: var(--text); text-decoration: none; }
+    .card h3 a:hover { color: var(--accent); }
+    .card .desc { font-size: 13px; color: #8b949e; margin-bottom: 12px; line-height: 1.5; }
+    .card .meta { display: flex; gap: 8px; font-size: 12px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+    .badge.core { background: #1f6feb33; color: var(--accent); }
+    .badge.external { background: #bc8cff33; color: var(--purple); }
+    .badge.passing { background: #3fb95033; color: var(--green); }
+    .badge.failing { background: #f8514933; color: var(--red); }
+    .badge.unknown { background: #d2992233; color: var(--yellow); }
+    .version { color: #8b949e; }
+    .detail { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; }
+    .detail h1 { font-size: 24px; color: var(--text); margin-bottom: 4px; }
+    .detail .meta-row { display: flex; gap: 12px; margin-bottom: 16px; }
+    .md-content { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 16px; white-space: pre-wrap; font-family: monospace; font-size: 13px; line-height: 1.6; max-height: 600px; overflow-y: auto; }
+    .file-list { list-style: none; padding: 0; }
+    .file-list li { padding: 6px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .file-list li:last-child { border-bottom: none; }
+    .test-output { background: #0d1117; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px; white-space: pre-wrap; max-height: 400px; overflow-y: auto; }
+    .btn { padding: 8px 16px; background: var(--accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .btn:hover { background: #1f6feb; }
+    .btn.secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px 12px; border-bottom: 1px solid var(--border); text-align: left; font-size: 13px; }
+    th { color: #8b949e; font-weight: 600; }
+    .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .health-item { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .progress-bar { background: var(--border); border-radius: 4px; height: 8px; overflow: hidden; }
+    .progress-bar .fill { height: 100%; border-radius: 4px; }
+    .fill.green { background: var(--green); }
+    .fill.red { background: var(--red); }
+    .fill.yellow { background: var(--yellow); }
+    .empty { text-align: center; padding: 48px; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a href="/" class="logo">Skill Hub</a>
+    <a href="/">Skills</a>
+    <a href="/health">Health</a>
+    <a href="/install">Install</a>
+  </nav>
+  <div class="container">
+    {% block content %}{% endblock %}
+  </div>
+</body>
+</html>

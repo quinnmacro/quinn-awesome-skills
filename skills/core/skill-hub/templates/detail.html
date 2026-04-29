@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% set title = skill.name %}
+{% block content %}
+<div class="detail">
+  <h1>{{ skill.name }} <span class="version">v{{ skill.version }}</span></h1>
+  <div class="meta-row">
+    <span class="badge {{ skill.layer }}">{{ skill.layer }}</span>
+    <span class="badge {{ skill.health }}">{{ skill.health }}</span>
+    <span class="version">by {{ skill.author }}</span>
+    <span class="version">{{ skill.category }}</span>
+  </div>
+  <p class="desc" style="margin-bottom:20px;color:#c9d1d9;font-size:15px;">{{ skill.description }}</p>
+
+  {% if skill.skill_md %}
+  <h2 style="font-size:16px;margin-bottom:8px;">SKILL.md</h2>
+  <div class="md-content">{{ skill.skill_md }}</div>
+  {% endif %}
+
+  {% if skill.scripts %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Scripts</h2>
+  <ul class="file-list">
+    {% for s in skill.scripts %}
+    <li>{{ s }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if skill.modules %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Modules</h2>
+  <ul class="file-list">
+    {% for m in skill.modules %}
+    <li>{{ m }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if test_runs %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Recent Test Runs</h2>
+  <table>
+    <tr><th>Date</th><th>Status</th><th>Total</th><th>Passed</th><th>Failed</th><th>Duration</th></tr>
+    {% for run in test_runs %}
+    <tr>
+      <td>{{ run.started_at }}</td>
+      <td><span class="badge {{ run.status }}">{{ run.status }}</span></td>
+      <td>{{ run.total_tests }}</td>
+      <td>{{ run.passed }}</td>
+      <td>{{ run.failed }}</td>
+      <td>{{ run.duration_seconds }}s</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
+  <div style="margin-top:20px;display:flex;gap:12px;">
+    <a href="/test/{{ skill.name }}" class="btn">Run Tests</a>
+    <a href="/api/skills/{{ skill.name }}" class="btn secondary">JSON API</a>
+  </div>
+</div>
+{% endblock %}

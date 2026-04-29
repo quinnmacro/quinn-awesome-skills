@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% set title = "Install" %}
+{% block content %}
+<div class="detail">
+  <h1>Install Skills</h1>
+  <p style="margin-bottom:16px;color:#8b949e;">Skills directory: {{ skills_dir }}</p>
+
+  <h2 style="font-size:16px;margin-bottom:8px;">Quick Install (all skills)</h2>
+  <div class="test-output">bash install.sh</div>
+
+  <h2 style="font-size:16px;margin:16px 0 8px;">Install single skill</h2>
+  <div class="test-output">bash install.sh url-fetcher
+bash install.sh presearch
+bash install.sh daily-dev-pulse</div>
+
+  <h2 style="font-size:16px;margin:16px 0 8px;">Skill Hub Dependencies</h2>
+  <div class="test-output">pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio</div>
+
+  <h2 style="font-size:16px;margin:16px 0 8px;">Start Skill Hub Server</h2>
+  <div class="test-output">bash ~/.claude/skills/skill-hub/scripts/start.sh</div>
+
+  <h2 style="font-size:16px;margin:16px 0 8px;">Environment Variables</h2>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
+    <tr><td>SKILL_HUB_PORT</td><td>8765</td><td>Server port</td></tr>
+    <tr><td>SKILL_HUB_DB</td><td>~/.quinn-skills/skill-hub.db</td><td>SQLite database path</td></tr>
+    <tr><td>SKILL_HUB_SKILLS_DIR</td><td>auto</td><td>Skills directory path</td></tr>
+  </table>
+</div>
+{% endblock %}

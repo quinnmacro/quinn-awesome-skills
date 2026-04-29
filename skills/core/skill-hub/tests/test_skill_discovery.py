@@ -1,0 +1,344 @@
+"""Tests for skill_discovery module."""
+
+import pytest
+from pathlib import Path
+
+# Project root for real skills directory
+SKILL_HUB_DIR = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = SKILL_HUB_DIR.parent.parent.parent
+REAL_SKILLS_DIR = PROJECT_ROOT / "skills"
+
+from skill_discovery import (
+    discover_skills,
+    get_skill_by_name,
+    search_skills,
+    _yaml_frontmatter,
+    _parse_description,
+    _list_scripts,
+    _list_modules,
+    _layer_from_category,
+)
+
+
+# --- _yaml_frontmatter tests ---
+
+
+class TestYamlFrontmatter:
+    def test_simple_frontmatter(self):
+        text = "---\nname: foo\nversion: 1.0\n---\nbody"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "foo"
+        assert result["version"] == "1.0"
+
+    def test_multiline_description(self):
+        text = "---\nname: bar\ndescription: |\n  Multi line\n  description text\nversion: 2.0\n---\nbody"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "bar"
+        assert "Multi" in result["description"]
+        assert result["version"] == "2.0"
+
+    def test_no_frontmatter(self):
+        text = "# Just markdown\nno frontmatter"
+        result = _yaml_frontmatter(text)
+        assert result == {}
+
+    def test_empty_frontmatter(self):
+        text = "---\n---\nbody"
+        result = _yaml_frontmatter(text)
+        assert result == {}
+
+    def test_multiple_keys(self):
+        text = "---\nname: test\nversion: 3.0\nauthor: dev\nlayer: core\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "test"
+        assert result["version"] == "3.0"
+        assert result["author"] == "dev"
+        assert result["layer"] == "core"
+
+    def test_description_with_pipe(self):
+        text = "---\nname: x\ndescription: |\n  Line one\n  Line two\n---\n"
+        result = _yaml_frontmatter(text)
+        assert "Line one" in result["description"]
+
+    def test_inline_description(self):
+        text = "---\nname: y\ndescription: Short desc\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["description"] == "Short desc"
+
+    def test_description_with_triggers(self):
+        text = "---\nname: z\ndescription: Fetch URLs. Triggers: fetch this\n---\n"
+        result = _yaml_frontmatter(text)
+        assert "Fetch URLs" in result["description"]
+
+    def test_key_with_empty_value(self):
+        text = "---\nname: a\nauthor:\nversion: 1.0\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "a"
+        assert result.get("author", "") == ""
+
+    def test_frontmatter_with_special_chars(self):
+        text = "---\nname: url-fetcher\nversion: 1.0.0\n---\n"
+        result = _yaml_frontmatter(text)
+        assert result["name"] == "url-fetcher"
+
+    def test_description_multiline_with_period(self):
+        text = "---\ndescription: |\n  Search existing solutions. Avoid reinventing the wheel. Triggers: presearch\n---\n"
+        result = _yaml_frontmatter(text)
+        assert "Search existing solutions" in result["description"]
+
+
+# --- _parse_description tests ---
+
+
+class TestParseDescription:
+    def test_simple_description(self):
+        assert _parse_description({"description": "A simple skill"}) == "A simple skill"
+
+    def test_description_with_trigger_phrases(self):
+        desc = _parse_description({"description": "Fetch URLs. Triggers: fetch this"})
+        assert "Triggers" not in desc
+
+    def test_empty_description(self):
+        assert _parse_description({"description": ""}) == ""
+
+    def test_missing_description_key(self):
+        assert _parse_description({}) == ""
+
+    def test_multiline_description_first_line(self):
+        desc = _parse_description({"description": "Line one. Line two. Line three"})
+        assert "Line one" == desc
+
+    def test_description_single_period(self):
+        desc = _parse_description({"description": "One sentence"})
+        assert desc == "One sentence"
+
+
+# --- _list_scripts tests ---
+
+
+class TestListScripts:
+    def test_list_sh_and_py(self, tmp_skills_dir):
+        fetcher = tmp_skills_dir / "core" / "mock-fetcher"
+        scripts = _list_scripts(fetcher)
+        assert "fetch.sh" in scripts
+        assert "search.py" in scripts
+
+    def test_no_scripts_dir(self, tmp_skills_dir):
+        pulse = tmp_skills_dir / "core" / "mock-pulse"
+        scripts = _list_scripts(pulse)
+        assert scripts == []
+
+    def test_hidden_scripts_excluded(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / ".hidden.sh").write_text("hidden")
+        (scripts_dir / "visible.sh").write_text("visible")
+        result = _list_scripts(skill_dir)
+        assert ".hidden.sh" not in result
+        assert "visible.sh" in result
+
+    def test_non_script_files_excluded(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "data.json").write_text("{}")
+        (scripts_dir / "run.sh").write_text("run")
+        result = _list_scripts(skill_dir)
+        assert "data.json" not in result
+        assert "run.sh" in result
+
+    def test_sorted_output(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        scripts_dir = skill_dir / "scripts"
+        scripts_dir.mkdir()
+        (scripts_dir / "z.sh").write_text("")
+        (scripts_dir / "a.sh").write_text("")
+        result = _list_scripts(skill_dir)
+        assert result == ["a.sh", "z.sh"]
+
+
+# --- _list_modules tests ---
+
+
+class TestListModules:
+    def test_list_py_modules(self, tmp_skills_dir):
+        fetcher = tmp_skills_dir / "core" / "mock-fetcher"
+        modules = _list_modules(fetcher)
+        assert "core.py" in modules
+
+    def test_no_modules_dir(self, tmp_skills_dir):
+        pulse = tmp_skills_dir / "core" / "mock-pulse"
+        modules = _list_modules(pulse)
+        assert modules == []
+
+    def test_non_py_files_excluded(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        modules_dir = skill_dir / "modules"
+        modules_dir.mkdir()
+        (modules_dir / "data.json").write_text("{}")
+        (modules_dir / "core.py").write_text("pass")
+        result = _list_modules(skill_dir)
+        assert "data.json" not in result
+        assert "core.py" in result
+
+    def test_hidden_modules_excluded(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        modules_dir = skill_dir / "modules"
+        modules_dir.mkdir()
+        (modules_dir / ".hidden.py").write_text("")
+        (modules_dir / "visible.py").write_text("")
+        result = _list_modules(skill_dir)
+        assert ".hidden.py" not in result
+
+
+# --- _layer_from_category tests ---
+
+
+class TestLayerFromCategory:
+    def test_core_category(self):
+        assert _layer_from_category("core") == "core"
+
+    def test_external_category(self):
+        assert _layer_from_category("external") == "external"
+
+    def test_presearch_category(self):
+        assert _layer_from_category("presearch") == "core"
+
+    def test_unknown_category(self):
+        assert _layer_from_category("unknown") == "unknown"
+
+
+# --- discover_skills tests ---
+
+
+class TestDiscoverSkills:
+    def test_discover_core_skills(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        core_skills = [s for s in skills if s["layer"] == "core"]
+        assert len(core_skills) >= 2
+
+    def test_discover_external_skills(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        ext_skills = [s for s in skills if s["layer"] == "external"]
+        assert len(ext_skills) >= 1
+
+    def test_skill_has_required_keys(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        assert len(skills) > 0
+        skill = skills[0]
+        required = ["name", "version", "description", "layer", "category", "path", "scripts", "modules", "skill_md", "author", "health"]
+        for key in required:
+            assert key in skill
+
+    def test_skill_md_content(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        fetcher = next(s for s in skills if s["name"] == "mock-fetcher")
+        assert "Mock Fetcher" in fetcher["skill_md"]
+
+    def test_hidden_dirs_skipped(self, tmp_skills_dir_with_hidden):
+        skills = discover_skills(tmp_skills_dir_with_hidden)
+        assert "should-not-appear" not in [s["name"] for s in skills]
+
+    def test_nonexistent_dir(self, tmp_path):
+        skills = discover_skills(tmp_path / "nonexistent")
+        assert skills == []
+
+    def test_empty_skills_dir(self, tmp_path):
+        empty_dir = tmp_path / "skills"
+        empty_dir.mkdir()
+        skills = discover_skills(empty_dir)
+        assert skills == []
+
+    def test_discover_real_project_skills(self):
+        """Test discovery against the actual project skills directory."""
+        skills = discover_skills(REAL_SKILLS_DIR)
+        assert len(skills) >= 3
+        names = [s["name"] for s in skills]
+        assert "url-fetcher" in names
+        assert "presearch" in names
+        assert "daily-dev-pulse" in names
+
+    def test_scripts_listed(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        fetcher = next(s for s in skills if s["name"] == "mock-fetcher")
+        assert len(fetcher["scripts"]) >= 2
+
+    def test_modules_listed(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        fetcher = next(s for s in skills if s["name"] == "mock-fetcher")
+        assert len(fetcher["modules"]) >= 1
+
+    def test_nested_external_skills(self, tmp_skills_dir_nested):
+        skills = discover_skills(tmp_skills_dir_nested)
+        names = [s["name"] for s in skills]
+        assert "company-snapshot" in names
+
+    def test_skill_path_is_str(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        for s in skills:
+            assert isinstance(s["path"], str)
+
+    def test_version_format(self, tmp_skills_dir):
+        skills = discover_skills(tmp_skills_dir)
+        for s in skills:
+            assert "." in s["version"]  # semver-like
+
+
+# --- get_skill_by_name tests ---
+
+
+class TestGetSkillByName:
+    def test_find_existing_skill(self, tmp_skills_dir):
+        skill = get_skill_by_name(tmp_skills_dir, "mock-fetcher")
+        assert skill is not None
+        assert skill["name"] == "mock-fetcher"
+
+    def test_not_found(self, tmp_skills_dir):
+        skill = get_skill_by_name(tmp_skills_dir, "nonexistent")
+        assert skill is None
+
+    def test_find_external_skill(self, tmp_skills_dir):
+        skill = get_skill_by_name(tmp_skills_dir, "mock-bloomberg")
+        assert skill is not None
+        assert skill["layer"] == "external"
+
+    def test_find_real_url_fetcher(self):
+        skill = get_skill_by_name(REAL_SKILLS_DIR, "url-fetcher")
+        assert skill is not None
+        assert skill["name"] == "url-fetcher"
+
+
+# --- search_skills tests ---
+
+
+class TestSearchSkills:
+    def test_search_by_name(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "fetcher")
+        assert len(results) >= 1
+        assert any(s["name"] == "mock-fetcher" for s in results)
+
+    def test_search_by_description(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "pulse")
+        assert len(results) >= 1
+
+    def test_case_insensitive(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "FETCHER")
+        assert len(results) >= 1
+
+    def test_no_results(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "nonexistent-term")
+        assert len(results) == 0
+
+    def test_partial_match(self, tmp_skills_dir):
+        results = search_skills(tmp_skills_dir, "mock")
+        assert len(results) >= 2
+
+    def test_search_real_project(self):
+        results = search_skills(REAL_SKILLS_DIR, "fetch")
+        assert len(results) >= 1

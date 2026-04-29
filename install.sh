@@ -190,6 +190,14 @@ install_skill() {
         done
     fi
 
+    # 7. Set up skill-hub dependencies
+    if [ "$SKILL_NAME" = "skill-hub" ]; then
+        mkdir -p ~/.quinn-skills
+        echo -e "  ${BLUE}Installing skill-hub Python dependencies...${NC}"
+        pip install fastapi uvicorn jinja2 aiosqlite httpx websockets 2>/dev/null || pip3 install fastapi uvicorn jinja2 aiosqlite httpx websockets 2>/dev/null || true
+        echo -e "  ${GREEN}✅ Skill Hub ready — run with: bash ~/.claude/skills/skill-hub/scripts/start.sh${NC}"
+    fi
+
     # 6. 安装斜杠命令（从 commands/ 目录）
     install_command "$SKILL_NAME"
 
@@ -343,6 +351,7 @@ main() {
     echo "  /url-fetcher https://example.com"
     echo "  /presearch \"React framework\""
 echo "  /daily-dev-pulse"
+echo "  /skill-hub"
     echo "  /daily-dev-pulse --focus security"
 }
 
