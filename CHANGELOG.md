@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-28
+
+### Added
+- ✨ **Bloomberg** skill templates (external) - Financial analysis templates for Claude Code
+  - Sector Snapshot - Analyze sector trends and dynamics
+  - Breaking Event - Market event impact analysis
+  - Credit Strategy (Custom) - Credit market strategy framework
+  - Company Snapshot, Management & Governance, Performance Tracker, Trends Analysis
+- ✨ **Wind** skill placeholder (external) - Wind financial data terminal integration
+- 🧪 **pytest** unit tests for presearch core modules
+  - keyword_extractor (19 tests): extraction, stopwords, dedup, translation
+  - ranking (19 tests): popularity, activity, quality, community scoring
+  - translator (18 tests): Chinese detection, local dict, API fallback
+  - formatter (35 tests): timestamps, stars, health indicators, GitHub/arXiv formatting
+- 🔧 Reorganized skills into core/ and external/ directory structure
+
 ## [1.2.0] - 2025-04-08
 
 ### Added
@@ -85,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Description |
 |---------|------|-------------|
+| 1.3.0 | 2026-04-28 | Add Bloomberg/Wind external skills, pytest tests for presearch, reorganize skill dirs |
 | 1.2.0 | 2025-04-08 | Add investor-distiller, macro-brief, earnings-analyzer (investment skills) |
 | 1.1.0 | 2025-04-08 | Add creative-prompt, dev-joke, code-poet skills |
 | 1.0.1 | 2025-04-08 | Add LLM Agent, environment config, bilingual README |
