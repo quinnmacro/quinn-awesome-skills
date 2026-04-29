@@ -33,6 +33,7 @@
   <div style="margin-top:20px;display:flex;gap:12px;">
     <button class="btn" onclick="runTest()">Run Tests</button>
     <button class="btn secondary" onclick="runTestWS()">Stream Tests (WebSocket)</button>
+    <button class="btn secondary" style="color:var(--red);border-color:var(--red);" onclick="clearHistory()">Clear Test History</button>
   </div>
 
   <div id="test-output" class="test-output" style="margin-top:16px;min-height:200px;display:none;"></div>
@@ -90,6 +91,20 @@ function runTestWS() {
     }
   };
   ws.onerror = function(e) { outputDiv.textContent += 'WebSocket error\n'; };
+}
+
+function clearHistory() {
+  if (!confirm('Clear all test run history for {{ skill.name }}?')) return;
+  fetch('/api/skills/{{ skill.name }}/test-runs', {method: 'DELETE'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.deleted_count !== undefined) {
+        window.location.reload();
+      } else {
+        alert('Error: ' + (data.error || 'Unknown error'));
+      }
+    })
+    .catch(e => { alert('Error: ' + e.message); });
 }
 </script>
 {% endblock %}

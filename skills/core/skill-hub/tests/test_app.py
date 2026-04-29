@@ -2351,3 +2351,61 @@ class TestWebSocketStreamingImprovements:
         before_try = '\n'.join(lines[:try_line_idx])
         assert "total = 0" in before_try
         assert "passed = 0" in before_try
+
+
+class TestApiDeleteSkill:
+    def test_delete_existing_skill(self, client):
+        """DELETE /api/skills/{name} removes skill from DB."""
+        response = client.delete("/api/skills/url-fetcher")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["deleted"] == "url-fetcher"
+        assert "message" in data
+
+    def test_delete_nonexistent_skill(self, client):
+        """DELETE /api/skills/{name} returns 404 for nonexistent skill."""
+        response = client.delete("/api/skills/nonexistent-skill-xyz")
+        assert response.status_code == 404
+        data = response.json()
+        assert "error" in data
+
+    def test_delete_skill_removes_from_db(self, client):
+        """After deletion, skill should no longer have DB metadata (health, timestamps)."""
+        # Delete skill from DB
+        client.delete("/api/skills/url-fetcher")
+        # Skill still appears in /api/skills because _enrich_with_discovered
+        # re-adds filesystem-found skills, but DB metadata should be gone
+        response = client.get("/api/skills/url-fetcher")
+        data = response.json()
+        # DB-specific fields like discovered_at/updated_at should be absent
+        # or health should be 'unknown' since it was deleted from DB
+        assert data.get("health") == "unknown"
+
+
+class TestApiDeleteTestRuns:
+    def test_delete_test_runs_existing_skill(self, client):
+        """DELETE /api/skills/{name}/test-runs clears test history."""
+        # First ensure the skill exists
+        client.post("/api/skills/resync")
+        response = client.delete("/api/skills/url-fetcher/test-runs")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["skill_name"] == "url-fetcher"
+        assert "deleted_count" in data
+        assert "message" in data
+
+    def test_delete_test_runs_nonexistent_skill(self, client):
+        """DELETE /api/skills/{name}/test-runs returns 404 for nonexistent skill."""
+        response = client.delete("/api/skills/nonexistent-skill-xyz/test-runs")
+        assert response.status_code == 404
+        data = response.json()
+        assert "error" in data
+
+    def test_delete_test_runs_resets_health(self, client):
+        """After clearing test runs, skill health should be reset to 'unknown'."""
+        client.post("/api/skills/resync")
+        response = client.delete("/api/skills/url-fetcher/test-runs")
+        if response.status_code == 200:
+            response = client.get("/api/skills/url-fetcher")
+            data = response.json()
+            assert data.get("health") == "unknown"

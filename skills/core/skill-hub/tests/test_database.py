@@ -19,6 +19,8 @@ from database import (
     get_dependencies,
     record_version,
     get_versions,
+    delete_skill,
+    delete_test_runs,
 )
 
 
@@ -676,3 +678,110 @@ class TestSyncSkillsVersionRecording:
         await sync_skills(db, [new_skill])
         versions = await get_versions(db, "brand-new")
         assert versions == []
+
+
+class TestDeleteSkill:
+    @pytest.mark.asyncio
+    async def test_delete_existing_skill(self, db, mock_skill_data):
+        """delete_skill removes skill and all associated data."""
+        await upsert_skill(db, mock_skill_data)
+        await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 5, "passed": 5, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 1.0, "output": "", "started_at": "2026-01-01T00:00:00", "finished_at": "2026-01-01T00:00:01"})
+        await upsert_dependency(db, "test-skill", "pytest", "pip", 1)
+        await record_version(db, "test-skill", "1.0.0")
+        result = await delete_skill(db, "test-skill")
+        assert result is True
+        assert await get_skill(db, "test-skill") is None
+        assert await get_test_runs(db, "test-skill") == []
+        assert await get_dependencies(db, "test-skill") == []
+        assert await get_versions(db, "test-skill") == []
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_skill(self, db):
+        """delete_skill returns False for nonexistent skill."""
+        result = await delete_skill(db, "no-such-skill")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_removes_from_all_skills(self, db, mock_skill_data):
+        """delete_skill removes skill from get_all_skills."""
+        await upsert_skill(db, mock_skill_data)
+        await delete_skill(db, "test-skill")
+        all_skills = await get_all_skills(db)
+        assert not any(s["name"] == "test-skill" for s in all_skills)
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_cascades_to_test_runs(self, db, mock_skill_data):
+        """delete_skill removes all associated test runs."""
+        await upsert_skill(db, mock_skill_data)
+        for i in range(3):
+            await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 5, "passed": 5, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 1.0, "output": "", "started_at": "2026-01-01T00:00:0" + str(i), "finished_at": "2026-01-01T00:00:0" + str(i)})
+        await delete_skill(db, "test-skill")
+        runs = await get_test_runs(db, "test-skill")
+        assert runs == []
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_cascades_to_dependencies(self, db, mock_skill_data):
+        """delete_skill removes all associated dependencies."""
+        await upsert_skill(db, mock_skill_data)
+        await upsert_dependency(db, "test-skill", "pytest", "pip", 1)
+        await upsert_dependency(db, "test-skill", "curl", "brew", 1)
+        await delete_skill(db, "test-skill")
+        deps = await get_dependencies(db, "test-skill")
+        assert deps == []
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_cascades_to_versions(self, db, mock_skill_data):
+        """delete_skill removes all associated version records."""
+        await upsert_skill(db, mock_skill_data)
+        await record_version(db, "test-skill", "1.0.0")
+        await record_version(db, "test-skill", "2.0.0")
+        await delete_skill(db, "test-skill")
+        versions = await get_versions(db, "test-skill")
+        assert versions == []
+
+    @pytest.mark.asyncio
+    async def test_delete_skill_does_not_affect_other_skills(self, db, mock_skill_data):
+        """Deleting one skill does not affect other skills."""
+        await upsert_skill(db, mock_skill_data)
+        other = dict(mock_skill_data, name="other-skill", path="/tmp/other")
+        await upsert_skill(db, other)
+        await delete_skill(db, "test-skill")
+        assert await get_skill(db, "other-skill") is not None
+
+
+class TestDeleteTestRuns:
+    @pytest.mark.asyncio
+    async def test_delete_all_test_runs(self, db, mock_skill_data, mock_test_result):
+        """delete_test_runs removes all test runs for a skill."""
+        await upsert_skill(db, mock_skill_data)
+        await record_test_run(db, mock_test_result)
+        await record_test_run(db, mock_test_result)
+        count = await delete_test_runs(db, "test-skill")
+        assert count == 2
+        assert await get_test_runs(db, "test-skill") == []
+
+    @pytest.mark.asyncio
+    async def test_delete_test_runs_zero_when_none(self, db, mock_skill_data):
+        """delete_test_runs returns 0 when no test runs exist."""
+        await upsert_skill(db, mock_skill_data)
+        count = await delete_test_runs(db, "test-skill")
+        assert count == 0
+
+    @pytest.mark.asyncio
+    async def test_delete_test_runs_does_not_affect_other_skill(self, db, mock_skill_data):
+        """Deleting test runs for one skill doesn't affect another."""
+        await upsert_skill(db, mock_skill_data)
+        other = dict(mock_skill_data, name="other-skill", path="/tmp/other")
+        await upsert_skill(db, other)
+        await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 1, "passed": 1, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "", "started_at": "2026-01-01T00:00:00", "finished_at": "2026-01-01T00:00:01"})
+        await record_test_run(db, {"skill_name": "other-skill", "status": "completed", "total_tests": 3, "passed": 3, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "", "started_at": "2026-01-01T00:00:00", "finished_at": "2026-01-01T00:00:01"})
+        count = await delete_test_runs(db, "test-skill")
+        assert count == 1
+        assert await get_test_runs(db, "other-skill") != []
+
+    @pytest.mark.asyncio
+    async def test_delete_test_runs_preserves_skill(self, db, mock_skill_data):
+        """delete_test_runs does not remove the skill itself."""
+        await upsert_skill(db, mock_skill_data)
+        await delete_test_runs(db, "test-skill")
+        assert await get_skill(db, "test-skill") is not None

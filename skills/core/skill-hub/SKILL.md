@@ -46,6 +46,8 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 | `/api/skills/export.csv` | GET | Export all skills as CSV |
 | `/api/skills/resync` | POST | Re-discover skills from filesystem and sync to database |
 | `/api/skills/test-all` | POST | Run tests for all skills and return aggregated results |
+| `/api/skills/{name}` | DELETE | Delete a skill and all its associated data from the database |
+| `/api/skills/{name}/test-runs` | DELETE | Clear all test run history for a skill |
 | `/api/health` | GET | Health dashboard data |
 
 ## Dependencies
@@ -70,3 +72,5 @@ pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyn
 - Sort options: name (asc/desc), version, test_count, health (priority order)
 - Skill cards show pass rate percentage and last-tested timestamp from recent test runs
 - Detail page has Check Dependencies button that calls /api/skills/{name}/check-deps and shows results
+- Detail page has Delete from DB button to remove skill data (does not remove filesystem files; re-sync restores)
+- Test page has Clear Test History button to clear all test runs and reset health to unknown

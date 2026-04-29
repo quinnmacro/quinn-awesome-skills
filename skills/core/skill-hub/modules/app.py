@@ -36,6 +36,8 @@ from database import (
     get_dependencies,
     record_version,
     get_versions,
+    delete_skill,
+    delete_test_runs,
 )
 
 # Resolve paths: app.py is in skill-hub/modules/
@@ -356,6 +358,30 @@ async def api_check_deps(name: str):
     for d in checked:
         await upsert_dependency(db, name, d["dep_name"], d["dep_type"], 1 if d["installed"] else 0)
     return {"skill_name": name, "dependencies": checked}
+
+
+@app.delete("/api/skills/{name}")
+async def api_delete_skill(name: str):
+    """Delete a skill and all its associated data from the database."""
+    db = await get_db()
+    deleted = await delete_skill(db, name)
+    if not deleted:
+        return JSONResponse({"error": f"Skill '{name}' not found"}, status_code=404)
+    return {"deleted": name, "message": f"Skill '{name}' and all associated data removed"}
+
+
+@app.delete("/api/skills/{name}/test-runs")
+async def api_delete_test_runs(name: str):
+    """Clear all test run history for a skill."""
+    db = await get_db()
+    skill = await get_skill(db, name)
+    if skill is None:
+        return JSONResponse({"error": f"Skill '{name}' not found"}, status_code=404)
+    count = await delete_test_runs(db, name)
+    # Reset skill health to unknown after clearing test history
+    skill["health"] = "unknown"
+    await upsert_skill(db, skill)
+    return {"skill_name": name, "deleted_count": count, "message": f"{count} test runs cleared for '{name}'"}
 
 
 @app.post("/api/skills/test-all")

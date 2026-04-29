@@ -283,6 +283,28 @@ async def sync_skills(db: aiosqlite.Connection, discovered: list[dict]) -> None:
         await upsert_skill(db, skill)
 
 
+async def delete_skill(db: aiosqlite.Connection, name: str) -> bool:
+    """Delete a skill and all associated data (test runs, dependencies, versions)."""
+    existing = await get_skill(db, name)
+    if existing is None:
+        return False
+    await db.execute("DELETE FROM test_runs WHERE skill_name = ?", (name,))
+    await db.execute("DELETE FROM dependencies WHERE skill_name = ?", (name,))
+    await db.execute("DELETE FROM skill_versions WHERE skill_name = ?", (name,))
+    await db.execute("DELETE FROM skills WHERE name = ?", (name,))
+    await db.commit()
+    return True
+
+
+async def delete_test_runs(db: aiosqlite.Connection, name: str) -> int:
+    """Delete all test runs for a skill. Returns count of deleted rows."""
+    cursor = await db.execute("SELECT COUNT(*) FROM test_runs WHERE skill_name = ?", (name,))
+    count = (await cursor.fetchone())[0]
+    await db.execute("DELETE FROM test_runs WHERE skill_name = ?", (name,))
+    await db.commit()
+    return count
+
+
 async def sync_dependencies(db: aiosqlite.Connection, discovered: list[dict]) -> None:
     """Sync discovered skill dependencies into the database."""
     for skill in discovered:

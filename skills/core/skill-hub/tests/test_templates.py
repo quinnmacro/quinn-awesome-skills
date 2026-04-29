@@ -872,3 +872,77 @@ class TestDetailPageConfigRendering:
         assert "production" in html
         assert "port" in html
         assert "8080" in html
+
+
+class TestDetailPageDeleteButton:
+    def test_detail_page_has_delete_skill_button(self, client):
+        """Detail page should have a Delete from DB button."""
+        response = client.get("/skill/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "Delete from DB" in html
+
+    def test_detail_page_delete_button_calls_api(self, client):
+        """Delete button should have onclick handler calling deleteSkill()."""
+        response = client.get("/skill/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "deleteSkill()" in html
+
+    def test_detail_page_delete_function_exists(self, client):
+        """Detail page should define deleteSkill() JavaScript function."""
+        response = client.get("/skill/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "function deleteSkill()" in html
+
+    def test_detail_page_delete_button_uses_delete_method(self, client):
+        """DeleteSkill function should call DELETE HTTP method."""
+        response = client.get("/skill/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "method: 'DELETE'" in html or "method:'DELETE'" in html
+
+    def test_detail_page_delete_button_has_red_style(self, client):
+        """Delete button should have red color styling."""
+        response = client.get("/skill/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "color:var(--red)" in html
+
+
+class TestTestPageClearHistoryButton:
+    def test_test_page_has_clear_history_button(self, client):
+        """Test page should have a Clear Test History button."""
+        response = client.get("/test/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "Clear Test History" in html
+
+    def test_test_page_clear_button_calls_clear_history(self, client):
+        """Clear button should have onclick handler calling clearHistory()."""
+        response = client.get("/test/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "clearHistory()" in html
+
+    def test_test_page_clear_function_exists(self, client):
+        """Test page should define clearHistory() JavaScript function."""
+        response = client.get("/test/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "function clearHistory()" in html
+
+    def test_test_page_clear_button_uses_delete_method(self, client):
+        """clearHistory function should call DELETE HTTP method."""
+        response = client.get("/test/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "method: 'DELETE'" in html or "method:'DELETE'" in html
+
+    def test_test_page_clear_button_has_red_style(self, client):
+        """Clear History button should have red color styling."""
+        response = client.get("/test/url-fetcher")
+        assert response.status_code == 200
+        html = response.text
+        assert "color:var(--red)" in html

@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test panel: run pytest and stream results via WebSocket
   - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
   - Install page: dynamic skills table with dependency install status, check-deps button
-  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv, /api/skills/resync, /api/skills/test-all
+  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv, /api/skills/resync, /api/skills/test-all, DELETE /api/skills/{name}, DELETE /api/skills/{name}/test-runs
   - Layer and health filter dropdowns on home page and API (layer=, health= query params)
   - Sort dropdown on home page and API (sort= query param: name, name-desc, version, test_count, health)
   - Re-sync Skills button on home page UI with visual feedback and auto-reload
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Blockquote support: > lines rendered as <blockquote> with accent-colored left border
   - Horizontal rule support: --- / *** / ___ lines rendered as <hr>
   - CSS styles for ol, blockquote, hr, and markdown tables within .md-rendered
-- 593 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table, _parse_pytest_line helper for WebSocket per-line parsing, _parse_pytest_summary with full accumulated output fix, WebSocket started_at/finished_at/duration/status improvements)
+- 652 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table, _parse_pytest_line helper for WebSocket per-line parsing, _parse_pytest_summary with full accumulated output fix, WebSocket started_at/finished_at/duration/status improvements, delete_skill/delete_test_runs database operations, DELETE API endpoints for skill removal and test history cleanup, UI delete/clear-history buttons)
 
 ## [1.3.0] - 2026-04-28
 

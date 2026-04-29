@@ -54,6 +54,8 @@ class TestModuleExports:
         assert hasattr(_modules_pkg, 'get_dependencies')
         assert hasattr(_modules_pkg, 'record_version')
         assert hasattr(_modules_pkg, 'get_versions')
+        assert hasattr(_modules_pkg, 'delete_skill')
+        assert hasattr(_modules_pkg, 'delete_test_runs')
         assert hasattr(_modules_pkg, 'DEFAULT_DB_PATH')
 
     def test_discover_skills_callable(self):
@@ -95,6 +97,12 @@ class TestModuleExports:
 
     def test_parse_description_callable(self):
         assert callable(_modules_pkg._parse_description)
+
+    def test_delete_skill_callable(self):
+        assert callable(_modules_pkg.delete_skill)
+
+    def test_delete_test_runs_callable(self):
+        assert callable(_modules_pkg.delete_test_runs)
 
 
 # --- start.sh script tests ---
