@@ -28,7 +28,7 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 ## Features
 
 1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description, pass rate, last-tested timestamp. Search bar filters by name/description. Sort by name, version, test count, health. Layer/health filter dropdowns. Re-sync skills button.
-2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies (with per-skill Check Dependencies button), version history.
+2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies (with per-skill Check Dependencies button), version history, Quick Run Tests button for inline test execution with live output display.
 3. **Test panel** - Run pytest and stream results via WebSocket.
 4. **Health dashboard** - Aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export.
 5. **Install page** - Install commands, dependency check.

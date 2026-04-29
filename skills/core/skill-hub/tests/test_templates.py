@@ -721,3 +721,75 @@ class TestDetailPageCheckDeps:
             # The JS function references the check-deps API
             if "checkDeps" in resp.text:
                 assert "check-deps" in resp.text
+
+
+class TestDetailPageQuickRunTests:
+    """Tests for Quick Run Tests button on the skill detail page."""
+
+    def test_detail_page_has_quick_run_button(self, client):
+        """Detail page should have a Quick Run Tests button."""
+        resp = client.get("/skill/url-fetcher")
+        assert "Quick Run Tests" in resp.text
+
+    def test_detail_page_has_quick_run_btn_id(self, client):
+        """Quick Run Tests button should have id='quick-run-btn' for JS targeting."""
+        resp = client.get("/skill/url-fetcher")
+        assert 'id="quick-run-btn"' in resp.text
+
+    def test_detail_page_has_quick_run_status_element(self, client):
+        """Detail page should have quick-run-status element for feedback."""
+        resp = client.get("/skill/url-fetcher")
+        assert 'id="quick-run-status"' in resp.text
+
+    def test_detail_page_has_quick_run_output_div(self, client):
+        """Detail page should have quick-run-output div for test output display."""
+        resp = client.get("/skill/url-fetcher")
+        assert 'id="quick-run-output"' in resp.text
+
+    def test_detail_page_has_quick_run_summary_div(self, client):
+        """Detail page should have quick-run-summary div for test results stats."""
+        resp = client.get("/skill/url-fetcher")
+        assert 'id="quick-run-summary"' in resp.text
+
+    def test_detail_page_quick_run_js_function(self, client):
+        """Detail page should have quickRunTest JavaScript function."""
+        resp = client.get("/skill/url-fetcher")
+        assert "quickRunTest" in resp.text
+
+    def test_detail_page_quick_run_calls_test_api(self, client):
+        """quickRunTest should call POST /api/skills/{name}/test endpoint."""
+        resp = client.get("/skill/url-fetcher")
+        assert "/api/skills/url-fetcher/test" in resp.text
+
+    def test_detail_page_quick_run_output_has_test_output_class(self, client):
+        """quick-run-output div should have test-output CSS class."""
+        resp = client.get("/skill/url-fetcher")
+        assert 'class="test-output"' in resp.text
+
+    def test_detail_page_has_full_test_page_link(self, client):
+        """Detail page should have a link to the Full Test Page instead of Run Tests button."""
+        resp = client.get("/skill/url-fetcher")
+        assert "Full Test Page" in resp.text
+        assert "/test/url-fetcher" in resp.text
+
+    def test_detail_page_no_test_runs_shows_message(self, client):
+        """When no test runs exist, detail page should show a message instead of empty table."""
+        resp = client.get("/skill/url-fetcher")
+        assert "No test runs recorded yet" in resp.text
+
+    def test_detail_page_test_runs_date_format(self, client):
+        """Test runs table should truncate date to [:19] for readability."""
+        # Verify the template uses [:19] slice for dates
+        from app import _render_template
+        # If there are test_runs, dates should be truncated
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [{"started_at": "2026-04-29T12:00:00.000000", "status": "completed",
+                           "total_tests": 10, "passed": 10, "failed": 0, "duration_seconds": 1.5}],
+            "deps": [], "versions": [], "config": {}, "skill_md_rendered": "", "nav_active": "skills",
+        })
+        assert "2026-04-29T12:00:00" in html
+        # Should NOT have the full microseconds
+        assert ".000000" not in html
