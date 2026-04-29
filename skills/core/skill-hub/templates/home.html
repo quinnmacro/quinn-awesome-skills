@@ -20,6 +20,7 @@
       <span class="badge {{ skill.health }}">{{ skill.health }}</span>
       {% if skill.scripts %}<span class="version">{{ skill.scripts|length }} scripts</span>{% endif %}
       {% if skill.modules %}<span class="version">{{ skill.modules|length }} modules</span>{% endif %}
+      {% if skill.test_count %}<span class="version">{{ skill.test_count }} tests</span>{% endif %}
     </div>
   </div>
   {% endfor %}

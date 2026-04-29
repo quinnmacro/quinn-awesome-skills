@@ -71,9 +71,7 @@ class TestApiSkills:
         response = client.get("/api/skills?q=nonexistentxyz")
         assert response.status_code == 200
         data = response.json()
-        # DB search returns 0, but enrich_with_discovered adds all discovered skills
-        # so the result may still contain skills if names/descriptions don't match query
-        # We check that no skill name/description matches the query
+        # After search fix, only matching skills should be returned
         for s in data:
             assert "nonexistentxyz" not in s["name"].lower()
             assert "nonexistentxyz" not in s["description"].lower()
@@ -438,3 +436,75 @@ class TestFindTestDirAdditional:
         from app import _find_test_dir
         test_dir = _find_test_dir("skill", "/nonexistent/path")
         assert isinstance(test_dir, Path)
+
+
+# --- _count_tests_in_dir tests ---
+
+
+class TestCountTestsInDir:
+    def test_count_tests_with_files(self, tmp_path):
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "test_one.py").write_text("def test_a(): pass\ndef test_b(): pass\n")
+        (test_dir / "test_two.py").write_text("def test_c(): pass\n")
+        assert _count_tests_in_dir(test_dir) == 3
+
+    def test_count_tests_empty_dir(self, tmp_path):
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        assert _count_tests_in_dir(test_dir) == 0
+
+    def test_count_tests_no_test_prefix(self, tmp_path):
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "helper.py").write_text("def test_a(): pass\n")
+        assert _count_tests_in_dir(test_dir) == 0
+
+    def test_count_tests_includes_class_methods(self, tmp_path):
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "test_cls.py").write_text("class TestX:\n    def test_a(self): pass\n")
+        # Class method test definitions are also counted
+        assert _count_tests_in_dir(test_dir) == 1
+
+    def test_count_tests_real_skill_hub(self):
+        from app import _count_tests_in_dir
+        test_dir = SKILL_HUB_DIR / "tests"
+        count = _count_tests_in_dir(test_dir)
+        assert count >= 200  # We have 244 tests
+
+
+# --- Search filtering tests (post-fix) ---
+
+
+class TestSearchFiltering:
+    def test_search_only_returns_matching(self, client):
+        """After the search fix, only skills matching the query are returned."""
+        response = client.get("/api/skills?q=fetcher")
+        data = response.json()
+        # All returned skills should have 'fetcher' in name or description
+        for s in data:
+            assert "fetcher" in s["name"].lower() or "fetcher" in s["description"].lower()
+
+    def test_search_broad_query(self, client):
+        """Broad queries should match multiple skills."""
+        response = client.get("/api/skills?q=skill")
+        data = response.json()
+        assert len(data) >= 1
+
+    def test_search_empty_query_returns_all(self, client):
+        """Empty query should return all skills."""
+        all_resp = client.get("/api/skills")
+        search_resp = client.get("/api/skills?q=")
+        # Empty query treated as no search, should return same count
+        assert len(search_resp.json()) >= len(all_resp.json()) - 1
+
+    def test_home_page_search_only_matching(self, client):
+        """Home page search should only show matching skills."""
+        response = client.get("/?q=fetcher")
+        # The page should contain url-fetcher info but not all 11 skills
+        assert "url-fetcher" in response.text

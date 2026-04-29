@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 from contextlib import asynccontextmanager
@@ -90,14 +91,17 @@ def _render_template(template_name: str, context: dict) -> str:
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request, q: Optional[str] = None):
     db = await get_db()
-    if q:
-        skills = await search_skills_db(db, q)
-    else:
-        skills = await get_all_skills(db)
-    # Also enrich with real-time discovery data for scripts/modules
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
-    enriched = _enrich_with_discovered(skills, discovered)
+    if q:
+        # Search discovered skills directly (not DB) to avoid enrichment re-adding all skills
+        skills = search_skills(skills_dir, q)
+        enriched = await _enrich_with_discovered_from_db(skills, db)
+    else:
+        skills = await get_all_skills(db)
+        enriched = _enrich_with_discovered(skills, discovered)
+    # Add test count per skill from latest test run
+    enriched = await _add_test_counts(enriched, db)
     return _render_template("home.html", {"skills": enriched, "query": q or "", "total": len(enriched)})
 
 
@@ -141,13 +145,16 @@ async def test_page(request: Request, name: str):
 @app.get("/api/skills")
 async def api_skills(q: Optional[str] = None):
     db = await get_db()
-    if q:
-        skills = await search_skills_db(db, q)
-    else:
-        skills = await get_all_skills(db)
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
-    return _enrich_with_discovered(skills, discovered)
+    if q:
+        skills = search_skills(skills_dir, q)
+        enriched = await _enrich_with_discovered_from_db(skills, db)
+    else:
+        skills = await get_all_skills(db)
+        enriched = _enrich_with_discovered(skills, discovered)
+    enriched = await _add_test_counts(enriched, db)
+    return enriched
 
 
 @app.get("/api/skills/{name}")
@@ -285,6 +292,48 @@ def _enrich_with_discovered(db_skills: list[dict], discovered: list[dict]) -> li
     return enriched
 
 
+async def _enrich_with_discovered_from_db(skills: list[dict], db) -> list[dict]:
+    """Enrich search-filtered discovered skills with DB data (health, timestamps)."""
+    enriched = []
+    for s in skills:
+        db_skill = await get_skill(db, s["name"])
+        if db_skill:
+            s["health"] = db_skill.get("health", s.get("health", "unknown"))
+            s["discovered_at"] = db_skill.get("discovered_at", "")
+            s["updated_at"] = db_skill.get("updated_at", "")
+        enriched.append(s)
+    return enriched
+
+
+async def _add_test_counts(skills: list[dict], db) -> list[dict]:
+    """Add test count from latest test run for each skill."""
+    for s in skills:
+        runs = await get_test_runs(db, s["name"], limit=1)
+        if runs:
+            s["test_count"] = runs[0].get("total_tests", 0)
+        else:
+            # Count test functions in the skill's test directory
+            test_dir = Path(s.get("path", "")) / "tests"
+            if test_dir.is_dir():
+                s["test_count"] = _count_tests_in_dir(test_dir)
+            else:
+                s["test_count"] = 0
+    return skills
+
+
+def _count_tests_in_dir(test_dir: Path) -> int:
+    """Count test functions in a test directory by scanning for 'def test_' patterns."""
+    count = 0
+    for f in test_dir.glob("test_*.py"):
+        try:
+            content = f.read_text(encoding="utf-8", errors="replace")
+            # Count both top-level and class method test definitions
+            count += len(re.findall(r"def test_\w+", content))
+        except Exception:
+            pass
+    return count
+
+
 async def _run_skill_tests(name: str, skill_path: str) -> dict:
     """Run pytest for a skill and return structured results."""
     test_dir = _find_test_dir(name, skill_path)
@@ -350,7 +399,6 @@ def _find_test_dir(name: str, skill_path: str) -> Path:
 
 def _parse_pytest_summary(result: dict, output: str) -> dict:
     """Parse pytest summary line for accurate counts."""
-    import re
     # Match: "2 passed, 1 failed, 3 errors in 1.23s"
     summary_match = re.search(
         r"(\d+) passed(?:,\s*(\d+) failed)?(?:,\s*(\d+) errors)?(?:,\s*(\d+) skipped)?(?:,\s*(\d+) warnings)?\s*in\s*([\d.]+)s",

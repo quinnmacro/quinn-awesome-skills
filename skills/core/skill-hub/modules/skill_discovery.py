@@ -90,8 +90,10 @@ def _read_skill_md(skill_dir: Path) -> str:
 
 def _layer_from_category(category: str) -> str:
     """Map directory category to skill layer."""
+    # For nested categories like "external/bloomberg/company", just use the top-level
     mapping = {"core": "core", "external": "external", "presearch": "core"}
-    return mapping.get(category, category)
+    top = category.split("/")[0]
+    return mapping.get(top, top)
 
 
 def discover_skills(skills_dir: Path) -> list[dict]:

@@ -483,6 +483,15 @@ class TestLayerFromCategoryAdditional:
     def test_category_with_hyphens(self):
         assert _layer_from_category("some-layer") == "some-layer"
 
+    def test_nested_external_category(self):
+        """Nested category paths should resolve to top-level layer."""
+        assert _layer_from_category("external/bloomberg/event") == "external"
+        assert _layer_from_category("external/bloomberg/company") == "external"
+
+    def test_nested_core_category(self):
+        """Core category with sub-paths should still be 'core'."""
+        assert _layer_from_category("core/subcategory") == "core"
+
 
 class TestGetSkillByNameAdditional:
     def test_real_skill_has_modules(self):
