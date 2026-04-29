@@ -1073,3 +1073,175 @@ class TestActiveNavHighlighting:
         html = response.text
         # Check that the Skills link has the active class
         assert '<a href="/" class="active">Skills</a>' in html
+
+
+# --- Error page tests ---
+
+
+class TestErrorPage:
+    def test_skill_detail_404_uses_error_template(self, client):
+        """Skill detail 404 should render styled error page, not bare HTML."""
+        response = client.get("/skill/nonexistent-skill")
+        assert response.status_code == 404
+        # Should use error.html template with styled layout
+        assert "Skill Hub" in response.text  # nav/logo from base template
+        assert "404" in response.text
+        assert "not found" in response.text.lower()
+        # Should not have bare <h1> tag without styling
+        assert "container" in response.text  # base template container class
+
+    def test_skill_detail_404_shows_skill_name(self, client):
+        """Skill 404 error page should mention the skill name that was not found."""
+        response = client.get("/skill/missing-skill-xyz")
+        assert response.status_code == 404
+        assert "missing-skill-xyz" in response.text
+
+    def test_skill_detail_404_has_nav_links(self, client):
+        """Skill 404 error page should have navigation links."""
+        response = client.get("/skill/nonexistent-skill")
+        assert "/health" in response.text
+        assert "/" in response.text
+
+    def test_skill_detail_404_has_back_button(self, client):
+        """Skill 404 error page should have 'Back to Skills' button."""
+        response = client.get("/skill/nonexistent-skill")
+        assert "Back to Skills" in response.text
+
+    def test_skill_detail_404_has_health_dashboard_link(self, client):
+        """Skill 404 error page should link to health dashboard."""
+        response = client.get("/skill/nonexistent-skill")
+        assert "Health Dashboard" in response.text
+
+    def test_test_page_404_uses_error_template(self, client):
+        """Test page 404 should render styled error page, not bare HTML."""
+        response = client.get("/test/nonexistent-skill")
+        assert response.status_code == 404
+        assert "Skill Hub" in response.text
+        assert "404" in response.text
+        assert "not found" in response.text.lower()
+
+    def test_test_page_404_shows_skill_name(self, client):
+        """Test 404 error page should mention the skill name."""
+        response = client.get("/test/missing-test-skill")
+        assert response.status_code == 404
+        assert "missing-test-skill" in response.text
+
+
+# --- Layer/health filtering tests ---
+
+
+class TestHomePageFiltering:
+    def test_home_has_layer_filter_dropdown(self, client):
+        """Home page should have a layer filter dropdown."""
+        response = client.get("/")
+        assert 'name="layer"' in response.text
+        assert "All layers" in response.text
+
+    def test_home_has_health_filter_dropdown(self, client):
+        """Home page should have a health filter dropdown."""
+        response = client.get("/")
+        assert 'name="health"' in response.text
+        assert "All health" in response.text
+
+    def test_home_layer_filter_core(self, client):
+        """Layer filter for 'core' should only show core skills."""
+        response = client.get("/?layer=core")
+        assert response.status_code == 200
+        # The page should still render normally
+        assert "Skill Hub" in response.text
+
+    def test_home_layer_filter_external(self, client):
+        """Layer filter for 'external' should only show external skills."""
+        response = client.get("/?layer=external")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_health_filter_unknown(self, client):
+        """Health filter for 'unknown' should only show unknown-health skills."""
+        response = client.get("/?health=unknown")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_health_filter_passing(self, client):
+        """Health filter for 'passing' should work (may return 0 skills if none passing)."""
+        response = client.get("/?health=passing")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_combined_search_and_layer_filter(self, client):
+        """Search query combined with layer filter should work."""
+        response = client.get("/?q=fetch&layer=core")
+        assert response.status_code == 200
+        assert "Skill Hub" in response.text
+
+    def test_home_filter_dropdown_has_core_option(self, client):
+        """Layer dropdown should have 'core' as an option."""
+        response = client.get("/")
+        assert "core" in response.text
+
+    def test_home_filter_dropdown_has_health_options(self, client):
+        """Health dropdown should have health value options."""
+        response = client.get("/")
+        # Should have at least 'unknown' in health dropdown
+        assert "unknown" in response.text
+
+    def test_home_filter_clear_link_with_filters(self, client):
+        """Clear link should appear when filters are active."""
+        response = client.get("/?layer=core")
+        assert "Clear" in response.text
+
+    def test_home_no_skills_with_filter_hint(self, client):
+        """When filters produce no results, the empty state should suggest adjusting filters."""
+        response = client.get("/?health=passing&layer=external")
+        # Should show either skills or empty state with filter hint
+        assert response.status_code == 200
+
+
+class TestApiSkillsFiltering:
+    def test_api_skills_layer_filter(self, client):
+        """API /api/skills?layer=core should only return core skills."""
+        response = client.get("/api/skills?layer=core")
+        assert response.status_code == 200
+        data = response.json()
+        for s in data:
+            assert s["layer"] == "core"
+
+    def test_api_skills_layer_filter_external(self, client):
+        """API /api/skills?layer=external should only return external skills."""
+        response = client.get("/api/skills?layer=external")
+        assert response.status_code == 200
+        data = response.json()
+        for s in data:
+            assert s["layer"] == "external"
+
+    def test_api_skills_health_filter(self, client):
+        """API /api/skills?health=unknown should only return unknown-health skills."""
+        response = client.get("/api/skills?health=unknown")
+        assert response.status_code == 200
+        data = response.json()
+        for s in data:
+            assert s["health"] == "unknown"
+
+    def test_api_skills_combined_search_and_layer(self, client):
+        """API search combined with layer filter should work."""
+        response = client.get("/api/skills?q=fetch&layer=core")
+        assert response.status_code == 200
+        data = response.json()
+        for s in data:
+            assert s["layer"] == "core"
+
+    def test_api_skills_no_filter_returns_all(self, client):
+        """API without filter params should return all skills."""
+        response = client.get("/api/skills")
+        all_count = len(response.json())
+        # Layer filter should reduce count
+        core_resp = client.get("/api/skills?layer=core")
+        core_count = len(core_resp.json())
+        assert core_count <= all_count
+
+    def test_api_skills_invalid_filter_returns_empty(self, client):
+        """Invalid layer/health filter should return empty list."""
+        response = client.get("/api/skills?layer=nonexistent_layer")
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 0

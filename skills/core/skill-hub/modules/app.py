@@ -17,6 +17,7 @@ if MODULES_DIR not in sys.path:
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.exceptions import RequestValidationError
 
 from skill_discovery import discover_skills, get_skill_by_name, search_skills, check_dep_installed, check_all_deps, _yaml_frontmatter
 from database import (
@@ -67,6 +68,44 @@ app = FastAPI(title="Skill Hub", version="1.0.0", lifespan=lifespan)
 _db = None
 
 
+async def _render_error_page(status_code: int, message: str, skill_name: str = "") -> str:
+    """Render a styled error page using the error template."""
+    return _render_template("error.html", {
+        "status_code": status_code,
+        "message": message,
+        "skill_name": skill_name,
+        "nav_active": "",
+    })
+
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc):
+    """Handle 404 errors with a styled error page."""
+    # Check if this is an API request (path starts with /api/)
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"error": "Not found", "path": str(request.url.path)}, status_code=404)
+    html = await _render_error_page(404, "Page not found")
+    return HTMLResponse(html, status_code=404)
+
+
+@app.exception_handler(500)
+async def custom_500_handler(request: Request, exc):
+    """Handle 500 errors with a styled error page."""
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"error": "Internal server error"}, status_code=500)
+    html = await _render_error_page(500, "Internal server error")
+    return HTMLResponse(html, status_code=500)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError):
+    """Handle request validation errors."""
+    if request.url.path.startswith("/api/"):
+        return JSONResponse({"error": "Validation error", "details": str(exc)}, status_code=422)
+    html = await _render_error_page(422, "Invalid request parameters")
+    return HTMLResponse(html, status_code=422)
+
+
 async def get_db():
     global _db
     if _db is None:
@@ -93,7 +132,7 @@ def _render_template(template_name: str, context: dict) -> str:
 
 
 @app.get("/", response_class=HTMLResponse)
-async def home(request: Request, q: Optional[str] = None):
+async def home(request: Request, q: Optional[str] = None, layer: Optional[str] = None, health: Optional[str] = None):
     db = await get_db()
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
@@ -106,7 +145,25 @@ async def home(request: Request, q: Optional[str] = None):
         enriched = _enrich_with_discovered(skills, discovered)
     # Add test count per skill from latest test run
     enriched = await _add_test_counts(enriched, db)
-    return _render_template("home.html", {"skills": enriched, "query": q or "", "total": len(enriched), "nav_active": "skills"})
+    # Apply layer and health filters
+    if layer:
+        enriched = [s for s in enriched if s.get("layer") == layer]
+    if health:
+        enriched = [s for s in enriched if s.get("health") == health]
+    # Collect unique layers and health values for filter dropdowns
+    all_layers = sorted(set(s.get("layer", "") for s in enriched if s.get("layer")))
+    all_healths = sorted(set(s.get("health", "") for s in enriched if s.get("health")))
+    # If no filters applied, use full discovered set for dropdowns
+    if not layer and not health:
+        unfiltered = _enrich_with_discovered(await get_all_skills(db), discovered)
+        unfiltered = await _add_test_counts(unfiltered, db)
+        all_layers = sorted(set(s.get("layer", "") for s in unfiltered if s.get("layer")))
+        all_healths = sorted(set(s.get("health", "") for s in unfiltered if s.get("health")))
+    return _render_template("home.html", {
+        "skills": enriched, "query": q or "", "total": len(enriched),
+        "nav_active": "skills", "layer": layer or "", "health": health or "",
+        "all_layers": all_layers, "all_healths": all_healths,
+    })
 
 
 @app.get("/skill/{name}", response_class=HTMLResponse)
@@ -117,7 +174,8 @@ async def skill_detail(request: Request, name: str):
         skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
         skill = get_skill_by_name(skills_dir, name)
         if skill is None:
-            return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
+            html = await _render_error_page(404, f"Skill '{name}' not found", skill_name=name)
+            return HTMLResponse(html, status_code=404)
     else:
         # Enrich DB skill with discovery data (scripts, modules, skill_md)
         skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
@@ -168,7 +226,8 @@ async def test_page(request: Request, name: str):
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
-        return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
+        html = await _render_error_page(404, f"Skill '{name}' not found", skill_name=name)
+        return HTMLResponse(html, status_code=404)
     test_runs = await get_test_runs(db, name)
     return _render_template("test.html", {"skill": skill, "test_runs": test_runs, "nav_active": "skills"})
 
@@ -176,7 +235,7 @@ async def test_page(request: Request, name: str):
 # --- REST API ---
 
 @app.get("/api/skills")
-async def api_skills(q: Optional[str] = None):
+async def api_skills(q: Optional[str] = None, layer: Optional[str] = None, health: Optional[str] = None):
     db = await get_db()
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
@@ -187,6 +246,10 @@ async def api_skills(q: Optional[str] = None):
         skills = await get_all_skills(db)
         enriched = _enrich_with_discovered(skills, discovered)
     enriched = await _add_test_counts(enriched, db)
+    if layer:
+        enriched = [s for s in enriched if s.get("layer") == layer]
+    if health:
+        enriched = [s for s in enriched if s.get("health") == health]
     return enriched
 
 

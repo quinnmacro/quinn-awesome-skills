@@ -3,8 +3,20 @@
 {% block content %}
 <form class="search-bar" method="get" action="/">
   <input type="text" name="q" placeholder="Search skills by name or description..." value="{{ query }}">
+  <select name="layer" style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">
+    <option value="">All layers</option>
+    {% for l in all_layers %}
+    <option value="{{ l }}" {% if layer == l %}selected{% endif %}>{{ l }}</option>
+    {% endfor %}
+  </select>
+  <select name="health" style="padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:14px;">
+    <option value="">All health</option>
+    {% for h in all_healths %}
+    <option value="{{ h }}" {% if health == h %}selected{% endif %}>{{ h }}</option>
+    {% endfor %}
+  </select>
   <button type="submit">Search</button>
-  {% if query %}<a href="/" class="btn secondary">Clear</a>{% endif %}
+  {% if query or layer or health %}<a href="/" class="btn secondary">Clear</a>{% endif %}
 </form>
 <div class="stats-row">
   <div class="stat-card"><div class="label">Total Skills</div><div class="value">{{ total }}</div></div>
@@ -26,6 +38,6 @@
   {% endfor %}
 </div>
 {% else %}
-<div class="empty">No skills found.</div>
+<div class="empty">No skills found. {% if query or layer or health %}Try adjusting your filters or <a href="/" style="color:var(--accent);">clear all</a>.{% endif %}</div>
 {% endif %}
 {% endblock %}

@@ -18,11 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
   - Install page: dynamic skills table with dependency install status, check-deps button
   - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv, /api/skills/resync
+  - Layer and health filter dropdowns on home page and API (layer=, health= query params)
+  - Custom error page template for styled 404/500/422 responses (extends base.html with nav links and back button)
+  - HTTP exception handlers (404, 500, RequestValidationError) with API-aware JSON/HTML response switching
   - Responsive CSS with mobile breakpoints, inline SVG favicon, footer, dep type badge styles, active navigation highlighting
   - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, lists)
   - Detail page enrichment: DB skills now enriched with discovery data (scripts, modules, skill_md) for full rendering
   - Version history tracking (skill_versions table, records version changes on sync)
-  - 413 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting)
+  - 437 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting, error pages, layer/health filtering)
 
 ## [1.3.0] - 2026-04-28
 
