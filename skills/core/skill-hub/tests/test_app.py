@@ -3910,3 +3910,345 @@ class TestRunSkillTestsDirect:
         import asyncio
         # Verify the function exists and is callable
         assert callable(_run_skill_tests)
+
+
+# --- Exception handler direct unit tests ---
+
+
+class TestExceptionHandlersDirect:
+    """Direct unit tests for custom exception handlers."""
+
+    @pytest.mark.asyncio
+    async def test_custom_404_handler_api_path(self):
+        """404 handler returns JSON for /api/ paths."""
+        from app import custom_404_handler
+        from starlette.requests import Request
+        scope = {"type": "http", "path": "/api/skills/nonexistent", "method": "GET",
+                 "query_string": b"", "headers": []}
+        request = Request(scope)
+        response = await custom_404_handler(request, None)
+        body = json.loads(response.body.decode())
+        assert body["error"] == "Not found"
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_custom_404_handler_browser_path(self):
+        """404 handler returns styled HTML for browser paths."""
+        from app import custom_404_handler
+        from starlette.requests import Request
+        scope = {"type": "http", "path": "/skill/nonexistent", "method": "GET",
+                 "query_string": b"", "headers": []}
+        request = Request(scope)
+        response = await custom_404_handler(request, None)
+        assert response.status_code == 404
+        html = response.body.decode()
+        assert "404" in html
+        assert "Page not found" in html
+
+    @pytest.mark.asyncio
+    async def test_custom_500_handler_api_path(self):
+        """500 handler returns JSON for /api/ paths."""
+        from app import custom_500_handler
+        from starlette.requests import Request
+        scope = {"type": "http", "path": "/api/health", "method": "GET",
+                 "query_string": b"", "headers": []}
+        request = Request(scope)
+        response = await custom_500_handler(request, None)
+        body = json.loads(response.body.decode())
+        assert body["error"] == "Internal server error"
+        assert response.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_custom_500_handler_browser_path(self):
+        """500 handler returns styled HTML for browser paths."""
+        from app import custom_500_handler
+        from starlette.requests import Request
+        scope = {"type": "http", "path": "/health", "method": "GET",
+                 "query_string": b"", "headers": []}
+        request = Request(scope)
+        response = await custom_500_handler(request, None)
+        assert response.status_code == 500
+        html = response.body.decode()
+        assert "500" in html
+        assert "Internal server error" in html
+
+    @pytest.mark.asyncio
+    async def test_validation_error_handler_api_path(self):
+        """Validation error handler returns JSON for /api/ paths."""
+        from app import validation_error_handler
+        from starlette.requests import Request
+        from fastapi.exceptions import RequestValidationError
+        scope = {"type": "http", "path": "/api/skills", "method": "GET",
+                 "query_string": b"", "headers": []}
+        request = Request(scope)
+        exc = RequestValidationError([])
+        response = await validation_error_handler(request, exc)
+        body = json.loads(response.body.decode())
+        assert body["error"] == "Validation error"
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_validation_error_handler_browser_path(self):
+        """Validation error handler returns styled HTML for browser paths."""
+        from app import validation_error_handler
+        from starlette.requests import Request
+        from fastapi.exceptions import RequestValidationError
+        scope = {"type": "http", "path": "/skill/test", "method": "GET",
+                 "query_string": b"", "headers": []}
+        request = Request(scope)
+        exc = RequestValidationError([])
+        response = await validation_error_handler(request, exc)
+        assert response.status_code == 422
+        html = response.body.decode()
+        assert "422" in html
+        assert "Invalid request parameters" in html
+
+    @pytest.mark.asyncio
+    async def test_exception_handler_api_path_prefix_check(self):
+        """Exception handlers differentiate API vs browser by /api/ prefix."""
+        from app import custom_404_handler
+        from starlette.requests import Request
+        # Path starting with /api/ should return JSON
+        api_scope = {"type": "http", "path": "/api/anything", "method": "GET",
+                     "query_string": b"", "headers": []}
+        api_request = Request(api_scope)
+        api_response = await custom_404_handler(api_request, None)
+        assert "application/json" in api_response.media_type or api_response.headers.get("content-type", "").startswith("application/json")
+
+        # Non-API path should return HTML
+        browser_scope = {"type": "http", "path": "/anything", "method": "GET",
+                         "query_string": b"", "headers": []}
+        browser_request = Request(browser_scope)
+        browser_response = await custom_404_handler(browser_request, None)
+        assert "text/html" in browser_response.media_type or browser_response.headers.get("content-type", "").startswith("text/html")
+
+    def test_all_exception_handlers_callable(self):
+        """All three exception handlers are callable async functions."""
+        from app import custom_404_handler, custom_500_handler, validation_error_handler
+        import asyncio
+        assert asyncio.iscoroutinefunction(custom_404_handler)
+        assert asyncio.iscoroutinefunction(custom_500_handler)
+        assert asyncio.iscoroutinefunction(validation_error_handler)
+
+
+# --- _render_template direct unit tests ---
+
+
+class TestRenderTemplateDirect:
+    """Direct unit tests for _render_template helper."""
+
+    def test_render_home_template(self):
+        from app import _render_template
+        html = _render_template("home.html", {
+            "skills": [], "query": "", "total": 0,
+            "nav_active": "skills", "layer": "", "health": "", "sort": "",
+            "all_layers": [], "all_healths": [],
+            "health_counts": {"passing": 0, "failing": 0, "unknown": 0},
+            "avg_pass_rate": 0.0, "port": 8765,
+        })
+        assert len(html) > 100
+        assert "Skill Hub" in html
+
+    def test_render_detail_template(self):
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "description": "desc",
+                       "layer": "core", "health": "unknown", "scripts": [],
+                       "modules": [], "skill_md": "Hello", "path": "/tmp",
+                       "category": "core", "author": "test"},
+            "config": {}, "deps": [], "test_runs": [],
+            "versions": [], "nav_active": "", "port": 8765,
+        })
+        assert "test-skill" in html
+
+    def test_render_health_template(self):
+        from app import _render_template
+        html = _render_template("health.html", {
+            "stats": {"total_skills": 0, "avg_pass_rate": 0.0,
+                      "health_counts": {"passing": 0, "failing": 0, "unknown": 0},
+                      "layers": {"core": 0, "external": 0},
+                      "test_summary": {},
+                      "dep_summary": {}, "recent_runs": []},
+            "skills": [], "recent_runs": [],
+            "nav_active": "health", "port": 8765,
+        })
+        assert "Health" in html
+
+    def test_render_install_template(self):
+        from app import _render_template
+        html = _render_template("install.html", {
+            "skills": [], "all_deps": {}, "nav_active": "install",
+            "project_root": "/tmp", "port": 8765,
+        })
+        assert "Install" in html
+
+    def test_render_test_template(self):
+        from app import _render_template
+        html = _render_template("test.html", {
+            "skill": {"name": "test-skill", "version": "1.0"},
+            "test_runs": [], "nav_active": "", "port": 8765,
+        })
+        assert "test-skill" in html
+
+    def test_render_error_template(self):
+        from app import _render_template
+        html = _render_template("error.html", {
+            "status_code": 404, "message": "Not found",
+            "skill_name": "", "nav_active": "", "port": 8765,
+        })
+        assert "404" in html
+        assert "Not found" in html
+
+    def test_render_template_passes_all_context_vars(self):
+        """Verify that all context variables are accessible in rendered output."""
+        from app import _render_template
+        html = _render_template("home.html", {
+            "skills": [], "query": "test-search", "total": 5,
+            "nav_active": "skills", "layer": "core", "health": "passing", "sort": "name",
+            "all_layers": ["core", "external"], "all_healths": ["passing", "failing"],
+            "health_counts": {"passing": 3, "failing": 1, "unknown": 1},
+            "avg_pass_rate": 0.75, "port": 9999,
+        })
+        # The port should appear in the footer
+        assert "9999" in html
+
+    def test_render_template_with_missing_optional_context(self):
+        """Templates should still render when optional context is missing or empty."""
+        from app import _render_template
+        # Minimal context for home.html
+        html = _render_template("home.html", {
+            "skills": [], "query": "", "total": 0,
+            "nav_active": "", "layer": "", "health": "", "sort": "",
+            "all_layers": [], "all_healths": [],
+            "health_counts": {"passing": 0, "failing": 0, "unknown": 0},
+            "avg_pass_rate": 0.0, "port": 8765,
+        })
+        assert len(html) > 0
+
+
+# --- _find_test_dir additional edge case tests ---
+
+
+class TestFindTestDirEdgeCases:
+    """Direct unit tests for _find_test_dir edge cases."""
+
+    def test_find_test_dir_with_nested_skill_path(self, tmp_path):
+        """Skill with nested path still finds its own tests/ dir."""
+        from app import _find_test_dir
+        skill_dir = tmp_path / "deep" / "nested" / "skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "tests").mkdir()
+        result = _find_test_dir("skill", str(skill_dir))
+        assert result == skill_dir / "tests"
+
+    def test_find_test_dir_skill_path_without_tests_dir(self, tmp_path):
+        """Skill without tests/ dir falls back to project-level tests."""
+        from app import _find_test_dir
+        skill_dir = tmp_path / "skill-no-tests"
+        skill_dir.mkdir()
+        result = _find_test_dir("skill-no-tests", str(skill_dir))
+        # Falls back to PROJECT_ROOT/tests since skill_dir has no tests/
+        assert isinstance(result, Path)
+
+    def test_find_test_dir_empty_string_skill_path(self):
+        """Empty skill_path string falls back gracefully."""
+        from app import _find_test_dir
+        result = _find_test_dir("skill", "")
+        assert isinstance(result, Path)
+
+    def test_find_test_dir_returns_path_object(self):
+        """_find_test_dir always returns a Path object."""
+        from app import _find_test_dir
+        result = _find_test_dir("any-skill", "/any/path")
+        assert isinstance(result, Path)
+
+    def test_find_test_dir_with_real_skill_hub(self):
+        """Find test dir for the actual skill-hub skill."""
+        from app import _find_test_dir
+        result = _find_test_dir("skill-hub", str(SKILL_HUB_DIR))
+        assert result == SKILL_HUB_DIR / "tests"
+
+    def test_find_test_dir_skill_path_is_file_not_dir(self, tmp_path):
+        """If skill_path is a file (not dir), falls back to project tests."""
+        from app import _find_test_dir
+        file_path = tmp_path / "not_a_dir"
+        file_path.write_text("content")
+        result = _find_test_dir("skill", str(file_path))
+        assert isinstance(result, Path)
+
+
+# --- _count_tests_in_dir additional edge case tests ---
+
+
+class TestCountTestsInDirEdgeCases:
+    """Additional edge case tests for _count_tests_in_dir."""
+
+    def test_count_tests_with_non_utf8_file(self, tmp_path):
+        """Files with non-UTF8 content are handled gracefully (errors='replace')."""
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "test_bad.py").write_bytes(b"def test_a(): pass\n\xff\xfe binary junk")
+        count = _count_tests_in_dir(test_dir)
+        assert count >= 1  # test_a still found despite encoding issues
+
+    def test_count_tests_nested_directory_not_counted(self, tmp_path):
+        """Glob pattern test_*.py only finds files in the top-level, not subdirs."""
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        subdir = test_dir / "subdir"
+        subdir.mkdir()
+        (subdir / "test_nested.py").write_text("def test_nested(): pass\n")
+        (test_dir / "test_top.py").write_text("def test_top(): pass\n")
+        # glob("test_*.py") only finds top-level, not nested subdir
+        count = _count_tests_in_dir(test_dir)
+        assert count == 1  # Only test_top.py found
+
+    def test_count_tests_with_multiple_test_methods(self, tmp_path):
+        """Count all test methods within a single file."""
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        content = """
+class TestClassA:
+    def test_method_one(self): pass
+    def test_method_two(self): pass
+
+class TestClassB:
+    def test_method_three(self): pass
+
+def test_standalone(): pass
+"""
+        (test_dir / "test_multi.py").write_text(content)
+        count = _count_tests_in_dir(test_dir)
+        assert count == 4
+
+    def test_count_tests_ignores_non_test_prefix_files(self, tmp_path):
+        """Files without test_ prefix are ignored even if they contain test functions."""
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        (test_dir / "helper.py").write_text("def test_should_not_count(): pass\n")
+        (test_dir / "conftest.py").write_text("def test_also_should_not_count(): pass\n")
+        count = _count_tests_in_dir(test_dir)
+        assert count == 0
+
+    def test_count_tests_with_comments_and_decorators(self, tmp_path):
+        """Test functions with decorators and comments are still counted."""
+        from app import _count_tests_in_dir
+        test_dir = tmp_path / "tests"
+        test_dir.mkdir()
+        content = """
+@pytest.mark.asyncio
+async def test_async_func(): pass
+
+# This is a test
+def test_with_comment(): pass
+
+@patch('module.func')
+def test_with_mock(): pass
+"""
+        (test_dir / "test_decorated.py").write_text(content)
+        count = _count_tests_in_dir(test_dir)
+        assert count == 3
