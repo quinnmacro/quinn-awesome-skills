@@ -12,6 +12,7 @@ from database import (
     search_skills_db,
     record_test_run,
     get_test_runs,
+    get_recent_test_runs,
     get_health_stats,
     sync_skills,
     sync_dependencies,
@@ -785,3 +786,72 @@ class TestDeleteTestRuns:
         await upsert_skill(db, mock_skill_data)
         await delete_test_runs(db, "test-skill")
         assert await get_skill(db, "test-skill") is not None
+
+
+class TestGetRecentTestRuns:
+    @pytest.mark.asyncio
+    async def test_empty_when_no_runs(self, db):
+        """get_recent_test_runs returns empty list when no test runs exist."""
+        runs = await get_recent_test_runs(db)
+        assert runs == []
+
+    @pytest.mark.asyncio
+    async def test_returns_recent_runs_across_skills(self, db, mock_skill_data):
+        """get_recent_test_runs returns runs across multiple skills."""
+        await upsert_skill(db, mock_skill_data)
+        other = dict(mock_skill_data, name="other-skill", path="/tmp/other")
+        await upsert_skill(db, other)
+        await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 10, "passed": 8, "failed": 2, "errors": 0, "skipped": 0, "duration_seconds": 1.5, "output": "", "started_at": "2026-04-29T10:00:00", "finished_at": "2026-04-29T10:00:02"})
+        await record_test_run(db, {"skill_name": "other-skill", "status": "completed", "total_tests": 5, "passed": 5, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "", "started_at": "2026-04-29T11:00:00", "finished_at": "2026-04-29T11:00:01"})
+        runs = await get_recent_test_runs(db)
+        assert len(runs) == 2
+        # Most recent first
+        assert runs[0]["skill_name"] == "other-skill"
+        assert runs[1]["skill_name"] == "test-skill"
+
+    @pytest.mark.asyncio
+    async def test_respects_limit(self, db, mock_skill_data):
+        """get_recent_test_runs respects the limit parameter."""
+        await upsert_skill(db, mock_skill_data)
+        for i in range(15):
+            await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 5, "passed": 5, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "", "started_at": f"2026-04-29T10:00:{i:02d}", "finished_at": f"2026-04-29T10:00:{i+1:02d}"})
+        runs = await get_recent_test_runs(db, limit=5)
+        assert len(runs) == 5
+
+    @pytest.mark.asyncio
+    async def test_run_has_expected_fields(self, db, mock_skill_data):
+        """Each recent run has all expected fields."""
+        await upsert_skill(db, mock_skill_data)
+        await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 10, "passed": 8, "failed": 2, "errors": 0, "skipped": 0, "duration_seconds": 1.5, "output": "some output", "started_at": "2026-04-29T10:00:00", "finished_at": "2026-04-29T10:00:02"})
+        runs = await get_recent_test_runs(db)
+        run = runs[0]
+        assert "id" in run
+        assert "skill_name" in run
+        assert "status" in run
+        assert "total_tests" in run
+        assert "passed" in run
+        assert "failed" in run
+        assert "errors" in run
+        assert "skipped" in run
+        assert "duration_seconds" in run
+        assert "started_at" in run
+        assert "finished_at" in run
+
+    @pytest.mark.asyncio
+    async def test_ordered_by_started_at_desc(self, db, mock_skill_data):
+        """get_recent_test_runs returns runs ordered by started_at DESC."""
+        await upsert_skill(db, mock_skill_data)
+        await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 5, "passed": 5, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "", "started_at": "2026-04-29T08:00:00", "finished_at": "2026-04-29T08:00:01"})
+        await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 6, "passed": 5, "failed": 1, "errors": 0, "skipped": 0, "duration_seconds": 0.5, "output": "", "started_at": "2026-04-29T12:00:00", "finished_at": "2026-04-29T12:00:01"})
+        runs = await get_recent_test_runs(db)
+        assert runs[0]["started_at"] == "2026-04-29T12:00:00"
+        assert runs[1]["started_at"] == "2026-04-29T08:00:00"
+
+    @pytest.mark.asyncio
+    async def test_default_limit_is_10(self, db, mock_skill_data):
+        """Default limit is 10 when not specified."""
+        await upsert_skill(db, mock_skill_data)
+        for i in range(12):
+            await record_test_run(db, {"skill_name": "test-skill", "status": "completed", "total_tests": 1, "passed": 1, "failed": 0, "errors": 0, "skipped": 0, "duration_seconds": 0.1, "output": "", "started_at": f"2026-04-29T10:{i:02d}:00", "finished_at": f"2026-04-29T10:{i:02d}:01"})
+        runs = await get_recent_test_runs(db)
+        assert len(runs) == 10

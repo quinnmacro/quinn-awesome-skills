@@ -74,7 +74,23 @@
 </div>
 {% endif %}
 
-{% if not stats.test_summary and not stats.dep_summary %}
+{% if recent_runs %}
+<h2 style="font-size:16px;margin:20px 0 16px;">Recent Activity</h2>
+<table>
+  <tr><th>Skill</th><th>Status</th><th>Tests</th><th>Passed</th><th>Failed</th><th>Duration</th><th>Started</th></tr>
+  {% for run in recent_runs %}
+  <tr>
+    <td><a href="/skill/{{ run.skill_name }}" style="color:var(--accent);">{{ run.skill_name }}</a></td>
+    <td><span class="badge {{ run.status }}">{{ run.status }}</span></td>
+    <td>{{ run.total_tests }}</td>
+    <td>{{ run.passed }}</td>
+    <td>{{ run.failed }}</td>
+    <td>{{ "%.1f" | format(run.duration_seconds) }}s</td>
+    <td>{{ run.started_at[:19] }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% elif not stats.test_summary and not stats.dep_summary %}
 <div class="empty">No test results or dependencies recorded yet. Run tests from skill detail pages.</div>
 {% elif not stats.test_summary %}
 <div class="empty">No test results recorded yet. Run tests from skill detail pages.</div>

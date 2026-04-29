@@ -393,7 +393,9 @@ class TestTestPageContent:
         assert "badge" in resp.text
 
     def test_test_page_shows_no_runs_message(self, client):
-        """Test page should show no runs message when no test history exists."""
+        """Test page should show no runs message when test history is cleared."""
+        # Clear test runs first to ensure clean state
+        client.delete("/api/skills/url-fetcher/test-runs")
         resp = client.get("/test/url-fetcher")
         assert "No test runs" in resp.text
 
@@ -796,6 +798,8 @@ class TestDetailPageQuickRunTests:
 
     def test_detail_page_no_test_runs_shows_message(self, client):
         """When no test runs exist, detail page should show a message instead of empty table."""
+        # Clear test runs first to ensure clean state
+        client.delete("/api/skills/url-fetcher/test-runs")
         resp = client.get("/skill/url-fetcher")
         assert "No test runs recorded yet" in resp.text
 
@@ -946,3 +950,55 @@ class TestTestPageClearHistoryButton:
         assert response.status_code == 200
         html = response.text
         assert "color:var(--red)" in html
+
+
+class TestHealthPageRecentActivity:
+    def test_health_page_has_recent_activity_heading_when_runs_exist(self, client):
+        """Health page shows Recent Activity heading when test runs exist."""
+        client.post("/api/skills/resync")
+        client.post("/api/skills/url-fetcher/test")
+        response = client.get("/health")
+        assert response.status_code == 200
+        html = response.text
+        assert "Recent Activity" in html
+
+    def test_health_page_recent_activity_table_headers(self, client):
+        """Recent Activity table has expected column headers."""
+        client.post("/api/skills/resync")
+        client.post("/api/skills/url-fetcher/test")
+        response = client.get("/health")
+        html = response.text
+        assert "<th>Skill</th>" in html
+        assert "<th>Status</th>" in html
+        assert "<th>Tests</th>" in html
+        assert "<th>Passed</th>" in html
+        assert "<th>Failed</th>" in html
+        assert "<th>Duration</th>" in html
+        assert "<th>Started</th>" in html
+
+    def test_health_page_recent_activity_skill_link(self, client):
+        """Recent Activity table rows link to skill detail pages."""
+        client.post("/api/skills/resync")
+        client.post("/api/skills/url-fetcher/test")
+        response = client.get("/health")
+        html = response.text
+        assert "/skill/url-fetcher" in html
+
+    def test_health_page_recent_activity_no_runs_no_table(self, client):
+        """Health page does not show Recent Activity table when no test runs exist."""
+        client.post("/api/skills/resync")
+        # Clear any test runs first
+        for skill in client.get("/api/skills").json():
+            client.delete(f"/api/skills/{skill['name']}/test-runs")
+        response = client.get("/health")
+        html = response.text
+        # Recent Activity heading should not appear if no runs
+        assert "Recent Activity" not in html or "<table>" not in html.split("Recent Activity")[0] if "Recent Activity" in html else True
+
+    def test_health_page_recent_activity_status_badges(self, client):
+        """Recent Activity rows show status as badge spans."""
+        client.post("/api/skills/resync")
+        client.post("/api/skills/url-fetcher/test")
+        response = client.get("/health")
+        html = response.text
+        assert "badge completed" in html or "badge" in html

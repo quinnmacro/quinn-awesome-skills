@@ -168,6 +168,30 @@ async def get_test_runs(db: aiosqlite.Connection, skill_name: str, limit: int = 
     return [_row_to_test_run(r) for r in rows]
 
 
+async def get_recent_test_runs(db: aiosqlite.Connection, limit: int = 10) -> list[dict]:
+    """Get recent test runs across all skills, ordered by started_at DESC."""
+    cursor = await db.execute(
+        """SELECT id, skill_name, status, total_tests, passed, failed, errors,
+           skipped, duration_seconds, started_at, finished_at
+           FROM test_runs ORDER BY started_at DESC LIMIT ?""",
+        (limit,),
+    )
+    rows = await cursor.fetchall()
+    return [{
+        "id": r[0],
+        "skill_name": r[1],
+        "status": r[2],
+        "total_tests": r[3],
+        "passed": r[4],
+        "failed": r[5],
+        "errors": r[6],
+        "skipped": r[7],
+        "duration_seconds": r[8],
+        "started_at": r[9],
+        "finished_at": r[10],
+    } for r in rows]
+
+
 async def get_health_stats(db: aiosqlite.Connection) -> dict:
     """Aggregate health statistics across all skills."""
     skills = await get_all_skills(db)

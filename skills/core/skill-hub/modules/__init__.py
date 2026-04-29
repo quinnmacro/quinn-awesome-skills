@@ -8,7 +8,7 @@ from modules.skill_discovery import (
 )
 from modules.database import (
     init_db, upsert_skill, get_all_skills, get_skill, search_skills_db,
-    record_test_run, get_test_runs, get_health_stats,
+    record_test_run, get_test_runs, get_recent_test_runs, get_health_stats,
     sync_skills, sync_dependencies, upsert_dependency, get_dependencies,
     record_version, get_versions, delete_skill, delete_test_runs, DEFAULT_DB_PATH,
 )

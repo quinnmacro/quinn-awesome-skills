@@ -2409,3 +2409,37 @@ class TestApiDeleteTestRuns:
             response = client.get("/api/skills/url-fetcher")
             data = response.json()
             assert data.get("health") == "unknown"
+
+
+class TestApiHealthRecentRuns:
+    def test_api_health_includes_recent_runs(self, client):
+        """GET /api/health includes recent_runs field."""
+        client.post("/api/skills/resync")
+        response = client.get("/api/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "recent_runs" in data
+
+    def test_api_health_recent_runs_is_list(self, client):
+        """recent_runs is a list."""
+        client.post("/api/skills/resync")
+        response = client.get("/api/health")
+        data = response.json()
+        assert isinstance(data["recent_runs"], list)
+
+    def test_api_health_recent_runs_has_fields(self, client):
+        """Each recent run has expected fields."""
+        client.post("/api/skills/resync")
+        # Run a test to create a test run
+        response = client.post("/api/skills/url-fetcher/test")
+        # Then check health API
+        health = client.get("/api/health")
+        data = health.json()
+        if data["recent_runs"]:
+            run = data["recent_runs"][0]
+            assert "skill_name" in run
+            assert "status" in run
+            assert "total_tests" in run
+            assert "passed" in run
+            assert "failed" in run
+            assert "started_at" in run

@@ -29,6 +29,7 @@ from database import (
     search_skills_db,
     record_test_run,
     get_test_runs,
+    get_recent_test_runs,
     get_health_stats,
     sync_skills,
     sync_dependencies,
@@ -201,12 +202,13 @@ async def skill_detail(request: Request, name: str):
 async def health_page(request: Request):
     db = await get_db()
     stats = await get_health_stats(db)
+    recent_runs = await get_recent_test_runs(db, limit=10)
     skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
     discovered = discover_skills(skills_dir)
     skills = await get_all_skills(db)
     enriched = _enrich_with_discovered(skills, discovered)
     enriched = await _add_test_counts(enriched, db)
-    return _render_template("health.html", {"stats": stats, "skills": enriched, "nav_active": "health"})
+    return _render_template("health.html", {"stats": stats, "skills": enriched, "recent_runs": recent_runs, "nav_active": "health"})
 
 
 @app.get("/install", response_class=HTMLResponse)
@@ -309,7 +311,10 @@ async def api_run_test(name: str):
 @app.get("/api/health")
 async def api_health():
     db = await get_db()
-    return await get_health_stats(db)
+    stats = await get_health_stats(db)
+    recent_runs = await get_recent_test_runs(db, limit=10)
+    stats["recent_runs"] = recent_runs
+    return stats
 
 
 @app.get("/api/skills/{name}/versions")

@@ -47,6 +47,7 @@ class TestModuleExports:
         assert hasattr(_modules_pkg, 'search_skills_db')
         assert hasattr(_modules_pkg, 'record_test_run')
         assert hasattr(_modules_pkg, 'get_test_runs')
+        assert hasattr(_modules_pkg, 'get_recent_test_runs')
         assert hasattr(_modules_pkg, 'get_health_stats')
         assert hasattr(_modules_pkg, 'sync_skills')
         assert hasattr(_modules_pkg, 'sync_dependencies')
@@ -103,6 +104,9 @@ class TestModuleExports:
 
     def test_delete_test_runs_callable(self):
         assert callable(_modules_pkg.delete_test_runs)
+
+    def test_get_recent_test_runs_callable(self):
+        assert callable(_modules_pkg.get_recent_test_runs)
 
 
 # --- start.sh script tests ---
