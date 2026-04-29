@@ -61,6 +61,10 @@
     </tr>
     {% endfor %}
   </table>
+  <div style="margin-top:8px;display:flex;gap:12px;align-items:center;">
+    <button class="btn secondary" style="font-size:11px;padding:4px 10px;" onclick="checkDeps()">Check Dependencies</button>
+    <span id="deps-status" style="font-size:12px;color:var(--text-muted);"></span>
+  </div>
   {% endif %}
 
   {% if versions %}
@@ -109,6 +113,24 @@ function toggleMdView() {
     rendered.style.display = 'none';
     raw.style.display = 'block';
   }
+}
+
+function checkDeps() {
+  var statusEl = document.getElementById('deps-status');
+  statusEl.textContent = 'Checking...';
+  fetch('/api/skills/{{ skill.name }}/check-deps', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      if (data.dependencies) {
+        var results = data.dependencies.map(function(d) {
+          return d.dep_name + ': ' + (d.installed ? 'Installed' : 'Missing');
+        }).join(', ');
+        statusEl.textContent = results;
+      } else if (data.error) {
+        statusEl.textContent = 'Error: ' + data.error;
+      }
+    })
+    .catch(e => { statusEl.textContent = 'Error: ' + e.message; });
 }
 </script>
 {% endblock %}

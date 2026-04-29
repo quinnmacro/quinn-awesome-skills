@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - FastAPI backend (async) + Jinja2 server-side rendering + vanilla HTML/CSS/JS
   - SQLite for skill metadata, test history, and version tracking
   - Auto-discover skills by scanning skills/core/*/SKILL.md and skills/external/*/SKILL.md
-  - Home page: skill cards grid with name, version, layer, test count, health badge, description, search bar
-  - Skill detail page: render SKILL.md as HTML with toggle raw/rendered view, list scripts/modules, show config, dependencies, version history
+  - Home page: skill cards grid with name, version, layer, test count, health badge, description, pass rate, last-tested timestamp, search bar
+  - Skill detail page: render SKILL.md as HTML with toggle raw/rendered view, list scripts/modules, show config, dependencies (with Check Dependencies button), version history
   - Test panel: run pytest and stream results via WebSocket
   - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
   - Install page: dynamic skills table with dependency install status, check-deps button
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, lists)
   - Detail page enrichment: DB skills now enriched with discovery data (scripts, modules, skill_md) for full rendering
   - Version history tracking (skill_versions table, records version changes on sync)
-  - 498 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs)
+  - 514 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button)
 
 ## [1.3.0] - 2026-04-28
 

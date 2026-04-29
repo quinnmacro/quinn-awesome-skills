@@ -27,8 +27,8 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 
 ## Features
 
-1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description. Search bar filters by name/description. Sort by name, version, test count, health. Layer/health filter dropdowns. Re-sync skills button.
-2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies, version history.
+1. **Home page** - Skill cards grid with name, version, layer, test count, health badge, description, pass rate, last-tested timestamp. Search bar filters by name/description. Sort by name, version, test count, health. Layer/health filter dropdowns. Re-sync skills button.
+2. **Skill detail page** - Render SKILL.md content, list scripts/modules, show config, dependencies (with per-skill Check Dependencies button), version history.
 3. **Test panel** - Run pytest and stream results via WebSocket.
 4. **Health dashboard** - Aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export.
 5. **Install page** - Install commands, dependency check.
@@ -68,3 +68,5 @@ pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyn
 - Responsive design with mobile breakpoints, inline SVG favicon
 - Version history recorded on skill version changes during sync
 - Sort options: name (asc/desc), version, test_count, health (priority order)
+- Skill cards show pass rate percentage and last-tested timestamp from recent test runs
+- Detail page has Check Dependencies button that calls /api/skills/{name}/check-deps and shows results

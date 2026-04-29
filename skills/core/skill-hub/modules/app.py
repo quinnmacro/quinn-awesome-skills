@@ -543,18 +543,24 @@ async def _enrich_with_discovered_from_db(skills: list[dict], db) -> list[dict]:
 
 
 async def _add_test_counts(skills: list[dict], db) -> list[dict]:
-    """Add test count from latest test run for each skill."""
+    """Add test count, last_tested_at, and pass_rate from latest test run for each skill."""
     for s in skills:
         runs = await get_test_runs(db, s["name"], limit=1)
         if runs:
-            s["test_count"] = runs[0].get("total_tests", 0)
+            run = runs[0]
+            s["test_count"] = run.get("total_tests", 0)
+            s["last_tested_at"] = run.get("started_at", "")
+            total = run.get("total_tests", 0)
+            passed = run.get("passed", 0)
+            s["pass_rate"] = (passed / total) if total > 0 else 0.0
         else:
-            # Count test functions in the skill's test directory
             test_dir = Path(s.get("path", "")) / "tests"
             if test_dir.is_dir():
                 s["test_count"] = _count_tests_in_dir(test_dir)
             else:
                 s["test_count"] = 0
+            s["last_tested_at"] = ""
+            s["pass_rate"] = 0.0
     return skills
 
 

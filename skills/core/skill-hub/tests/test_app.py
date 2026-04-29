@@ -1643,3 +1643,139 @@ class TestHealthPageSkillsData:
         assert resp.status_code == 200
         # Should have table with skill rows
         assert "<table>" in resp.text or "<table" in resp.text
+
+
+# --- Add test counts with last_tested_at and pass_rate ---
+
+
+class TestAddTestCountsExtended:
+    """Tests for _add_test_counts including last_tested_at and pass_rate fields."""
+
+    def test_api_skills_has_last_tested_at_field(self, client):
+        """API /api/skills should include last_tested_at field per skill."""
+        response = client.get("/api/skills")
+        data = response.json()
+        for skill in data:
+            assert "last_tested_at" in skill
+
+    def test_api_skills_has_pass_rate_field(self, client):
+        """API /api/skills should include pass_rate field per skill."""
+        response = client.get("/api/skills")
+        data = response.json()
+        for skill in data:
+            assert "pass_rate" in skill
+
+    def test_api_skills_pass_rate_is_numeric(self, client):
+        """pass_rate should be a float between 0 and 1."""
+        response = client.get("/api/skills")
+        data = response.json()
+        for skill in data:
+            assert isinstance(skill["pass_rate"], (int, float))
+            assert 0.0 <= skill["pass_rate"] <= 1.0
+
+    def test_api_skills_no_tests_pass_rate_zero(self, client):
+        """Skills without test runs should have pass_rate of 0.0."""
+        response = client.get("/api/skills")
+        data = response.json()
+        # Most skills won't have been tested in the test env
+        for skill in data:
+            if not skill.get("last_tested_at"):
+                assert skill["pass_rate"] == 0.0
+
+    def test_api_skills_last_tested_at_string(self, client):
+        """last_tested_at should be a string (ISO date or empty)."""
+        response = client.get("/api/skills")
+        data = response.json()
+        for skill in data:
+            assert isinstance(skill["last_tested_at"], str)
+
+    def test_api_skills_pass_rate_after_recorded_test(self):
+        """After recording a test run in DB, API should show updated pass_rate."""
+        from unittest.mock import patch, AsyncMock
+        import asyncio
+        from database import init_db, upsert_skill, record_test_run
+
+        async def _test():
+            db_path = "/tmp/test_skill_hub_pass_rate.db"
+            db = await init_db(db_path)
+            skill = {
+                "name": "test-skill-pr", "version": "1.0.0", "layer": "core",
+                "health": "unknown", "author": "test", "description": "test",
+                "category": "core", "path": "/tmp/test-skill-pr",
+                "scripts_json": "[]", "modules_json": "[]",
+            }
+            await upsert_skill(db, skill)
+            run_result = {
+                "skill_name": "test-skill-pr", "status": "completed",
+                "total_tests": 10, "passed": 8, "failed": 2, "errors": 0,
+                "skipped": 0, "duration_seconds": 1.5, "output": "",
+            }
+            await record_test_run(db, run_result)
+            await db.close()
+
+        asyncio.run(_test())
+        os.environ["SKILL_HUB_DB"] = "/tmp/test_skill_hub_pass_rate.db"
+        with TestClient(app) as c:
+            resp = c.get("/api/skills")
+            data = resp.json()
+            skill_pr = [s for s in data if s["name"] == "test-skill-pr"]
+            if skill_pr:
+                assert skill_pr[0]["pass_rate"] == 0.8
+                assert skill_pr[0]["last_tested_at"] != ""
+        os.environ["SKILL_HUB_DB"] = "/tmp/test_skill_hub_api.db"
+
+    def test_add_test_counts_fields_with_mock(self, tmp_path):
+        """_add_test_counts should set last_tested_at and pass_rate from test run."""
+        from app import _add_test_counts
+        import asyncio
+        from database import init_db, record_test_run, upsert_skill
+
+        async def _test():
+            db = await init_db(str(tmp_path / "test.db"))
+            # Insert a skill
+            skill = {
+                "name": "test-skill", "version": "1.0.0", "layer": "core",
+                "health": "unknown", "author": "test", "description": "test",
+                "category": "core", "path": "/tmp/test-skill",
+                "scripts_json": "[]", "modules_json": "[]",
+            }
+            await upsert_skill(db, skill)
+            # Record a test run
+            run_result = {
+                "skill_name": "test-skill", "status": "completed",
+                "total_tests": 10, "passed": 8, "failed": 2, "errors": 0,
+                "skipped": 0, "duration_seconds": 1.5, "output": "",
+            }
+            await record_test_run(db, run_result)
+            # Now add test counts
+            skills = [skill.copy()]
+            skills = await _add_test_counts(skills, db)
+            assert skills[0]["test_count"] == 10
+            assert skills[0]["last_tested_at"] != ""
+            assert skills[0]["pass_rate"] == 0.8
+            await db.close()
+
+        asyncio.run(_test())
+
+    def test_add_test_counts_pass_rate_zero_when_no_tests(self, tmp_path):
+        """_add_test_counts should set pass_rate to 0.0 when skill has no test runs."""
+        from app import _add_test_counts
+        import asyncio
+        from database import init_db, upsert_skill
+
+        async def _test():
+            db = await init_db(str(tmp_path / "test.db"))
+            skill = {
+                "name": "no-test-skill", "version": "1.0.0", "layer": "core",
+                "health": "unknown", "author": "test", "description": "test",
+                "category": "core", "path": str(tmp_path / "no-test-skill"),
+                "scripts_json": "[]", "modules_json": "[]",
+            }
+            await upsert_skill(db, skill)
+            skills = [skill.copy()]
+            skills = await _add_test_counts(skills, db)
+            assert skills[0]["last_tested_at"] == ""
+            assert skills[0]["pass_rate"] == 0.0
+            await db.close()
+
+        asyncio.run(_test())
