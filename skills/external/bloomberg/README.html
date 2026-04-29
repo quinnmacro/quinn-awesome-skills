@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bloomberg AI Prompts</title>
+    <style>
+body {
+    font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    min-height: 100vh;
+}
+.container {
+    background: white;
+    padding: 40px;
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+}
+h1 {
+    color: #1a73e8;
+    text-align: center;
+    font-size: 2.5em;
+    margin-bottom: 10px;
+}
+h2 {
+    color: #1a73e8;
+    border-bottom: 3px solid #1a73e8;
+    padding-bottom: 8px;
+    margin-top: 40px;
+    font-size: 1.5em;
+}
+h3 {
+    color: #333;
+    margin-top: 25px;
+    font-size: 1.2em;
+    border-left: 4px solid #4CAF50;
+    padding-left: 12px;
+}
+h4 {
+    color: #555;
+    margin-top: 20px;
+    font-size: 1.1em;
+}
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 20px 0;
+    font-size: 0.95em;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+th {
+    background: linear-gradient(135deg, #1a73e8 0%, #4285f4 100%);
+    color: white;
+    padding: 14px 16px;
+    text-align: left;
+    font-weight: 600;
+}
+td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #eee;
+}
+tr:nth-child(even) {
+    background: #f8f9fa;
+}
+tr:hover {
+    background: #e3f2fd;
+}
+code {
+    background: #f4f4f4;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9em;
+    color: #d63384;
+}
+pre {
+    background: #2d2d2d;
+    color: #f8f8f2;
+    padding: 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-size: 0.85em;
+    line-height: 1.5;
+}
+pre code {
+    background: none;
+    color: inherit;
+    padding: 0;
+}
+a {
+    color: #1a73e8;
+    text-decoration: none;
+    border-bottom: 1px dotted #1a73e8;
+}
+a:hover {
+    color: #0d47a1;
+    border-bottom: 1px solid #0d47a1;
+}
+blockquote {
+    background: linear-gradient(135deg, #fff9c4 0%, #fffde7 100%);
+    border-left: 4px solid #ffc107;
+    margin: 20px 0;
+    padding: 15px 20px;
+    border-radius: 0 8px 8px 0;
+    color: #5d4037;
+}
+hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #1a73e8, transparent);
+    margin: 30px 0;
+}
+img {
+    max-width: 100%;
+    border-radius: 8px;
+    margin: 10px 0;
+}
+ul, ol {
+    margin: 15px 0;
+    padding-left: 25px;
+}
+li {
+    margin: 8px 0;
+    line-height: 1.6;
+}
+.badge-img {
+    margin: 5px;
+}
+.center {
+    text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="container">
+<div align="center">
+
+# 🫧 Bloomberg AI Prompts
+
+**Professional prompt templates for Bloomberg Terminal `{AKSB <GO>}`**
+
+*Fixed Income • Currencies • Commodities • Credit • Equities*
+
+**专业级 Bloomberg 终端 AI 分析模板**
+
+*利率 • 外汇 • 大宗商品 • 信用 • 股票*
+
+---
+
+[![Bloomberg](https://img.shields.io/badge/Platform-Bloomberg_Terminal-blue?style=for-the-badge)](https://www.bloomberg.com/professional/solution/bloomberg-terminal/)
+[![Templates](https://img.shields.io/badge/Templates-41-green?style=for-the-badge)]()
+[![FICC](https://img.shields.io/badge/FICC-26_prompts-orange?style=for-the-badge)]()
+[![Equity](https://img.shields.io/badge/Equity-15_templates-purple?style=for-the-badge)]()
+
+</div>
+
+<hr />
+<h2 id="quick-navigation">📊 Quick Navigation | 快速导航</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: center;">Category</th>
+<th style="text-align: center;">Templates</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: center;"><a href="#-equity-prompts--股票分析">🏢 <strong>Equity</strong></a></td>
+<td style="text-align: center;">15</td>
+<td style="text-align: left;">Company, Sector, Event, Market analysis</td>
+<td style="text-align: left;">公司、行业、事件、市场分析</td>
+</tr>
+<tr>
+<td style="text-align: center;"><a href="#-ficc-prompts--固收外汇商品">📈 <strong>FICC</strong></a></td>
+<td style="text-align: center;">26</td>
+<td style="text-align: left;">Rates, FX, Credit, Commodities</td>
+<td style="text-align: left;">利率、外汇、信用、商品</td>
+</tr>
+<tr>
+<td style="text-align: center;"><a href="#-mini-prompts--快速分析">⚡ <strong>Mini Prompts</strong></a></td>
+<td style="text-align: center;">14</td>
+<td style="text-align: left;">Quick daily analysis</td>
+<td style="text-align: left;">日常快速分析</td>
+</tr>
+<tr>
+<td style="text-align: center;"><a href="#-theme-prompts--主题分析">🎭 <strong>Theme Prompts</strong></a></td>
+<td style="text-align: center;">7</td>
+<td style="text-align: left;">Macro scenario analysis</td>
+<td style="text-align: left;">宏观场景分析</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="equity-prompts">🏢 Equity Prompts | 股票分析</h2>
+<blockquote>
+<p><strong>Company &amp; Sector Analysis for Investment Decisions</strong></p>
+<p><strong>公司及行业分析，支持投资决策</strong></p>
+</blockquote>
+<h3 id="template-index">📋 Template Index | 模板索引</h3>
+<h4 id="company-4-templates">🏭 Company | 公司视角 (4 templates)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Template</th>
+<th style="text-align: left;">Use Case</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="company/trends-analysis/template.md">Trends Analysis</a></td>
+<td style="text-align: left;">Stock + Financial + Operational trends</td>
+<td style="text-align: left;">股价+财务+运营趋势</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="company/management-governance/template.md">Management &amp; Governance</a></td>
+<td style="text-align: left;">Board &amp; leadership assessment</td>
+<td style="text-align: left;">治理+管理层评估</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code>, <code>N</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="company/company-snapshot/template.md">Company Snapshot</a></td>
+<td style="text-align: left;">Investment thesis primer</td>
+<td style="text-align: left;">投资概览手册</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="company/performance-tracker/template.md">Performance Tracker</a></td>
+<td style="text-align: left;">Quarterly financial tracking</td>
+<td style="text-align: left;">季度财务追踪</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code>, <code>N</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="sector-3-templates">🏭 Sector | 行业视角 (3 templates)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Template</th>
+<th style="text-align: left;">Use Case</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="sector/sector-snapshot/template.md">Sector Snapshot</a></td>
+<td style="text-align: left;">Industry + peer comparison</td>
+<td style="text-align: left;">行业+同行对比</td>
+<td style="text-align: left;"><code>{Sector Name}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="sector/sector-rotation/template.md">Sector Rotation</a></td>
+<td style="text-align: left;">Leading/lagging sector signals</td>
+<td style="text-align: left;">行业轮动信号</td>
+<td style="text-align: left;"><code>{Region/Market}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="sector/sector-valuation/template.md">Sector Valuation</a></td>
+<td style="text-align: left;">P/E, EV/EBITDA cross-sector</td>
+<td style="text-align: left;">行业估值对比</td>
+<td style="text-align: left;"><code>{Region/Market}</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="event-4-templates">⚡ Event | 事件视角 (4 templates)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Template</th>
+<th style="text-align: left;">Use Case</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="event/breaking-event/template.md">Breaking Event</a></td>
+<td style="text-align: left;">Material event analysis (24-96h)</td>
+<td style="text-align: left;">突发事件分析</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="event/earnings-event/template.md">Earnings Event</a></td>
+<td style="text-align: left;">Quarterly results surprise</td>
+<td style="text-align: left;">业绩发布分析</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="event/regulatory-event/template.md">Regulatory Event</a></td>
+<td style="text-align: left;">FDA/SEC/DOJ impact assessment</td>
+<td style="text-align: left;">监管事件分析</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="event/ma-event/template.md">M&amp;A Event</a></td>
+<td style="text-align: left;">Deal structure + synergy</td>
+<td style="text-align: left;">并购事件分析</td>
+<td style="text-align: left;"><code>{Company/Ticker}</code></td>
+</tr>
+</tbody>
+</table>
+<h4 id="market-4-templates">📊 Market | 市场视角 (4 templates)</h4>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Template</th>
+<th style="text-align: left;">Use Case</th>
+<th style="text-align: left;">用途</th>
+<th style="text-align: left;">Variable</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="market/credit-strategy/template.md">Credit Strategy</a></td>
+<td style="text-align: left;">Credit market morning briefing</td>
+<td style="text-align: left;">信用市场早报</td>
+<td style="text-align: left;"><code>{Market}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="market/equity-brief/template.md">Equity Brief</a></td>
+<td style="text-align: left;">Index + sector + movers</td>
+<td style="text-align: left;">股票市场简报</td>
+<td style="text-align: left;"><code>{Region/Market}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="market/fx-review/template.md">FX Review</a></td>
+<td style="text-align: left;">G10 + EM FX + carry</td>
+<td style="text-align: left;">外汇市场回顾</td>
+<td style="text-align: left;"><code>{Currency/Region}</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="market/volatility-review/template.md">Volatility Review</a></td>
+<td style="text-align: left;">Cross-asset vol regime</td>
+<td style="text-align: left;">波动率回顾</td>
+<td style="text-align: left;"><code>{Market/Region}</code></td>
+</tr>
+</tbody>
+</table>
+<h3 id="usage">🎯 Usage | 使用方法</h3>
+<p><strong>English:</strong></p>
+<pre><code>1. Bloomberg Terminal → {AKSB &lt;GO&gt;}
+2. Copy template → Replace variables
+3. Example: {Company/Ticker} → AAPL US Equity
+</code></pre>
+<p><strong>中文:</strong></p>
+<pre><code>1. Bloomberg 终端 → 输入 {AKSB &lt;GO&gt;}
+2. 复制模板 → 替换变量
+3. 示例: {Company/Ticker} → AAPL US Equity
+</code></pre>
+<details>
+<summary>📖 Variable Format Guide | 变量格式指南</summary>
+
+| Variable | Format | Example | 示例 |
+|----------|--------|---------|------|
+| `{Company/Ticker}` | Bloomberg Ticker | `AAPL US Equity` | `700 HK Equity` |
+| `{Sector Name}` | Industry Name | `Technology` | `Healthcare` |
+| `{Market}` | Market Type | `US IG`, `Asia HY` | `EM USD` |
+| `N` | Period Count | `4`, `8` | 周期数 |
+
+**Data Period Rules | 数据周期规则:**
+
+| Rule | Description | 说明 |
+|------|-------------|------|
+| N+1 | Extra period for YoY calc | YoY计算需额外1期 |
+| N+5 | Performance Tracker requirement | Performance Tracker最严格 |
+| < 366 days | Data freshness priority | 数据新鲜度优先级 |
+
+</details>
+
+<hr />
+<h2 id="ficc-prompts">📈 FICC Prompts | 固收外汇商品</h2>
+<blockquote>
+<p><strong>Fixed Income, Currencies &amp; Commodities Analysis</strong></p>
+<p><strong>利率、外汇、信用与大宗商品分析</strong></p>
+</blockquote>
+<h3 id="core-templates-5">🔥 Core Templates (5) | 核心模板</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Template</th>
+<th style="text-align: center;">类别</th>
+<th style="text-align: left;">Key Metrics</th>
+<th style="text-align: left;">关键指标</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="ficc/rates/sovereign-yields/template.md">Sovereign Yields</a></td>
+<td style="text-align: center;">📉 Rates</td>
+<td style="text-align: left;">Yield curve + CB policy</td>
+<td style="text-align: left;">收益率曲线 + 央行定价</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/fx/currency-cross/template.md">Currency Cross</a></td>
+<td style="text-align: center;">💱 FX</td>
+<td style="text-align: left;">Spot/Forward + Carry + Vol</td>
+<td style="text-align: left;">即远期 + Carry + 波动率</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/credit/spreads/template.md">Credit Spreads</a></td>
+<td style="text-align: center;">💳 Credit</td>
+<td style="text-align: left;">IG vs HY + Sector matrix</td>
+<td style="text-align: left;">IG/HY利差 + 行业矩阵</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/commodities/energy-futures/template.md">Energy Futures</a></td>
+<td style="text-align: center;">🛢️ Comm.</td>
+<td style="text-align: left;">Curve structure + OVX</td>
+<td style="text-align: left;">曲线结构 + OVX波动率</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/cross-asset/template.md">Cross-Asset</a></td>
+<td style="text-align: center;">🔗 Multi</td>
+<td style="text-align: left;">Transmission chains</td>
+<td style="text-align: left;">跨资产传导链</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ficc-documentation">📚 FICC Documentation | 文档资源</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Document</th>
+<th style="text-align: left;">Content</th>
+<th style="text-align: left;">内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><a href="ficc/FICC-DESIGN.md">📖 Design Framework</a></td>
+<td style="text-align: left;">Strategy types + Methodology</td>
+<td style="text-align: left;">策略类型 + 方法论</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/QUICK-REFERENCE.md">🔍 Quick Reference</a></td>
+<td style="text-align: left;">Ticker lookup + BQL templates</td>
+<td style="text-align: left;">Ticker速查 + BQL模板</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/TRADER-TIPS.md">💡 Trader Tips</a></td>
+<td style="text-align: left;">Pitfalls + Formulas + Jargon</td>
+<td style="text-align: left;">坑点 + 公式 + 黑话</td>
+</tr>
+<tr>
+<td style="text-align: left;"><a href="ficc/CASE-STUDIES.md">📋 Case Studies</a></td>
+<td style="text-align: left;">7 real &amp; scenario examples</td>
+<td style="text-align: left;">7个真实+虚构案例</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ficc-by-strategy-type">🎯 FICC by Strategy Type | 策略类型</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Strategy</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: left;">描述</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Curve Trade</strong></td>
+<td style="text-align: left;">Steepener / Flattener</td>
+<td style="text-align: left;">曲线交易：做陡/做平</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Carry Trade</strong></td>
+<td style="text-align: left;">Harvest yield differential</td>
+<td style="text-align: left;">Carry交易：赚取利差</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Calendar Spread</strong></td>
+<td style="text-align: left;">Commodity time spreads</td>
+<td style="text-align: left;">日历价差：时间套利</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cross-Market</strong></td>
+<td style="text-align: left;">Regional spread arbitrage</td>
+<td style="text-align: left;">跨市场套利</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Vol Trade</strong></td>
+<td style="text-align: left;">Long/Short volatility</td>
+<td style="text-align: left;">波动率交易</td>
+</tr>
+</tbody>
+</table>
+<h3 id="key-tickers-ticker">📊 Key Tickers | 关键Ticker</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Asset</th>
+<th style="text-align: left;">Ticker</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">US 10Y</td>
+<td style="text-align: left;"><code>GT10 Govt</code></td>
+<td style="text-align: left;">美国国债10年期</td>
+</tr>
+<tr>
+<td style="text-align: left;">EUR 10Y</td>
+<td style="text-align: left;"><code>GTDEM10Y Govt</code></td>
+<td style="text-align: left;">德国国债10年期</td>
+</tr>
+<tr>
+<td style="text-align: left;">WTI Crude</td>
+<td style="text-align: left;"><code>CL1 Comdty</code></td>
+<td style="text-align: left;">WTI原油近月</td>
+</tr>
+<tr>
+<td style="text-align: left;">US IG Credit</td>
+<td style="text-align: left;"><code>LCGDTRUU Index</code></td>
+<td style="text-align: left;">美国投资级信用债</td>
+</tr>
+<tr>
+<td style="text-align: left;">US HY Credit</td>
+<td style="text-align: left;"><code>HLHO Index</code></td>
+<td style="text-align: left;">美国高收益信用债</td>
+</tr>
+<tr>
+<td style="text-align: left;">VIX</td>
+<td style="text-align: left;"><code>VIX Index</code></td>
+<td style="text-align: left;">标普500波动率</td>
+</tr>
+<tr>
+<td style="text-align: left;">OVX</td>
+<td style="text-align: left;"><code>OVX Index</code></td>
+<td style="text-align: left;">原油波动率</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="mini-prompts">⚡ Mini Prompts | 快速分析</h2>
+<blockquote>
+<p><strong>Quick Analysis for Daily Workflow</strong></p>
+<p><strong>日常快速分析工具</strong></p>
+</blockquote>
+<h3 id="daily-workflow">📅 Daily Workflow | 日常流程</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prompt</th>
+<th style="text-align: left;">Use When</th>
+<th style="text-align: left;">场景</th>
+<th style="text-align: center;">Time</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Pre-Market Scan</strong></td>
+<td style="text-align: left;">Before market open</td>
+<td style="text-align: left;">开盘前扫描</td>
+<td style="text-align: center;">5 min</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Close Review</strong></td>
+<td style="text-align: left;">End of trading day</td>
+<td style="text-align: left;">收盘复盘</td>
+<td style="text-align: center;">10 min</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Weekly Wrap</strong></td>
+<td style="text-align: left;">Friday close</td>
+<td style="text-align: left;">周度总结</td>
+<td style="text-align: center;">15 min</td>
+</tr>
+</tbody>
+</table>
+<h3 id="event-driven">⚡ Event-Driven | 事件驱动</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prompt</th>
+<th style="text-align: left;">Trigger</th>
+<th style="text-align: left;">触发条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Rate Decision Reaction</strong></td>
+<td style="text-align: left;">CB meeting outcome</td>
+<td style="text-align: left;">央行决议结果</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Geopolitical Shock</strong></td>
+<td style="text-align: left;">War, sanctions, election</td>
+<td style="text-align: left;">战争、制裁、选举</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Data Release Reaction</strong></td>
+<td style="text-align: left;">CPI, NFP, GDP surprise</td>
+<td style="text-align: left;">CPI/NFP/GDP意外</td>
+</tr>
+</tbody>
+</table>
+<h3 id="relative-value">📊 Relative Value | 相对价值</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prompt</th>
+<th style="text-align: left;">Use Case</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Curve Trade Setup</strong></td>
+<td style="text-align: left;">Steepener/Flattener ideas</td>
+<td style="text-align: left;">曲线交易设置</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Credit RV</strong></td>
+<td style="text-align: left;">IG vs HY relative value</td>
+<td style="text-align: left;">IG/HY相对价值</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>FX Carry Trade</strong></td>
+<td style="text-align: left;">Carry attractiveness</td>
+<td style="text-align: left;">FX Carry评估</td>
+</tr>
+</tbody>
+</table>
+<h3 id="risk-stress">🛡️ Risk &amp; Stress | 风险压力</h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Prompt</th>
+<th style="text-align: left;">Purpose</th>
+<th style="text-align: left;">用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Market Stress Check</strong></td>
+<td style="text-align: left;">Cross-asset stress level</td>
+<td style="text-align: left;">跨资产压力检查</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Liquidity Assessment</strong></td>
+<td style="text-align: left;">Market functioning check</td>
+<td style="text-align: left;">流动性评估</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Position Risk Check</strong></td>
+<td style="text-align: left;">VaR + Stop-loss sizing</td>
+<td style="text-align: left;">持仓风险评估</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="theme-prompts">🎭 Theme Prompts | 主题分析</h2>
+<blockquote>
+<p><strong>Macro-Driven Scenario Analysis</strong></p>
+<p><strong>宏观驱动的场景分析</strong></p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Theme</th>
+<th style="text-align: left;">When to Use</th>
+<th style="text-align: left;">使用场景</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">🌡️ <strong>Inflation Trade</strong></td>
+<td style="text-align: left;">CPI surprises, breakeven moves</td>
+<td style="text-align: left;">CPI意外、breakeven变动</td>
+</tr>
+<tr>
+<td style="text-align: left;">📉 <strong>Recession Trade</strong></td>
+<td style="text-align: left;">Curve inversion, LEI decline</td>
+<td style="text-align: left;">曲线倒挂、LEI下降</td>
+</tr>
+<tr>
+<td style="text-align: left;">💧 <strong>Liquidity Crisis</strong></td>
+<td style="text-align: left;">Bid-ask widening, market freeze</td>
+<td style="text-align: left;">价差扩大、市场冻结</td>
+</tr>
+<tr>
+<td style="text-align: left;">⚖️ <strong>CB Divergence</strong></td>
+<td style="text-align: left;">Rate differential widening</td>
+<td style="text-align: left;">利率差扩大</td>
+</tr>
+<tr>
+<td style="text-align: left;">❌ <strong>Policy Mistake</strong></td>
+<td style="text-align: left;">Real rates extreme</td>
+<td style="text-align: left;">实际利率极端</td>
+</tr>
+<tr>
+<td style="text-align: left;">📊 <strong>Tail Risk</strong></td>
+<td style="text-align: left;">Geopolitical escalation</td>
+<td style="text-align: left;">地缘政治升级</td>
+</tr>
+<tr>
+<td style="text-align: left;">🦢 <strong>Black Swan Prep</strong></td>
+<td style="text-align: left;">Portfolio resilience check</td>
+<td style="text-align: left;">组合韧性检查</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="directory-structure">🗂️ Directory Structure | 目录结构</h2>
+<pre><code>bloomberg/
+│
+├── 📄 README.md                    # This file | 本文件
+│
+├── 🏢 company/                     # Equity - Company | 股票-公司 (4)
+│   ├── trends-analysis/            # 趋势分析
+│   ├── management-governance/      # 治理评估
+│   ├── company-snapshot/           # 投资概览
+│   └── performance-tracker/        # 财务追踪
+│
+├── 🏭 sector/                      # Equity - Sector | 股票-行业 (3)
+│   ├── sector-snapshot/            # 行业快照
+│   ├── sector-rotation/            # 行业轮动
+│   └── sector-valuation/           # 行业估值
+│
+├── ⚡ event/                       # Equity - Event | 股票-事件 (4)
+│   ├── breaking-event/             # 突发事件
+│   ├── earnings-event/             # 业绩发布
+│   ├── regulatory-event/           # 监管事件
+│   └── ma-event/                   # 并购事件
+│
+├── 📊 market/                      # Market-wide | 市场层面 (4)
+│   ├── credit-strategy/            # 信用策略
+│   ├── equity-brief/               # 股票简报
+│   ├── fx-review/                  # 外汇回顾
+│   └── volatility-review/          # 波动率回顾
+│
+└── 📈 ficc/                        # FICC Prompts | 固收外汇商品 (26)
+    ├── README.md                   # FICC索引
+    ├── FICC-DESIGN.md              # 设计框架
+    ├── QUICK-REFERENCE.md          # 快速参考
+    ├── MINI-PROMPTS.md             # 快速分析
+    ├── CASE-STUDIES.md             # 案例研究
+    ├── THEME-PROMPTS.md            # 主题分析
+    ├── TRADER-TIPS.md              # 交易员技巧
+    │
+    ├── rates/sovereign-yields/     # 利率-国债
+    ├── fx/currency-cross/          # 外汇-货币对
+    ├── credit/spreads/             # 信用-利差
+    ├── commodities/energy-futures/ # 商品-能源
+    └── cross-asset/                # 跨资产
+</code></pre>
+<hr />
+<h2 id="quick-start">🚀 Quick Start | 快速开始</h2>
+<h3 id="first-time">First Time | 首次使用</h3>
+<pre><code class="language-bash"># Clone the repository | 克隆仓库
+git clone https://github.com/quinnmacro/quinn-awesome-skills.git
+
+# Navigate to Bloomberg prompts | 进入目录
+cd quinn-awesome-skills/skills/external/bloomberg
+</code></pre>
+<h3 id="using-a-template">Using a Template | 使用模板</h3>
+<pre><code>Step 1: Open template file | 打开模板文件
+Step 2: Copy to Bloomberg Terminal {AKSB &lt;GO&gt;} | 复制到终端
+Step 3: Replace variables | 替换变量
+        {Company/Ticker} → AAPL US Equity
+Step 4: Run analysis | 执行分析
+</code></pre>
+<hr />
+<h2 id="stats">📊 Stats | 统计</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Metric</th>
+<th style="text-align: right;">Count</th>
+<th style="text-align: left;">指标</th>
+<th style="text-align: right;">数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Total Templates</td>
+<td style="text-align: right;">41</td>
+<td style="text-align: left;">模板总数</td>
+<td style="text-align: right;">41</td>
+</tr>
+<tr>
+<td style="text-align: left;">FICC Prompts</td>
+<td style="text-align: right;">26</td>
+<td style="text-align: left;">FICC提示词</td>
+<td style="text-align: right;">26</td>
+</tr>
+<tr>
+<td style="text-align: left;">Equity Templates</td>
+<td style="text-align: right;">15</td>
+<td style="text-align: left;">股票模板</td>
+<td style="text-align: right;">15</td>
+</tr>
+<tr>
+<td style="text-align: left;">• Company</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">公司模板</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td style="text-align: left;">• Sector</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">行业模板</td>
+<td style="text-align: right;">3</td>
+</tr>
+<tr>
+<td style="text-align: left;">• Event</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">事件模板</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td style="text-align: left;">• Market</td>
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">市场模板</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td style="text-align: left;">Mini Prompts</td>
+<td style="text-align: right;">14</td>
+<td style="text-align: left;">快速分析</td>
+<td style="text-align: right;">14</td>
+</tr>
+<tr>
+<td style="text-align: left;">Theme Prompts</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: left;">主题分析</td>
+<td style="text-align: right;">7</td>
+</tr>
+<tr>
+<td style="text-align: left;">Case Studies</td>
+<td style="text-align: right;">7</td>
+<td style="text-align: left;">案例研究</td>
+<td style="text-align: right;">7</td>
+</tr>
+<tr>
+<td style="text-align: left;">Documentation Pages</td>
+<td style="text-align: right;">11</td>
+<td style="text-align: left;">文档页数</td>
+<td style="text-align: right;">11</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="template-sources">📜 Template Sources | 模板来源</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Source</th>
+<th style="text-align: center;">Templates</th>
+<th style="text-align: left;">来源</th>
+<th style="text-align: center;">数量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Bloomberg Official</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: left;">Bloomberg官方</td>
+<td style="text-align: center;">6</td>
+</tr>
+<tr>
+<td style="text-align: left;">Custom (Quinn-Written)</td>
+<td style="text-align: center;">9</td>
+<td style="text-align: left;">自写模板</td>
+<td style="text-align: center;">9</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="related-resources">🔗 Related Resources | 相关资源</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Resource</th>
+<th style="text-align: left;">Link</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Bloomberg Terminal</td>
+<td style="text-align: left;"><a href="https://www.bloomberg.com/professional/solution/bloomberg-terminal/">bloomberg.com</a></td>
+</tr>
+<tr>
+<td style="text-align: left;">Wind Prompts</td>
+<td style="text-align: left;"><a href="../wind/">../wind/</a> <em>(Coming Soon)</em></td>
+</tr>
+<tr>
+<td style="text-align: left;">quinn-awesome-skills</td>
+<td style="text-align: left;"><a href="https://github.com/quinnmacro/quinn-awesome-skills">GitHub</a></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="notes">⚠️ Notes | 注意事项</h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Note</th>
+<th style="text-align: left;">Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Terminal Required</strong></td>
+<td style="text-align: left;">Templates require Bloomberg Terminal with data access</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DAPI Fields</strong></td>
+<td style="text-align: left;">Some templates have strict DAPI field requirements</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Data Freshness</strong></td>
+<td style="text-align: left;">Stale data (&gt;180/366 days) should move to Historical section</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Credit Strategy</strong></td>
+<td style="text-align: left;">Contains 70+ Bloomberg Index tickers</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">注意</th>
+<th style="text-align: left;">说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>终端必需</strong></td>
+<td style="text-align: left;">模板需在Bloomberg终端内使用，依赖数据API</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>DAPI字段</strong></td>
+<td style="text-align: left;">部分模板有严格的字段限制</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>数据新鲜度</strong></td>
+<td style="text-align: left;">过期数据应移至历史数据部分</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Credit Strategy</strong></td>
+<td style="text-align: left;">包含70+个Bloomberg指数ticker</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<div align="center">
+
+**Made with 💙 for FICC & Equity Traders**
+
+**用 💙 为固收外汇商品与股票交易员打造**
+
+*Star ⭐ this repo if you find it useful!*
+
+*觉得有用请点个 Star ⭐！*
+
+[⬆ Back to Top | 返回顶部](#-bloomberg-ai-prompts)
+
+</div>
+</div>
+</body>
+</html>
