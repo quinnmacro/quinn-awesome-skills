@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -39,7 +40,24 @@ PROJECT_ROOT = SKILL_HUB_DIR.parent.parent.parent  # quinn-awesome-skills/
 DEFAULT_SKILLS_DIR = PROJECT_ROOT / "skills"
 DEFAULT_PORT = int(os.environ.get("SKILL_HUB_PORT", "8765"))
 
-app = FastAPI(title="Skill Hub", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: initialize DB and sync discovered skills
+    global _db
+    db_path = os.environ.get("SKILL_HUB_DB", DEFAULT_DB_PATH)
+    _db = await init_db(db_path)
+    skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+    discovered = discover_skills(skills_dir)
+    await sync_skills(_db, discovered)
+    yield
+    # Shutdown: close DB connection
+    if _db is not None:
+        await _db.close()
+        _db = None
+
+
+app = FastAPI(title="Skill Hub", version="1.0.0", lifespan=lifespan)
 
 # Global db connection
 _db = None
@@ -50,24 +68,10 @@ async def get_db():
     if _db is None:
         db_path = os.environ.get("SKILL_HUB_DB", DEFAULT_DB_PATH)
         _db = await init_db(db_path)
-        # Sync discovered skills on startup
         skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
         discovered = discover_skills(skills_dir)
         await sync_skills(_db, discovered)
     return _db
-
-
-@app.on_event("startup")
-async def startup():
-    await get_db()
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    global _db
-    if _db is not None:
-        await _db.close()
-        _db = None
 
 
 # --- HTML Pages (Jinja2) ---
