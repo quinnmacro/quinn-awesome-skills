@@ -9,6 +9,10 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 
+# Register custom marks
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: marks tests as slow (runs real subprocesses)")
+
 # Add skill-hub modules to sys.path
 SKILL_HUB_DIR = Path(__file__).resolve().parent.parent
 MODULES_DIR = SKILL_HUB_DIR / "modules"

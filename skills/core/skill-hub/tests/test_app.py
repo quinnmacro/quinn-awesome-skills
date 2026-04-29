@@ -4,6 +4,7 @@ import pytest
 import pytest_asyncio
 import json
 from pathlib import Path
+from unittest.mock import patch, AsyncMock
 
 import httpx
 from fastapi.testclient import TestClient
@@ -1518,3 +1519,127 @@ class TestHomePageResyncButton:
         """Resync JS should reload the page after success."""
         response = client.get("/")
         assert "window.location.reload" in response.text
+
+
+# --- Test All API endpoint tests (mocked _run_skill_tests to avoid slow subprocess) ---
+
+
+class TestApiTestAll:
+    def _mock_run_skill_tests(self, name, skill_path):
+        """Return a mock test result without running actual pytest."""
+        return {
+            "skill_name": name,
+            "status": "completed",
+            "passed": 10,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 2,
+            "total_tests": 10,
+            "duration_seconds": 0.5,
+            "output": f"mock output for {name}",
+        }
+
+    def _patch_test_all_deps(self):
+        """Patch _run_skill_tests, record_test_run, and upsert_skill to avoid DB pollution."""
+        return [
+            patch("app._run_skill_tests", new_callable=AsyncMock, side_effect=self._mock_run_skill_tests),
+            patch("app.record_test_run", new_callable=AsyncMock, return_value=1),
+            patch("app.upsert_skill", new_callable=AsyncMock),
+        ]
+
+    def test_test_all_returns_200(self):
+        """Test-all endpoint should return 200 with mocked test runner."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                assert response.status_code == 200
+                data = response.json()
+                assert "total_skills" in data
+                assert isinstance(data["total_skills"], int)
+                assert data["total_skills"] >= 1
+
+    def test_test_all_response_has_results(self):
+        """Test-all response should include results list."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                data = response.json()
+                assert "results" in data
+                assert isinstance(data["results"], list)
+                assert len(data["results"]) >= 1
+
+    def test_test_all_response_has_aggregated_counts(self):
+        """Test-all response should include aggregated passed/failed/errors counts."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                data = response.json()
+                assert "total_passed" in data
+                assert "total_failed" in data
+                assert "total_errors" in data
+                assert "skills_completed" in data
+                assert isinstance(data["total_passed"], int)
+                assert isinstance(data["total_failed"], int)
+
+    def test_test_all_results_have_skill_name_and_status(self):
+        """Each result in test-all should have skill_name and status."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                data = response.json()
+                for r in data["results"]:
+                    assert "skill_name" in r
+                    assert "status" in r
+
+    def test_test_all_passed_equals_sum(self):
+        """Total passed count should equal sum of per-skill passed counts."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                data = response.json()
+                sum_passed = sum(r.get("passed", 0) for r in data["results"])
+                assert data["total_passed"] == sum_passed
+
+    def test_test_all_failed_equals_sum(self):
+        """Total failed count should equal sum of per-skill failed counts."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                data = response.json()
+                sum_failed = sum(r.get("failed", 0) for r in data["results"])
+                assert data["total_failed"] == sum_failed
+
+    def test_test_all_skills_completed_count(self):
+        """skills_completed should count completed test runs."""
+        patches = self._patch_test_all_deps()
+        with patches[0], patches[1], patches[2]:
+            with TestClient(app) as client:
+                response = client.post("/api/skills/test-all")
+                data = response.json()
+                completed = sum(1 for r in data["results"] if r.get("status") == "completed")
+                assert data["skills_completed"] == completed
+
+
+# --- Health page skills data tests ---
+
+
+class TestHealthPageSkillsData:
+    def test_health_page_has_skills_data(self, client):
+        """Health page should now receive skills list data."""
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        # The page should render with skills overview
+        assert "Skills Health Overview" in resp.text
+
+    def test_health_page_skills_overview_table(self, client):
+        """Health page should render skills overview table with skill names."""
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        # Should have table with skill rows
+        assert "<table>" in resp.text or "<table" in resp.text

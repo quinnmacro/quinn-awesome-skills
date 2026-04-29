@@ -199,7 +199,12 @@ async def skill_detail(request: Request, name: str):
 async def health_page(request: Request):
     db = await get_db()
     stats = await get_health_stats(db)
-    return _render_template("health.html", {"stats": stats, "nav_active": "health"})
+    skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+    discovered = discover_skills(skills_dir)
+    skills = await get_all_skills(db)
+    enriched = _enrich_with_discovered(skills, discovered)
+    enriched = await _add_test_counts(enriched, db)
+    return _render_template("health.html", {"stats": stats, "skills": enriched, "nav_active": "health"})
 
 
 @app.get("/install", response_class=HTMLResponse)
@@ -351,6 +356,41 @@ async def api_check_deps(name: str):
     for d in checked:
         await upsert_dependency(db, name, d["dep_name"], d["dep_type"], 1 if d["installed"] else 0)
     return {"skill_name": name, "dependencies": checked}
+
+
+@app.post("/api/skills/test-all")
+async def api_test_all():
+    """Run tests for all skills and return aggregated results."""
+    db = await get_db()
+    skills = await get_all_skills(db)
+    results = []
+    for skill in skills:
+        name = skill["name"]
+        skill_path = skill.get("path", "")
+        test_result = await _run_skill_tests(name, skill_path)
+        await record_test_run(db, test_result)
+        # Update skill health based on test result
+        if test_result.get("status") == "completed" and test_result.get("failed", 0) == 0 and test_result.get("errors", 0) == 0:
+            skill["health"] = "passing"
+        elif test_result.get("status") == "completed":
+            skill["health"] = "failing"
+        else:
+            skill["health"] = "unknown"
+        await upsert_skill(db, skill)
+        results.append(test_result)
+    total_passed = sum(r.get("passed", 0) for r in results)
+    total_failed = sum(r.get("failed", 0) for r in results)
+    total_errors = sum(r.get("errors", 0) for r in results)
+    total_skills = len(results)
+    skills_completed = sum(1 for r in results if r.get("status") == "completed")
+    return {
+        "total_skills": total_skills,
+        "skills_completed": skills_completed,
+        "total_passed": total_passed,
+        "total_failed": total_failed,
+        "total_errors": total_errors,
+        "results": results,
+    }
 
 
 # --- WebSocket for live test streaming ---

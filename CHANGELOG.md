@@ -17,17 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Test panel: run pytest and stream results via WebSocket
   - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
   - Install page: dynamic skills table with dependency install status, check-deps button
-  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv, /api/skills/resync
+  - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv, /api/skills/resync, /api/skills/test-all
   - Layer and health filter dropdowns on home page and API (layer=, health= query params)
   - Sort dropdown on home page and API (sort= query param: name, name-desc, version, test_count, health)
   - Re-sync Skills button on home page UI with visual feedback and auto-reload
+  - Skills Health Overview table on health dashboard showing all skills with name, version, layer, health, test count, pass rate, and Run Tests link
+  - Run All Tests button on health dashboard that triggers POST /api/skills/test-all endpoint with visual feedback
+  - Breadcrumb navigation on detail and test pages (Skills / skill-name / Tests)
   - Custom error page template for styled 404/500/422 responses (extends base.html with nav links and back button)
   - HTTP exception handlers (404, 500, RequestValidationError) with API-aware JSON/HTML response switching
   - Responsive CSS with mobile breakpoints, inline SVG favicon, footer, dep type badge styles, active navigation highlighting
   - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, lists)
   - Detail page enrichment: DB skills now enriched with discovery data (scripts, modules, skill_md) for full rendering
   - Version history tracking (skill_versions table, records version changes on sync)
-  - 470 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button)
+  - 498 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs)
 
 ## [1.3.0] - 2026-04-28
 

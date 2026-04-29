@@ -525,3 +525,128 @@ class TestBaseTemplateCssImprovements:
         """Base template should have link styles within rendered markdown."""
         resp = client.get("/")
         assert ".md-rendered a" in resp.text
+
+
+# --- Health page overview table tests ---
+
+
+class TestHealthPageOverviewTable:
+    def test_health_has_skills_overview_heading(self, client):
+        """Health page should show Skills Health Overview heading."""
+        resp = client.get("/health")
+        assert "Skills Health Overview" in resp.text
+
+    def test_health_overview_table_has_columns(self, client):
+        """Overview table should have Name, Version, Layer, Health, Tests, Pass Rate, Actions columns."""
+        resp = client.get("/health")
+        assert "Name" in resp.text
+        assert "Version" in resp.text
+        assert "Layer" in resp.text
+        assert "Health" in resp.text
+        assert "Tests" in resp.text
+        assert "Last Pass Rate" in resp.text
+        assert "Actions" in resp.text
+
+    def test_health_overview_table_has_skill_rows(self, client):
+        """Overview table should have rows for each discovered skill."""
+        resp = client.get("/health")
+        assert "/skill/" in resp.text
+
+    def test_health_overview_skill_link(self, client):
+        """Each skill name should link to its detail page."""
+        resp = client.get("/health")
+        # Should have link to detail page for at least one skill
+        assert 'href="/skill/' in resp.text
+
+    def test_health_overview_has_run_tests_action(self, client):
+        """Each skill row should have a Run Tests action link."""
+        resp = client.get("/health")
+        assert 'href="/test/' in resp.text
+
+    def test_health_overview_layer_badge(self, client):
+        """Layer column should show badge with layer class."""
+        resp = client.get("/health")
+        assert "badge core" in resp.text
+
+    def test_health_overview_health_badge(self, client):
+        """Health column should show badge with health class."""
+        resp = client.get("/health")
+        assert "badge" in resp.text
+
+    def test_health_overview_version_format(self, client):
+        """Version column should show v prefix."""
+        resp = client.get("/health")
+        assert "v" in resp.text
+
+
+# --- Health page Run All Tests button tests ---
+
+
+class TestHealthPageRunAllTests:
+    def test_health_has_run_all_tests_button(self, client):
+        """Health page should have a Run All Tests button."""
+        resp = client.get("/health")
+        assert "Run All Tests" in resp.text
+
+    def test_health_has_test_all_js_function(self, client):
+        """Health page should have runAllTests JavaScript function."""
+        resp = client.get("/health")
+        assert "runAllTests" in resp.text
+
+    def test_health_test_all_calls_api(self, client):
+        """Run All Tests button should call POST /api/skills/test-all."""
+        resp = client.get("/health")
+        assert "/api/skills/test-all" in resp.text
+
+    def test_health_has_test_all_status_element(self, client):
+        """Health page should have a status element for test-all feedback."""
+        resp = client.get("/health")
+        assert "test-all-status" in resp.text
+
+    def test_health_test_all_reloads_page(self, client):
+        """Test-all JS should reload the page after success."""
+        resp = client.get("/health")
+        assert "window.location.reload" in resp.text
+
+
+# --- Breadcrumb navigation tests ---
+
+
+class TestBreadcrumbNavigation:
+    def test_detail_page_has_breadcrumb(self, client):
+        """Detail page should show breadcrumb with Skills link."""
+        resp = client.get("/skill/url-fetcher")
+        if resp.status_code == 200:
+            assert "Skills" in resp.text
+            assert "/" in resp.text
+
+    def test_detail_page_breadcrumb_links_to_home(self, client):
+        """Detail page breadcrumb Skills link should go to home page."""
+        resp = client.get("/skill/url-fetcher")
+        if resp.status_code == 200:
+            assert 'href="/"' in resp.text
+
+    def test_detail_page_breadcrumb_shows_skill_name(self, client):
+        """Detail page breadcrumb should show the skill name."""
+        resp = client.get("/skill/url-fetcher")
+        if resp.status_code == 200:
+            assert "url-fetcher" in resp.text
+
+    def test_test_page_has_breadcrumb(self, client):
+        """Test page should show breadcrumb with Skills and skill name links."""
+        resp = client.get("/test/url-fetcher")
+        if resp.status_code == 200:
+            assert "Skills" in resp.text
+            assert "Tests" in resp.text
+
+    def test_test_page_breadcrumb_links_to_detail(self, client):
+        """Test page breadcrumb skill name should link to detail page."""
+        resp = client.get("/test/url-fetcher")
+        if resp.status_code == 200:
+            assert "/skill/url-fetcher" in resp.text
+
+    def test_test_page_breadcrumb_links_to_home(self, client):
+        """Test page breadcrumb Skills link should go to home page."""
+        resp = client.get("/test/url-fetcher")
+        if resp.status_code == 200:
+            assert 'href="/"' in resp.text

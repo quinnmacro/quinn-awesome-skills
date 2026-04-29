@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% set title = skill.name %}
 {% block content %}
+<div style="margin-bottom:12px;font-size:13px;color:var(--text-muted);">
+  <a href="/" style="color:var(--accent);">Skills</a> / {{ skill.name }}
+</div>
 <div class="detail">
   <h1>{{ skill.name }} <span class="version">v{{ skill.version }}</span></h1>
   <div class="meta-row">

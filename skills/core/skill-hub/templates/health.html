@@ -31,6 +31,30 @@
 </div>
 {% endif %}
 
+{% if skills %}
+<h2 style="font-size:16px;margin:20px 0 16px;">Skills Health Overview</h2>
+<table>
+  <tr><th>Name</th><th>Version</th><th>Layer</th><th>Health</th><th>Tests</th><th>Last Pass Rate</th><th>Actions</th></tr>
+  {% for skill in skills %}
+  <tr>
+    <td><a href="/skill/{{ skill.name }}" style="color:var(--accent);">{{ skill.name }}</a></td>
+    <td>v{{ skill.version }}</td>
+    <td><span class="badge {{ skill.layer }}">{{ skill.layer }}</span></td>
+    <td><span class="badge {{ skill.health }}">{{ skill.health }}</span></td>
+    <td>{{ skill.test_count or 0 }}</td>
+    <td>
+      {% if skill.name in stats.test_summary %}
+      {{ "%.0f" | format(stats.test_summary[skill.name].pass_rate * 100) }}%
+      {% else %}
+      —
+      {% endif %}
+    </td>
+    <td><a href="/test/{{ skill.name }}" class="btn secondary" style="font-size:11px;padding:4px 8px;">Run Tests</a></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
 {% if stats.dep_summary %}
 <h2 style="font-size:16px;margin:20px 0 16px;">Dependency Status</h2>
 <div class="health-grid">
@@ -56,7 +80,23 @@
 <div class="empty">No test results recorded yet. Run tests from skill detail pages.</div>
 {% endif %}
 
-<div style="margin-top:20px;">
+<div style="margin-top:20px;display:flex;gap:12px;align-items:center;">
   <a href="/api/skills/export.csv" class="btn secondary" download="skills.csv">Export CSV</a>
+  <button class="btn" onclick="runAllTests()">Run All Tests</button>
+  <span id="test-all-status" style="font-size:13px;color:var(--text-muted);"></span>
 </div>
+
+<script>
+function runAllTests() {
+  const statusEl = document.getElementById('test-all-status');
+  statusEl.textContent = 'Running tests for all skills...';
+  fetch('/api/skills/test-all', {method: 'POST'})
+    .then(r => r.json())
+    .then(data => {
+      statusEl.textContent = `Done: ${data.skills_completed}/${data.total_skills} skills — ${data.total_passed} passed, ${data.total_failed} failed. Refreshing...`;
+      setTimeout(() => window.location.reload(), 1200);
+    })
+    .catch(e => { statusEl.textContent = 'Error: ' + e.message; });
+}
+</script>
 {% endblock %}
