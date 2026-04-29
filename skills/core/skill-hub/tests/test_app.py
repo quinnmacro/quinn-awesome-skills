@@ -989,6 +989,226 @@ class TestRenderMarkdown:
         assert "display:none" in resp.text
 
 
+# --- Enhanced markdown renderer tests (ordered lists, tables, blockquotes, hr) ---
+
+
+class TestRenderMarkdownOrderedLists:
+    """Tests for ordered list rendering in _render_markdown."""
+
+    def test_ordered_list_basic(self):
+        """Ordered list with numbered items should render as <ol>."""
+        from app import _render_markdown
+        result = _render_markdown("1. First\n2. Second\n3. Third")
+        assert "<ol" in result
+        assert "<li>First</li>" in result
+        assert "<li>Second</li>" in result
+        assert "<li>Third</li>" in result
+        assert "</ol>" in result
+
+    def test_ordered_list_start_number(self):
+        """Ordered list should preserve start number via <ol start=N>."""
+        from app import _render_markdown
+        result = _render_markdown("3. Third item\n4. Fourth item")
+        assert 'start="3"' in result
+
+    def test_ordered_list_single_item(self):
+        """Single ordered list item should still render as <ol>."""
+        from app import _render_markdown
+        result = _render_markdown("1. Only item")
+        assert "<ol" in result
+        assert "<li>Only item</li>" in result
+        assert "</ol>" in result
+
+    def test_ordered_list_with_bold_text(self):
+        """Ordered list items can contain bold text."""
+        from app import _render_markdown
+        result = _render_markdown("1. **Important** step\n2. Regular step")
+        assert "<ol" in result
+        assert "<strong>Important</strong>" in result
+
+    def test_ordered_list_not_wrapped_in_paragraph(self):
+        """Ordered lists should not be wrapped in <p> tags."""
+        from app import _render_markdown
+        result = _render_markdown("1. First\n2. Second")
+        assert "<p><ol" not in result
+
+
+class TestRenderMarkdownTables:
+    """Tests for markdown table rendering in _render_markdown."""
+
+    def test_basic_table(self):
+        """Simple markdown table should render as HTML <table>."""
+        from app import _render_markdown
+        md = "| Name | Value |\n| --- | --- |\n| foo | bar |"
+        result = _render_markdown(md)
+        assert "<table>" in result
+        assert "<thead>" in result
+        assert "<tbody>" in result
+        assert "<th>Name</th>" in result
+        assert "<th>Value</th>" in result
+        assert "<td>foo</td>" in result
+        assert "<td>bar</td>" in result
+
+    def test_table_with_three_columns(self):
+        """Table with 3 columns should render all columns."""
+        from app import _render_markdown
+        md = "| Endpoint | Method | Description |\n| --- | --- | --- |\n| /api | GET | List |\n| /api/1 | POST | Create |"
+        result = _render_markdown(md)
+        assert "<th>Endpoint</th>" in result
+        assert "<th>Method</th>" in result
+        assert "<th>Description</th>" in result
+        assert "<td>/api</td>" in result
+        assert "<td>GET</td>" in result
+
+    def test_table_not_wrapped_in_paragraph(self):
+        """Markdown tables should not be wrapped in <p> tags."""
+        from app import _render_markdown
+        md = "| A | B |\n| --- | --- |\n| 1 | 2 |"
+        result = _render_markdown(md)
+        assert "<p><table" not in result
+
+    def test_table_empty_body(self):
+        """Table with only header and separator should render with empty tbody."""
+        from app import _render_markdown
+        md = "| Col1 | Col2 |\n| --- | --- |"
+        result = _render_markdown(md)
+        assert "<thead>" in result
+        assert "<tbody>" in result
+        assert "<th>Col1</th>" in result
+
+    def test_parse_md_table_function(self):
+        """_parse_md_table should correctly parse markdown table lines."""
+        from app import _parse_md_table
+        lines = ["| H1 | H2 |", "| --- | --- |", "| a | b |"]
+        html = _parse_md_table(lines)
+        assert "<thead>" in html
+        assert "<th>H1</th>" in html
+        assert "<td>a</td>" in html
+
+
+class TestRenderMarkdownBlockquotes:
+    """Tests for blockquote rendering in _render_markdown."""
+
+    def test_basic_blockquote(self):
+        """Blockquote lines starting with > should render as <blockquote>."""
+        from app import _render_markdown
+        result = _render_markdown("> This is a quote")
+        assert "<blockquote>" in result
+        assert "This is a quote" in result
+        assert "</blockquote>" in result
+
+    def test_multiline_blockquote(self):
+        """Multiple consecutive > lines should be in one <blockquote>."""
+        from app import _render_markdown
+        result = _render_markdown("> First line\n> Second line")
+        assert "<blockquote>" in result
+        assert "</blockquote>" in result
+        # Should be one blockquote, not two
+        assert result.count("<blockquote>") == 1
+
+    def test_blockquote_not_wrapped_in_paragraph(self):
+        """Blockquotes should not be wrapped in <p> tags."""
+        from app import _render_markdown
+        result = _render_markdown("> Quote text")
+        assert "<p><blockquote" not in result
+
+    def test_blockquote_followed_by_regular_text(self):
+        """Blockquote followed by regular text should close the blockquote."""
+        from app import _render_markdown
+        result = _render_markdown("> Quote\n\nRegular text")
+        assert "<blockquote>" in result
+        assert "</blockquote>" in result
+
+
+class TestRenderMarkdownHorizontalRules:
+    """Tests for horizontal rule rendering in _render_markdown."""
+
+    def test_hr_with_dashes(self):
+        """Three or more dashes on a line should render as <hr>."""
+        from app import _render_markdown
+        result = _render_markdown("---")
+        assert "<hr>" in result
+
+    def test_hr_with_longer_dashes(self):
+        """More than 3 dashes should also render as <hr>."""
+        from app import _render_markdown
+        result = _render_markdown("----------")
+        assert "<hr>" in result
+
+    def test_hr_with_asterisks(self):
+        """Three or more asterisks on a line should render as <hr>."""
+        from app import _render_markdown
+        result = _render_markdown("***")
+        assert "<hr>" in result
+
+    def test_hr_not_wrapped_in_paragraph(self):
+        """Horizontal rules should not be wrapped in <p> tags."""
+        from app import _render_markdown
+        result = _render_markdown("---")
+        assert "<p><hr>" not in result
+
+    def test_hr_between_sections(self):
+        """HR between two sections should render correctly."""
+        from app import _render_markdown
+        result = _render_markdown("## Section 1\n\n---\n\n## Section 2")
+        assert "<hr>" in result
+        assert "<h2>" in result
+
+
+class TestRenderMarkdownMixedLists:
+    """Tests for mixed ordered and unordered list rendering."""
+
+    def test_ul_then_ol(self):
+        """Unordered list followed by ordered list should render both correctly."""
+        from app import _render_markdown
+        result = _render_markdown("- Item A\n- Item B\n\n1. Step 1\n2. Step 2")
+        assert "<ul>" in result
+        assert "</ul>" in result
+        assert "<ol" in result
+        assert "</ol>" in result
+
+    def test_ol_then_ul(self):
+        """Ordered list followed by unordered list should render both correctly."""
+        from app import _render_markdown
+        result = _render_markdown("1. First\n2. Second\n\n- Option A\n- Option B")
+        assert "<ol" in result
+        assert "</ol>" in result
+        assert "<ul>" in result
+        assert "</ul>" in result
+
+
+class TestRenderMarkdownRealSkillMd:
+    """Test _render_markdown with patterns from real SKILL.md files."""
+
+    def test_skill_hub_md_with_table(self):
+        """Skill Hub SKILL.md contains a markdown table that should render correctly."""
+        from app import _render_markdown
+        md = """## REST API
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/skills` | GET | List all skills |
+| `/api/skills/{name}` | GET | Get skill detail |
+
+---
+"""
+        result = _render_markdown(md)
+        assert "<h2>" in result
+        assert "<table>" in result
+        assert "<th>Endpoint</th>" in result
+        assert "<td>`/api/skills`</td>" in result or "api/skills" in result
+        assert "<hr>" in result
+
+    def test_ordered_steps_with_bold(self):
+        """Skill steps like '1. **Home page** - description' should render correctly."""
+        from app import _render_markdown
+        md = "1. **Home page** - Skill cards grid\n2. **Detail page** - View SKILL.md\n3. **Test panel** - Run pytest"
+        result = _render_markdown(md)
+        assert "<ol" in result
+        assert "<strong>Home page</strong>" in result
+        assert "<strong>Detail page</strong>" in result
+
+
 # --- Resync API endpoint tests ---
 
 

@@ -27,10 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Custom error page template for styled 404/500/422 responses (extends base.html with nav links and back button)
   - HTTP exception handlers (404, 500, RequestValidationError) with API-aware JSON/HTML response switching
   - Responsive CSS with mobile breakpoints, inline SVG favicon, footer, dep type badge styles, active navigation highlighting
-  - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, lists)
-  - Detail page enrichment: DB skills now enriched with discovery data (scripts, modules, skill_md) for full rendering
-  - Version history tracking (skill_versions table, records version changes on sync)
-  - 542 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases)
+  - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, unordered lists, ordered lists, markdown tables, blockquotes, horizontal rules)
+  - Markdown table support: parses | col | col | patterns into HTML <table> with <thead>/<tbody>
+  - Ordered list support: numbered items (1. item) rendered as <ol start="N">
+  - Blockquote support: > lines rendered as <blockquote> with accent-colored left border
+  - Horizontal rule support: --- / *** / ___ lines rendered as <hr>
+  - CSS styles for ol, blockquote, hr, and markdown tables within .md-rendered
+- 569 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering including ordered lists/tables/blockquotes/hr, resync, nav highlighting, error pages, layer/health filtering, sort functionality, home page resync button, test-all endpoint, health overview table, Run All Tests button, breadcrumbs, pass_rate/last_tested_at on skill cards, detail page Check Dependencies button, detail page Quick Run Tests button, config template fix, WebSocket streaming, error handling edge cases, md-rendered CSS for ol/blockquote/hr/table)
 
 ## [1.3.0] - 2026-04-28
 

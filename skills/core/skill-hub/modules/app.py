@@ -641,7 +641,7 @@ def _find_test_dir(name: str, skill_path: str) -> Path:
 
 
 def _render_markdown(text: str) -> str:
-    """Convert basic Markdown to HTML (headers, bold, italic, code, links, lists)."""
+    """Convert basic Markdown to HTML (headers, bold, italic, code, links, lists, tables, blockquotes, hr)."""
     if not text:
         return ""
     # Code blocks first (preserve content inside)
@@ -653,6 +653,9 @@ def _render_markdown(text: str) -> str:
 
     # Inline code
     text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+
+    # Horizontal rules (---, ***, ___ on their own line)
+    text = re.sub(r'^\s*[-*_]{3,}\s*$', '<hr>', text, flags=re.MULTILINE)
 
     # Headers
     text = re.sub(r'^#### (.+)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
@@ -668,24 +671,120 @@ def _render_markdown(text: str) -> str:
     # Links
     text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
 
-    # Unordered lists (convert lines starting with - or *)
+    # Blockquotes (lines starting with >)
     lines = text.split('\n')
     result_lines = []
-    in_list = False
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith('- ') or stripped.startswith('* '):
-            if not in_list:
-                result_lines.append('<ul>')
-                in_list = True
-            result_lines.append(f'<li>{stripped[2:]}</li>')
+    in_quote = False
+    in_ul = False
+    in_ol = False
+    ol_start = 1
+
+    # Markdown tables: detect consecutive lines starting with | and parse them
+    table_lines = []
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].strip()
+        # Check if this line starts a markdown table
+        if stripped.startswith('|') and '|' in stripped[1:]:
+            # Collect all table lines
+            table_lines = [stripped]
+            j = i + 1
+            while j < len(lines) and lines[j].strip().startswith('|') and '|' in lines[j].strip()[1:]:
+                table_lines.append(lines[j].strip())
+                j += 1
+            # Parse and render table
+            if len(table_lines) >= 2:
+                table_html = _parse_md_table(table_lines)
+                # Close any open list before inserting table
+                if in_ul:
+                    result_lines.append('</ul>')
+                    in_ul = False
+                if in_ol:
+                    result_lines.append('</ol>')
+                    in_ol = False
+                if in_quote:
+                    result_lines.append('</blockquote>')
+                    in_quote = False
+                result_lines.append(table_html)
+                i = j
+                continue
+            else:
+                # Single | line, not a valid table — treat as regular text
+                table_lines = []
+
+        # Blockquotes
+        if stripped.startswith('> '):
+            content = stripped[2:]
+            if not in_quote:
+                # Close any open list before blockquote
+                if in_ul:
+                    result_lines.append('</ul>')
+                    in_ul = False
+                if in_ol:
+                    result_lines.append('</ol>')
+                    in_ol = False
+                result_lines.append('<blockquote>')
+                in_quote = True
+            result_lines.append(content)
+        elif stripped.startswith('>') and not stripped.startswith('> ') and len(stripped) > 1:
+            # > without space — still blockquote content
+            if not in_quote:
+                if in_ul:
+                    result_lines.append('</ul>')
+                    in_ul = False
+                if in_ol:
+                    result_lines.append('</ol>')
+                    in_ol = False
+                result_lines.append('<blockquote>')
+                in_quote = True
+            result_lines.append(stripped[1:])
         else:
-            if in_list:
-                result_lines.append('</ul>')
-                in_list = False
-            result_lines.append(line)
-    if in_list:
+            if in_quote:
+                result_lines.append('</blockquote>')
+                in_quote = False
+
+            # Ordered lists (1. item, 2. item, etc.)
+            ol_match = re.match(r'^\s*(\d+)\.\s+(.+)$', stripped)
+            ul_match = stripped.startswith('- ') or stripped.startswith('* ')
+
+            if ol_match:
+                num = int(ol_match.group(1))
+                content = ol_match.group(2)
+                if not in_ol:
+                    # Close unordered list if open
+                    if in_ul:
+                        result_lines.append('</ul>')
+                        in_ul = False
+                    result_lines.append(f'<ol start="{num}">')
+                    in_ol = True
+                    ol_start = num
+                result_lines.append(f'<li>{content}</li>')
+            elif ul_match:
+                if not in_ul:
+                    # Close ordered list if open
+                    if in_ol:
+                        result_lines.append('</ol>')
+                        in_ol = False
+                    result_lines.append('<ul>')
+                    in_ul = True
+                result_lines.append(f'<li>{stripped[2:]}</li>')
+            else:
+                if in_ul:
+                    result_lines.append('</ul>')
+                    in_ul = False
+                if in_ol:
+                    result_lines.append('</ol>')
+                    in_ol = False
+                result_lines.append(lines[i])
+        i += 1
+
+    # Close any open elements at end
+    if in_quote:
+        result_lines.append('</blockquote>')
+    if in_ul:
         result_lines.append('</ul>')
+    if in_ol:
+        result_lines.append('</ol>')
     text = '\n'.join(result_lines)
 
     # Paragraphs (double newline = paragraph break)
@@ -696,6 +795,10 @@ def _render_markdown(text: str) -> str:
     # Don't wrap block elements in <p>
     text = re.sub(r'<p>(<h[1-6]>.*?</h[1-6]>)</p>', r'\1', text, flags=re.DOTALL)
     text = re.sub(r'<p>(<ul>.*?</ul>)</p>', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'<p>(<ol[^>]*>.*?</ol>)</p>', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'<p>(<blockquote>.*?</blockquote>)</p>', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'<p>(<table.*?</table>)</p>', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'<p>(<hr>)</p>', r'\1', text)
     text = re.sub(r'<p>(<CODE_BLOCK_\d+>)</p>', r'\1', text)
 
     # Restore code blocks as <pre>
@@ -705,6 +808,24 @@ def _render_markdown(text: str) -> str:
         text = text.replace(f'<CODE_BLOCK_{i}>', f'<pre><code>{escaped}</code></pre>')
 
     return text
+
+
+def _parse_md_table(lines: list[str]) -> str:
+    """Parse markdown table lines (| col | col |) into HTML <table>."""
+    if len(lines) < 2:
+        return ''
+    # First line: header
+    header_cells = [c.strip() for c in lines[0].strip().strip('|').split('|')]
+    # Second line: separator (| --- | --- |) — skip it
+    # Remaining lines: body rows
+    body_lines = lines[2:] if len(lines) > 2 else []
+    rows_html = ''
+    for row_line in body_lines:
+        cells = [c.strip() for c in row_line.strip().strip('|').split('|')]
+        row_cells = ''.join(f'<td>{c}</td>' for c in cells)
+        rows_html += f'<tr>{row_cells}</tr>'
+    header_html = ''.join(f'<th>{c}</th>' for c in header_cells)
+    return f'<table><thead><tr>{header_html}</tr></thead><tbody>{rows_html}</tbody></table>'
 
 
 def _parse_pytest_summary(result: dict, output: str) -> dict:

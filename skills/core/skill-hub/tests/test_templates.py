@@ -526,6 +526,28 @@ class TestBaseTemplateCssImprovements:
         resp = client.get("/")
         assert ".md-rendered a" in resp.text
 
+    def test_base_md_rendered_ol_styles(self, client):
+        """Base template should have ordered list styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered ol" in resp.text
+
+    def test_base_md_rendered_blockquote_styles(self, client):
+        """Base template should have blockquote styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered blockquote" in resp.text
+
+    def test_base_md_rendered_hr_styles(self, client):
+        """Base template should have hr styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered hr" in resp.text
+
+    def test_base_md_rendered_table_styles(self, client):
+        """Base template should have table styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered table" in resp.text
+        assert ".md-rendered table th" in resp.text
+        assert ".md-rendered table td" in resp.text
+
 
 # --- Health page overview table tests ---
 
