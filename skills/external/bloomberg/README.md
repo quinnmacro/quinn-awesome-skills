@@ -13,9 +13,9 @@
 ---
 
 [![Bloomberg](https://img.shields.io/badge/Platform-Bloomberg_Terminal-blue?style=for-the-badge)](https://www.bloomberg.com/professional/solution/bloomberg-terminal/)
-[![Templates](https://img.shields.io/badge/Templates-33-green?style=for-the-badge)]()
+[![Templates](https://img.shields.io/badge/Templates-41-green?style=for-the-badge)]()
 [![FICC](https://img.shields.io/badge/FICC-26_prompts-orange?style=for-the-badge)]()
-[![Equity](https://img.shields.io/badge/Equity-7_templates-purple?style=for-the-badge)]()
+[![Equity](https://img.shields.io/badge/Equity-15_templates-purple?style=for-the-badge)]()
 
 </div>
 
@@ -25,7 +25,7 @@
 
 | Category | Templates | Description | 描述 |
 |:--------:|:---------:|:------------|:-----|
-| [🏢 **Equity**](#-equity-prompts--股票分析) | 7 | Company, Sector, Event analysis | 公司、行业、事件分析 |
+| [🏢 **Equity**](#-equity-prompts--股票分析) | 15 | Company, Sector, Event, Market analysis | 公司、行业、事件、市场分析 |
 | [📈 **FICC**](#-ficc-prompts--固收外汇商品) | 26 | Rates, FX, Credit, Commodities | 利率、外汇、信用、商品 |
 | [⚡ **Mini Prompts**](#-mini-prompts--快速分析) | 14 | Quick daily analysis | 日常快速分析 |
 | [🎭 **Theme Prompts**](#-theme-prompts--主题分析) | 7 | Macro scenario analysis | 宏观场景分析 |
@@ -40,15 +40,40 @@
 
 ### 📋 Template Index | 模板索引
 
-| Template | 视角 | Use Case | 用途 | Variable |
-|:---------|:----:|:---------|:-----|:---------|
-| [Trends Analysis](company/trends-analysis/template.md) | 🏭 | Stock + Financial + Operational trends | 股价+财务+运营趋势 | `{Company/Ticker}` |
-| [Management & Governance](company/management-governance/template.md) | 🏭 | Board & leadership assessment | 治理+管理层评估 | `{Company/Ticker}`, `N` |
-| [Company Snapshot](company/company-snapshot/template.md) | 🏭 | Investment thesis primer | 投资概览手册 | `{Company/Ticker}` |
-| [Performance Tracker](company/performance-tracker/template.md) | 🏭 | Quarterly financial tracking | 季度财务追踪 | `{Company/Ticker}`, `N` |
-| [Sector Snapshot](sector/sector-snapshot/template.md) | 🏭 | Industry + peer comparison | 行业+同行对比 | `{Sector Name}` |
-| [Breaking Event](event/breaking-event/template.md) | ⚡ | Material event analysis (24-96h) | 突发事件分析 | `{Company/Ticker}` |
-| [Credit Strategy](market/credit-strategy/template.md) | 📊 | Credit market morning briefing | 信用市场早报 | `{Market}` |
+#### 🏭 Company | 公司视角 (4 templates)
+
+| Template | Use Case | 用途 | Variable |
+|:---------|:---------|:-----|:---------|
+| [Trends Analysis](company/trends-analysis/template.md) | Stock + Financial + Operational trends | 股价+财务+运营趋势 | `{Company/Ticker}` |
+| [Management & Governance](company/management-governance/template.md) | Board & leadership assessment | 治理+管理层评估 | `{Company/Ticker}`, `N` |
+| [Company Snapshot](company/company-snapshot/template.md) | Investment thesis primer | 投资概览手册 | `{Company/Ticker}` |
+| [Performance Tracker](company/performance-tracker/template.md) | Quarterly financial tracking | 季度财务追踪 | `{Company/Ticker}`, `N` |
+
+#### 🏭 Sector | 行业视角 (3 templates)
+
+| Template | Use Case | 用途 | Variable |
+|:---------|:---------|:-----|:---------|
+| [Sector Snapshot](sector/sector-snapshot/template.md) | Industry + peer comparison | 行业+同行对比 | `{Sector Name}` |
+| [Sector Rotation](sector/sector-rotation/template.md) | Leading/lagging sector signals | 行业轮动信号 | `{Region/Market}` |
+| [Sector Valuation](sector/sector-valuation/template.md) | P/E, EV/EBITDA cross-sector | 行业估值对比 | `{Region/Market}` |
+
+#### ⚡ Event | 事件视角 (4 templates)
+
+| Template | Use Case | 用途 | Variable |
+|:---------|:---------|:-----|:---------|
+| [Breaking Event](event/breaking-event/template.md) | Material event analysis (24-96h) | 突发事件分析 | `{Company/Ticker}` |
+| [Earnings Event](event/earnings-event/template.md) | Quarterly results surprise | 业绩发布分析 | `{Company/Ticker}` |
+| [Regulatory Event](event/regulatory-event/template.md) | FDA/SEC/DOJ impact assessment | 监管事件分析 | `{Company/Ticker}` |
+| [M&A Event](event/ma-event/template.md) | Deal structure + synergy | 并购事件分析 | `{Company/Ticker}` |
+
+#### 📊 Market | 市场视角 (4 templates)
+
+| Template | Use Case | 用途 | Variable |
+|:---------|:---------|:-----|:---------|
+| [Credit Strategy](market/credit-strategy/template.md) | Credit market morning briefing | 信用市场早报 | `{Market}` |
+| [Equity Brief](market/equity-brief/template.md) | Index + sector + movers | 股票市场简报 | `{Region/Market}` |
+| [FX Review](market/fx-review/template.md) | G10 + EM FX + carry | 外汇市场回顾 | `{Currency/Region}` |
+| [Volatility Review](market/volatility-review/template.md) | Cross-asset vol regime | 波动率回顾 | `{Market/Region}` |
 
 ### 🎯 Usage | 使用方法
 
@@ -202,22 +227,30 @@ bloomberg/
 │
 ├── 📄 README.md                    # This file | 本文件
 │
-├── 🏢 company/                     # Equity - Company | 股票-公司
+├── 🏢 company/                     # Equity - Company | 股票-公司 (4)
 │   ├── trends-analysis/            # 趋势分析
 │   ├── management-governance/      # 治理评估
 │   ├── company-snapshot/           # 投资概览
 │   └── performance-tracker/        # 财务追踪
 │
-├── 🏭 sector/                      # Equity - Sector | 股票-行业
-│   └── sector-snapshot/            # 行业快照
+├── 🏭 sector/                      # Equity - Sector | 股票-行业 (3)
+│   ├── sector-snapshot/            # 行业快照
+│   ├── sector-rotation/            # 行业轮动
+│   └── sector-valuation/           # 行业估值
 │
-├── ⚡ event/                       # Equity - Event | 股票-事件
-│   └── breaking-event/             # 突发事件
+├── ⚡ event/                       # Equity - Event | 股票-事件 (4)
+│   ├── breaking-event/             # 突发事件
+│   ├── earnings-event/             # 业绩发布
+│   ├── regulatory-event/           # 监管事件
+│   └── ma-event/                   # 并购事件
 │
-├── 📊 market/                      # Market-wide | 市场层面
-│   └── credit-strategy/            # 信用策略
+├── 📊 market/                      # Market-wide | 市场层面 (4)
+│   ├── credit-strategy/            # 信用策略
+│   ├── equity-brief/               # 股票简报
+│   ├── fx-review/                  # 外汇回顾
+│   └── volatility-review/          # 波动率回顾
 │
-└── 📈 ficc/                        # FICC Prompts | 固收外汇商品
+└── 📈 ficc/                        # FICC Prompts | 固收外汇商品 (26)
     ├── README.md                   # FICC索引
     ├── FICC-DESIGN.md              # 设计框架
     ├── QUICK-REFERENCE.md          # 快速参考
@@ -263,9 +296,15 @@ Step 4: Run analysis | 执行分析
 
 | Metric | Count | 指标 | 数量 |
 |:-------|------:|:-----|-----:|
-| Total Templates | 33 | 模板总数 | 33 |
+| Total Templates | 41 | 模板总数 | 41 |
 | FICC Prompts | 26 | FICC提示词 | 26 |
-| Equity Templates | 7 | 股票模板 | 7 |
+| Equity Templates | 15 | 股票模板 | 15 |
+| • Company | 4 | 公司模板 | 4 |
+| • Sector | 3 | 行业模板 | 3 |
+| • Event | 4 | 事件模板 | 4 |
+| • Market | 4 | 市场模板 | 4 |
+| Mini Prompts | 14 | 快速分析 | 14 |
+| Theme Prompts | 7 | 主题分析 | 7 |
 | Case Studies | 7 | 案例研究 | 7 |
 | Documentation Pages | 11 | 文档页数 | 11 |
 
@@ -276,7 +315,7 @@ Step 4: Run analysis | 执行分析
 | Source | Templates | 来源 | 数量 |
 |:-------|:---------:|:-----|:----:|
 | Bloomberg Official | 6 | Bloomberg官方 | 6 |
-| Custom (User-Written) | 1 | 用户自写 | 1 |
+| Custom (Quinn-Written) | 9 | 自写模板 | 9 |
 
 ---
 
