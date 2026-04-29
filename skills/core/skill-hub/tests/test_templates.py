@@ -793,3 +793,60 @@ class TestDetailPageQuickRunTests:
         assert "2026-04-29T12:00:00" in html
         # Should NOT have the full microseconds
         assert ".000000" not in html
+
+
+class TestDetailPageConfigRendering:
+    """Tests for the Configuration section rendering on the detail page using the 'config' variable."""
+
+    def test_config_section_rendered_with_data(self):
+        """Configuration section should render when config dict has non-internal keys."""
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {"triggers": "demo, test", "priority": "high"},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "Configuration" in html
+        assert "triggers" in html
+        assert "priority" in html
+
+    def test_config_section_not_rendered_with_empty_config(self):
+        """Configuration section should NOT render when config dict is empty."""
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "Configuration" not in html
+
+    def test_config_section_table_has_key_value_pairs(self):
+        """Config section should render keys and values in a table."""
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "cfg-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {"env": "production", "port": "8080"},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "env" in html
+        assert "production" in html
+        assert "port" in html
+        assert "8080" in html

@@ -1779,3 +1779,159 @@ class TestAddTestCountsExtended:
             await db.close()
 
         asyncio.run(_test())
+
+
+# --- Config template variable fix verification ---
+
+
+class TestConfigTemplateVariableFix:
+    """Tests verifying that config is rendered using the 'config' template variable (not skill.config)."""
+
+    def test_config_section_rendered_with_non_empty_config(self):
+        """Detail page template should render Configuration section when config dict is non-empty."""
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {"triggers": "test, demo", "timeout": "30s"},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "Configuration" in html
+        assert "triggers" in html
+        assert "timeout" in html
+
+    def test_config_section_not_rendered_with_empty_config(self):
+        """Detail page template should not render Configuration section when config dict is empty."""
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "Configuration" not in html
+
+    def test_config_items_rendered_in_table(self):
+        """Config items should appear as key-value rows in a table."""
+        from app import _render_template
+        html = _render_template("detail.html", {
+            "skill": {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                      "author": "test", "category": "core", "description": "test",
+                      "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"},
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {"max_retries": "3", "cache_enabled": "true"},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "max_retries" in html
+        assert "3" in html
+        assert "cache_enabled" in html
+        assert "true" in html
+
+    def test_config_does_not_use_skill_config(self):
+        """Template should NOT reference skill.config — only the separate 'config' variable."""
+        from app import _render_template
+        skill = {"name": "test-skill", "version": "1.0", "layer": "core", "health": "passing",
+                 "author": "test", "category": "core", "description": "test",
+                 "scripts": [], "modules": [], "skill_md": "", "path": "/tmp"}
+        # skill dict has NO 'config' key
+        assert "config" not in skill
+        html = _render_template("detail.html", {
+            "skill": skill,
+            "test_runs": [],
+            "deps": [],
+            "versions": [],
+            "config": {"custom_key": "custom_value"},
+            "skill_md_rendered": "",
+            "nav_active": "skills",
+        })
+        assert "Configuration" in html
+        assert "custom_key" in html
+
+    def test_detail_endpoint_passes_config_to_template(self, client):
+        """The skill detail endpoint should pass the config dict to the template."""
+        resp = client.get("/skill/url-fetcher")
+        assert resp.status_code == 200
+        # url-fetcher has only internal frontmatter keys, so config should be empty
+        # and the config section heading should NOT appear (note: "Configuration" may
+        # appear in rendered SKILL.md body content, so check for the heading specifically)
+        assert '<h2 style="font-size:16px;margin:16px 0 8px;">Configuration</h2>' not in resp.text
+
+
+# --- WebSocket test streaming tests ---
+
+
+class TestWebSocketTestStream:
+    """Tests for the WebSocket test streaming endpoint /ws/test/{name}."""
+
+    def test_ws_endpoint_exists_for_valid_skill(self, client):
+        """WebSocket endpoint should exist at /ws/test/{name}."""
+        from app import app
+        routes = [r.path for r in app.routes]
+        assert "/ws/test/{name}" in routes
+
+    def test_ws_route_has_websocket_method(self):
+        """WebSocket route should have WebSocket method defined."""
+        from app import app
+        ws_routes = [r for r in app.routes if r.path == "/ws/test/{name}"]
+        assert len(ws_routes) == 1
+
+    def test_ws_test_stream_function_exists(self):
+        """The ws_test_stream function should exist in app module."""
+        from app import ws_test_stream
+        assert ws_test_stream is not None
+
+    def test_ws_test_page_references_ws_endpoint(self, client):
+        """Test page should reference the WebSocket endpoint in JavaScript."""
+        resp = client.get("/test/url-fetcher")
+        assert "/ws/test/" in resp.text
+        assert "WebSocket" in resp.text
+
+    def test_ws_test_page_has_stream_button(self, client):
+        """Test page should have a Stream Tests (WebSocket) button."""
+        resp = client.get("/test/url-fetcher")
+        assert "Stream Tests" in resp.text
+
+    def test_ws_test_page_js_creates_websocket(self, client):
+        """Test page JavaScript should create WebSocket connection."""
+        resp = client.get("/test/url-fetcher")
+        assert "new WebSocket" in resp.text
+
+
+# --- Error handling edge case tests ---
+
+
+class TestErrorHandlingEdgeCases:
+    """Tests for error handling in various edge cases."""
+
+    def test_api_skill_detail_nonexistent_returns_json_error(self, client):
+        """API skill detail for nonexistent skill should return JSON error response."""
+        resp = client.get("/api/skills/nonexistent-skill-xyz")
+        assert resp.status_code == 404
+        data = resp.json()
+        assert "error" in data
+
+    def test_api_404_for_nonexistent_api_path(self, client):
+        """Nonexistent API path should return JSON error, not HTML."""
+        resp = client.get("/api/nonexistent-path")
+        assert resp.status_code == 404
+        data = resp.json()
+        assert "error" in data
+
+    def test_html_404_for_nonexistent_browser_path(self, client):
+        """Nonexistent browser path should return styled HTML error, not bare JSON."""
+        resp = client.get("/nonexistent-browser-page")
+        assert resp.status_code == 404
+        assert "Skill Hub" in resp.text

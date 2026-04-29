@@ -22,10 +22,10 @@
   <div id="md-raw" class="md-content" style="display:none;">{{ skill.skill_md }}</div>
   {% endif %}
 
-  {% if skill.config %}
+  {% if config %}
   <h2 style="font-size:16px;margin:16px 0 8px;">Configuration</h2>
   <table>
-    {% for key, val in skill.config.items() %}
+    {% for key, val in config.items() %}
     <tr><td style="color:#8b949e;font-weight:600;">{{ key }}</td><td>{{ val }}</td></tr>
     {% endfor %}
   </table>
