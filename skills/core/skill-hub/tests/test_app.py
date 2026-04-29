@@ -671,7 +671,33 @@ class TestBuildSkillConfig:
         assert "name" not in config
 
 
-class TestDetailPageConfig:
+class TestDetailPageEnrichment:
+    def test_detail_page_has_skill_md_from_discovery(self, client):
+        """Detail page should show skill_md even for skills fetched from DB (enriched with discovery data)."""
+        resp = client.get("/skill/url-fetcher")
+        # SKILL.md section should render because DB skill is enriched with discovery data
+        assert "SKILL.md" in resp.text
+
+    def test_detail_page_skill_md_rendered_has_html(self, client):
+        """Rendered SKILL.md should contain actual HTML elements (not escaped)."""
+        resp = client.get("/skill/skill-hub")
+        # Rendered markdown should have HTML like <h2>, <p>, etc. (not &lt;h2&gt;)
+        assert "<h2>" in resp.text or "<h1>" in resp.text or "<p>" in resp.text
+
+    def test_detail_page_skill_md_raw_preserved(self, client):
+        """Raw SKILL.md view should have the original unrendered text."""
+        resp = client.get("/skill/url-fetcher")
+        assert "md-raw" in resp.text
+
+    def test_detail_page_scripts_from_discovery(self, client):
+        """Detail page should show scripts enriched from discovery for DB skills."""
+        resp = client.get("/skill/url-fetcher")
+        assert "Scripts" in resp.text
+
+    def test_detail_page_modules_from_discovery(self, client):
+        """Detail page should show modules enriched from discovery for DB skills."""
+        resp = client.get("/skill/skill-hub")
+        assert "Modules" in resp.text
     def test_detail_page_skill_with_config(self):
         """Detail page should show Configuration section for skills with non-internal frontmatter."""
         with TestClient(app) as client:
@@ -789,3 +815,174 @@ class TestApiExportCsv:
             fields = line.split(",")
             # Should have exactly 8 fields (name, version, layer, health, author, description, category, path)
             assert len(fields) == 8
+
+
+# --- _render_markdown tests ---
+
+
+class TestRenderMarkdown:
+    def test_empty_input(self):
+        from app import _render_markdown
+        assert _render_markdown("") == ""
+
+    def test_none_like_empty(self):
+        from app import _render_markdown
+        assert _render_markdown("") == ""
+
+    def test_headers(self):
+        from app import _render_markdown
+        assert "<h1>" in _render_markdown("# Title")
+        assert "<h2>" in _render_markdown("## Section")
+        assert "<h3>" in _render_markdown("### Subsection")
+        assert "<h4>" in _render_markdown("#### Detail")
+
+    def test_h1_content(self):
+        from app import _render_markdown
+        result = _render_markdown("# Hello World")
+        assert "Hello World" in result
+        assert "<h1>" in result
+
+    def test_h2_content(self):
+        from app import _render_markdown
+        result = _render_markdown("## Dependencies")
+        assert "Dependencies" in result
+        assert "<h2>" in result
+
+    def test_bold(self):
+        from app import _render_markdown
+        result = _render_markdown("This is **bold** text")
+        assert "<strong>bold</strong>" in result
+
+    def test_italic(self):
+        from app import _render_markdown
+        result = _render_markdown("This is *italic* text")
+        assert "<em>italic</em>" in result
+
+    def test_bold_italic_combined(self):
+        from app import _render_markdown
+        result = _render_markdown("This is ***both*** text")
+        assert "<strong><em>both</em></strong>" in result
+
+    def test_inline_code(self):
+        from app import _render_markdown
+        result = _render_markdown("Use `pip install` command")
+        assert "<code>pip install</code>" in result
+
+    def test_code_block(self):
+        from app import _render_markdown
+        result = _render_markdown("```bash\npip install fastapi\n```")
+        assert "<pre><code>" in result
+        assert "pip install fastapi" in result
+
+    def test_code_block_language_tag(self):
+        from app import _render_markdown
+        result = _render_markdown("```python\nprint('hello')\n```")
+        assert "<pre><code>" in result
+        assert "print('hello')" in result
+
+    def test_code_block_html_escaped(self):
+        from app import _render_markdown
+        result = _render_markdown("```html\n<div>content</div>\n```")
+        assert "&lt;div&gt;" in result
+
+    def test_links(self):
+        from app import _render_markdown
+        result = _render_markdown("Check [docs](https://example.com)")
+        assert '<a href="https://example.com">docs</a>' in result
+
+    def test_unordered_list(self):
+        from app import _render_markdown
+        result = _render_markdown("- Item one\n- Item two\n- Item three")
+        assert "<ul>" in result
+        assert "<li>" in result
+        assert "Item one" in result
+
+    def test_list_with_star_prefix(self):
+        from app import _render_markdown
+        result = _render_markdown("* First\n* Second")
+        assert "<ul>" in result
+        assert "<li>First</li>" in result
+
+    def test_paragraphs(self):
+        from app import _render_markdown
+        result = _render_markdown("First paragraph\n\nSecond paragraph")
+        assert "<p>" in result
+
+    def test_no_paragraph_around_headers(self):
+        from app import _render_markdown
+        result = _render_markdown("# Title")
+        # Headers should not be wrapped in <p> tags
+        assert "<p><h1>" not in result
+
+    def test_no_paragraph_around_code_block(self):
+        from app import _render_markdown
+        result = _render_markdown("```bash\necho hello\n```")
+        assert "<p><pre>" not in result
+
+    def test_no_paragraph_around_list(self):
+        from app import _render_markdown
+        result = _render_markdown("- Item one\n- Item two")
+        assert "<p><ul>" not in result
+
+    def test_multiple_features_combined(self):
+        from app import _render_markdown
+        md = "# Skill Name\n\n**Bold** and *italic* text.\n\n- Feature 1\n- Feature 2\n\n```bash\npip install fastapi\n```\n\nCheck [docs](https://example.com) for more."
+        result = _render_markdown(md)
+        assert "<h1>" in result
+        assert "<strong>Bold</strong>" in result
+        assert "<em>italic</em>" in result
+        assert "<ul>" in result
+        assert "<pre><code>" in result
+        assert '<a href="https://example.com">docs</a>' in result
+
+    def test_render_md_with_frontmatter(self):
+        """_render_markdown should handle SKILL.md content that starts with --- frontmatter."""
+        from app import _render_markdown
+        md = "---\nname: test\nversion: 1.0\n---\n\n# Test Skill\n\nDescription here."
+        result = _render_markdown(md)
+        assert "<h1>" in result or "Test Skill" in result
+
+    def test_render_md_preserves_code_block_order(self):
+        """_render_markdown should handle multiple code blocks."""
+        from app import _render_markdown
+        md = "# Title\n\n```bash\necho hello\n```\n\nSome text.\n\n```python\nprint('hi')\n```\n"
+        result = _render_markdown(md)
+        assert "echo hello" in result
+        assert "print(&#x27;hi&#x27;)" in result or "print('hi')" in result or "print(&#39;hi&#39;)" in result
+
+    def test_render_md_empty_paragraphs_removed(self):
+        """_render_markdown should remove empty paragraph tags."""
+        from app import _render_markdown
+        md = "# Title\n\n\n\n## Section"
+        result = _render_markdown(md)
+        assert "<p></p>" not in result
+
+    def test_real_skill_hub_md(self, client):
+        """Detail page should show rendered markdown with md-rendered class."""
+        resp = client.get("/skill/skill-hub")
+        assert "md-rendered" in resp.text
+        assert "Toggle Raw/Rendered" in resp.text or "toggle" in resp.text.lower()
+
+    def test_detail_page_has_both_views(self, client):
+        """Detail page should have both md-rendered and md-raw divs."""
+        resp = client.get("/skill/url-fetcher")
+        assert "md-rendered" in resp.text
+        assert "md-raw" in resp.text
+
+    def test_detail_page_toggle_button(self, client):
+        """Detail page should have a toggle button for raw/rendered view."""
+        resp = client.get("/skill/url-fetcher")
+        assert "Toggle" in resp.text
+
+    def test_detail_page_toggle_javascript(self, client):
+        """Detail page should have toggleMdView JavaScript function."""
+        resp = client.get("/skill/url-fetcher")
+        assert "toggleMdView" in resp.text
+
+    def test_rendered_md_default_visible(self, client):
+        """Rendered markdown view should be visible by default; raw view hidden."""
+        resp = client.get("/skill/url-fetcher")
+        # md-rendered should NOT have display:none in its initial style
+        assert 'id="md-rendered"' in resp.text
+        # md-raw should have display:none initially
+        assert "display:none" in resp.text

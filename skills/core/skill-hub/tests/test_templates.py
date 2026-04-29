@@ -503,3 +503,25 @@ class TestBaseTemplateCssImprovements:
         """Body should use flex column layout so footer stays at bottom."""
         resp = client.get("/")
         assert "flex-direction: column" in resp.text
+
+    def test_base_has_md_rendered_css(self, client):
+        """Base template should have CSS for rendered markdown (.md-rendered)."""
+        resp = client.get("/")
+        assert ".md-rendered" in resp.text
+
+    def test_base_md_rendered_heading_styles(self, client):
+        """Base template should have heading styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered h1" in resp.text
+        assert ".md-rendered h2" in resp.text
+
+    def test_base_md_rendered_pre_code_styles(self, client):
+        """Base template should have pre/code styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered pre" in resp.text
+        assert ".md-rendered code" in resp.text
+
+    def test_base_md_rendered_link_styles(self, client):
+        """Base template should have link styles within rendered markdown."""
+        resp = client.get("/")
+        assert ".md-rendered a" in resp.text

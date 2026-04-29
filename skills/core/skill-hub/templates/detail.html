@@ -12,8 +12,11 @@
   <p class="desc" style="margin-bottom:20px;color:#c9d1d9;font-size:15px;">{{ skill.description }}</p>
 
   {% if skill.skill_md %}
-  <h2 style="font-size:16px;margin-bottom:8px;">SKILL.md</h2>
-  <div class="md-content">{{ skill.skill_md }}</div>
+  <h2 style="font-size:16px;margin-bottom:8px;">SKILL.md
+    <button class="btn secondary" style="font-size:11px;padding:4px 10px;margin-left:8px;" onclick="toggleMdView()">Toggle Raw/Rendered</button>
+  </h2>
+  <div id="md-rendered" class="md-rendered">{{ skill_md_rendered | safe }}</div>
+  <div id="md-raw" class="md-content" style="display:none;">{{ skill.skill_md }}</div>
   {% endif %}
 
   {% if skill.config %}
@@ -92,4 +95,17 @@
     <a href="/api/skills/{{ skill.name }}" class="btn secondary">JSON API</a>
   </div>
 </div>
+<script>
+function toggleMdView() {
+  var rendered = document.getElementById('md-rendered');
+  var raw = document.getElementById('md-raw');
+  if (rendered.style.display === 'none') {
+    rendered.style.display = 'block';
+    raw.style.display = 'none';
+  } else {
+    rendered.style.display = 'none';
+    raw.style.display = 'block';
+  }
+}
+</script>
 {% endblock %}

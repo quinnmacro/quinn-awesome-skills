@@ -118,11 +118,21 @@ async def skill_detail(request: Request, name: str):
         skill = get_skill_by_name(skills_dir, name)
         if skill is None:
             return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
+    else:
+        # Enrich DB skill with discovery data (scripts, modules, skill_md)
+        skills_dir = Path(os.environ.get("SKILL_HUB_SKILLS_DIR", str(DEFAULT_SKILLS_DIR)))
+        discovered = get_skill_by_name(skills_dir, name)
+        if discovered:
+            skill["scripts"] = discovered.get("scripts", skill.get("scripts", []))
+            skill["modules"] = discovered.get("modules", skill.get("modules", []))
+            skill["skill_md"] = discovered.get("skill_md", "")
+            skill["path"] = discovered.get("path", skill.get("path", ""))
     test_runs = await get_test_runs(db, name)
     deps = await get_dependencies(db, name)
     versions = await get_versions(db, name)
+    skill_md_rendered = _render_markdown(skill.get("skill_md", ""))
     config = _build_skill_config(skill)
-    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config})
+    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "versions": versions, "config": config, "skill_md_rendered": skill_md_rendered})
 
 
 @app.get("/health", response_class=HTMLResponse)
@@ -476,6 +486,73 @@ def _find_test_dir(name: str, skill_path: str) -> Path:
         return project_test
     # Fallback
     return Path(skill_path) / "tests" if skill_path else PROJECT_ROOT / "tests"
+
+
+def _render_markdown(text: str) -> str:
+    """Convert basic Markdown to HTML (headers, bold, italic, code, links, lists)."""
+    if not text:
+        return ""
+    # Code blocks first (preserve content inside)
+    code_blocks = []
+    def _save_code(m):
+        code_blocks.append(m.group(2).rstrip())
+        return f'<CODE_BLOCK_{len(code_blocks) - 1}>'
+    text = re.sub(r'```(\w*)\n(.*?)```', _save_code, text, flags=re.DOTALL)
+
+    # Inline code
+    text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+
+    # Headers
+    text = re.sub(r'^#### (.+)$', r'<h4>\1</h4>', text, flags=re.MULTILINE)
+    text = re.sub(r'^### (.+)$', r'<h3>\1</h3>', text, flags=re.MULTILINE)
+    text = re.sub(r'^## (.+)$', r'<h2>\1</h2>', text, flags=re.MULTILINE)
+    text = re.sub(r'^# (.+)$', r'<h1>\1</h1>', text, flags=re.MULTILINE)
+
+    # Bold and italic
+    text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<strong><em>\1</em></strong>', text)
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+
+    # Links
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'<a href="\2">\1</a>', text)
+
+    # Unordered lists (convert lines starting with - or *)
+    lines = text.split('\n')
+    result_lines = []
+    in_list = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith('- ') or stripped.startswith('* '):
+            if not in_list:
+                result_lines.append('<ul>')
+                in_list = True
+            result_lines.append(f'<li>{stripped[2:]}</li>')
+        else:
+            if in_list:
+                result_lines.append('</ul>')
+                in_list = False
+            result_lines.append(line)
+    if in_list:
+        result_lines.append('</ul>')
+    text = '\n'.join(result_lines)
+
+    # Paragraphs (double newline = paragraph break)
+    text = re.sub(r'\n\n+', '\n</p>\n<p>\n', text)
+    text = f'<p>{text}</p>'
+    # Clean up empty paragraphs
+    text = re.sub(r'<p>\s*</p>', '', text)
+    # Don't wrap block elements in <p>
+    text = re.sub(r'<p>(<h[1-6]>.*?</h[1-6]>)</p>', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'<p>(<ul>.*?</ul>)</p>', r'\1', text, flags=re.DOTALL)
+    text = re.sub(r'<p>(<CODE_BLOCK_\d+>)</p>', r'\1', text)
+
+    # Restore code blocks as <pre>
+    for i, code in enumerate(code_blocks):
+        # Escape HTML entities in code
+        escaped = code.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+        text = text.replace(f'<CODE_BLOCK_{i}>', f'<pre><code>{escaped}</code></pre>')
+
+    return text
 
 
 def _parse_pytest_summary(result: dict, output: str) -> dict:

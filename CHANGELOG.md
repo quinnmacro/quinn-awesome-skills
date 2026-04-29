@@ -13,14 +13,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - SQLite for skill metadata, test history, and version tracking
   - Auto-discover skills by scanning skills/core/*/SKILL.md and skills/external/*/SKILL.md
   - Home page: skill cards grid with name, version, layer, test count, health badge, description, search bar
-  - Skill detail page: render SKILL.md, list scripts/modules, show config, dependencies, version history
+  - Skill detail page: render SKILL.md as HTML with toggle raw/rendered view, list scripts/modules, show config, dependencies, version history
   - Test panel: run pytest and stream results via WebSocket
   - Health dashboard: aggregate stats, passing/failing/unknown counts, test pass rates, dependency status, CSV export
   - Install page: dynamic skills table with dependency install status, check-deps button
   - REST API: /api/skills, /api/skills/{name}, /api/skills/{name}/test, /api/health, /api/skills/{name}/check-deps, /api/skills/{name}/versions, /api/skills/export.csv
   - Responsive CSS with mobile breakpoints, inline SVG favicon, footer, dep type badge styles
+  - Markdown renderer (_render_markdown) converts SKILL.md content to styled HTML (headers, bold, italic, code, links, lists)
+  - Detail page enrichment: DB skills now enriched with discovery data (scripts, modules, skill_md) for full rendering
   - Version history tracking (skill_versions table, records version changes on sync)
-  - 365 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export)
+  - 402 tests (skill_discovery, database, API endpoints, HTML pages, dependency checking, version history, CSV export, markdown rendering)
 
 ## [1.3.0] - 2026-04-28
 
