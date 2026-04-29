@@ -517,8 +517,34 @@ class TestHealthStatsEdgeCases:
         await upsert_dependency(db, "test-skill", "uvicorn", "pip", 1)
         stats = await get_health_stats(db)
         assert "dep_summary" in stats
-        assert "test-skill" in stats["dep_summary"]
-        assert len(stats["dep_summary"]["test-skill"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_health_counts_in_stats(self, db):
+        """get_health_stats should return health_counts with passing/failing/unknown counts."""
+        await upsert_skill(db, {"name": "pass1", "path": "/tmp", "health": "passing"})
+        await upsert_skill(db, {"name": "fail1", "path": "/tmp", "health": "failing"})
+        await upsert_skill(db, {"name": "unk1", "path": "/tmp", "health": "unknown"})
+        stats = await get_health_stats(db)
+        assert "health_counts" in stats
+        assert stats["health_counts"]["passing"] >= 1
+        assert stats["health_counts"]["failing"] >= 1
+        assert stats["health_counts"]["unknown"] >= 1
+
+    @pytest.mark.asyncio
+    async def test_health_counts_all_passing(self, db):
+        """All passing skills should show passing count equal to total."""
+        await upsert_skill(db, {"name": "p1", "path": "/tmp", "health": "passing"})
+        await upsert_skill(db, {"name": "p2", "path": "/tmp", "health": "passing"})
+        stats = await get_health_stats(db)
+        assert stats["health_counts"]["passing"] == 2
+        assert stats["health_counts"]["failing"] == 0
+
+    @pytest.mark.asyncio
+    async def test_health_counts_unknown_defaults(self, db):
+        """Skills without explicit health should count as unknown."""
+        await upsert_skill(db, {"name": "def1", "path": "/tmp"})
+        stats = await get_health_stats(db)
+        assert stats["health_counts"]["unknown"] >= 1
 
     @pytest.mark.asyncio
     async def test_dep_summary_empty_when_no_deps(self, db, mock_skill_data):

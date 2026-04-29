@@ -16,6 +16,15 @@
   <div class="md-content">{{ skill.skill_md }}</div>
   {% endif %}
 
+  {% if skill.config %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Configuration</h2>
+  <table>
+    {% for key, val in skill.config.items() %}
+    <tr><td style="color:#8b949e;font-weight:600;">{{ key }}</td><td>{{ val }}</td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+
   {% if skill.scripts %}
   <h2 style="font-size:16px;margin:16px 0 8px;">Scripts</h2>
   <ul class="file-list">

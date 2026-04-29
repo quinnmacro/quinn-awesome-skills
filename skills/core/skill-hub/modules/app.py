@@ -18,7 +18,7 @@ if MODULES_DIR not in sys.path:
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from skill_discovery import discover_skills, get_skill_by_name, search_skills, check_dep_installed, check_all_deps
+from skill_discovery import discover_skills, get_skill_by_name, search_skills, check_dep_installed, check_all_deps, _yaml_frontmatter
 from database import (
     DEFAULT_DB_PATH,
     init_db,
@@ -118,7 +118,9 @@ async def skill_detail(request: Request, name: str):
             return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
     test_runs = await get_test_runs(db, name)
     deps = await get_dependencies(db, name)
-    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps})
+    # Build config dict from frontmatter (exclude internal fields)
+    config = _build_skill_config(skill)
+    return _render_template("detail.html", {"skill": skill, "test_runs": test_runs, "deps": deps, "config": config})
 
 
 @app.get("/health", response_class=HTMLResponse)
@@ -154,7 +156,8 @@ async def test_page(request: Request, name: str):
     skill = await get_skill(db, name)
     if skill is None:
         return HTMLResponse(f"<h1>Skill '{name}' not found</h1>", status_code=404)
-    return _render_template("test.html", {"skill": skill})
+    test_runs = await get_test_runs(db, name)
+    return _render_template("test.html", {"skill": skill, "test_runs": test_runs})
 
 
 # --- REST API ---
@@ -312,6 +315,18 @@ async def ws_test_stream(websocket: WebSocket, name: str):
 
 
 # --- Helpers ---
+
+def _build_skill_config(skill: dict) -> dict:
+    """Build a config dict from SKILL.md frontmatter, excluding internal fields."""
+    skill_md = skill.get("skill_md", "")
+    if not skill_md:
+        return {}
+    fm = _yaml_frontmatter(skill_md)
+    # Exclude fields that are displayed in other sections
+    internal_keys = {"name", "description", "version", "author", "layer"}
+    config = {k: v for k, v in fm.items() if k not in internal_keys}
+    return config
+
 
 def _enrich_with_discovered(db_skills: list[dict], discovered: list[dict]) -> list[dict]:
     """Merge DB data with real-time discovery for scripts/modules/skill_md."""

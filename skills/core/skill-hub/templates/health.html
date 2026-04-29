@@ -3,6 +3,9 @@
 {% block content %}
 <div class="stats-row">
   <div class="stat-card"><div class="label">Total Skills</div><div class="value">{{ stats.total_skills }}</div></div>
+  <div class="stat-card"><div class="label">Passing</div><div class="value" style="color:var(--green);">{{ stats.health_counts.passing }}</div></div>
+  <div class="stat-card"><div class="label">Failing</div><div class="value" style="color:var(--red);">{{ stats.health_counts.failing }}</div></div>
+  <div class="stat-card"><div class="label">Unknown</div><div class="value" style="color:var(--yellow);">{{ stats.health_counts.unknown }}</div></div>
   <div class="stat-card"><div class="label">Avg Pass Rate</div><div class="value">{{ "%.0f" | format(stats.avg_pass_rate * 100) }}%</div></div>
 </div>
 

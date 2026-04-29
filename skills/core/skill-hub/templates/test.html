@@ -8,6 +8,25 @@
     <span class="badge {{ skill.health }}">{{ skill.health }}</span>
   </div>
 
+  {% if test_runs %}
+  <h2 style="font-size:16px;margin:16px 0 8px;">Recent Test Runs</h2>
+  <table>
+    <tr><th>Date</th><th>Status</th><th>Total</th><th>Passed</th><th>Failed</th><th>Duration</th></tr>
+    {% for run in test_runs %}
+    <tr>
+      <td>{{ run.started_at[:19] }}</td>
+      <td><span class="badge {{ run.status }}">{{ run.status }}</span></td>
+      <td>{{ run.total_tests }}</td>
+      <td>{{ run.passed }}</td>
+      <td style="{% if run.failed > 0 %}color:var(--red){% endif %}">{{ run.failed }}</td>
+      <td>{{ "%.1f" | format(run.duration_seconds) }}s</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p style="color:#8b949e;margin-top:16px;">No test runs recorded yet. Click a button above to start.</p>
+  {% endif %}
+
   <div style="margin-top:20px;display:flex;gap:12px;">
     <button class="btn" onclick="runTest()">Run Tests</button>
     <button class="btn secondary" onclick="runTestWS()">Stream Tests (WebSocket)</button>

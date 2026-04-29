@@ -187,6 +187,15 @@ async def get_health_stats(db: aiosqlite.Connection) -> dict:
 
     avg_pass_rate = pass_rate / len(test_rows) if test_rows else 0.0
 
+    # Count skills by health status
+    health_counts = {"passing": 0, "failing": 0, "unknown": 0}
+    for s in skills:
+        h = s.get("health", "unknown")
+        if h in health_counts:
+            health_counts[h] += 1
+        else:
+            health_counts["unknown"] += 1
+
     # Get dependency summary
     dep_cursor = await db.execute(
         "SELECT skill_name, dep_name, dep_type, installed FROM dependencies ORDER BY skill_name, dep_name"
@@ -208,6 +217,7 @@ async def get_health_stats(db: aiosqlite.Connection) -> dict:
         "layers": layers,
         "test_summary": test_summary,
         "avg_pass_rate": avg_pass_rate,
+        "health_counts": health_counts,
         "dep_summary": dep_summary,
     }
 

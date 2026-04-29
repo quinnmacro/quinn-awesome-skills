@@ -225,6 +225,21 @@ class TestHealthPageContent:
         if "Dependency Status" in resp.text:
             assert "skill-hub" in resp.text or "fastapi" in resp.text
 
+    def test_health_shows_passing_count(self, client):
+        """Health dashboard should show passing skill count stat card."""
+        resp = client.get("/health")
+        assert "Passing" in resp.text
+
+    def test_health_shows_failing_count(self, client):
+        """Health dashboard should show failing skill count stat card."""
+        resp = client.get("/health")
+        assert "Failing" in resp.text
+
+    def test_health_shows_unknown_count(self, client):
+        """Health dashboard should show unknown skill count stat card."""
+        resp = client.get("/health")
+        assert "Unknown" in resp.text
+
 
 # --- Install page content tests ---
 
@@ -340,6 +355,16 @@ class TestTestPageContent:
     def test_test_page_has_badges(self, client):
         resp = client.get("/test/url-fetcher")
         assert "badge" in resp.text
+
+    def test_test_page_shows_no_runs_message(self, client):
+        """Test page should show no runs message when no test history exists."""
+        resp = client.get("/test/url-fetcher")
+        assert "No test runs" in resp.text
+
+    def test_test_page_no_runs_or_table(self, client):
+        """Test page should either show 'Recent Test Runs' heading or 'No test runs' message."""
+        resp = client.get("/test/url-fetcher")
+        assert "Recent Test Runs" in resp.text or "No test runs" in resp.text
 
 
 # --- Base template structure tests ---
