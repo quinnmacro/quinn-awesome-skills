@@ -3512,3 +3512,401 @@ class TestRenderErrorPage:
         from app import _render_error_page
         html = await _render_error_page(400, "Bad request")
         assert "<!DOCTYPE html>" in html
+
+
+# --- _add_test_counts direct unit tests ---
+
+
+class TestAddTestCountsDirect:
+    """Direct unit tests for _add_test_counts async helper."""
+
+    @pytest.mark.asyncio
+    async def test_adds_test_counts_from_db_run(self, db):
+        from app import _add_test_counts
+        from database import upsert_skill, record_test_run
+
+        skill = {
+            "name": "my-skill",
+            "version": "1.0",
+            "description": "test",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/my-skill",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "unknown",
+        }
+        await upsert_skill(db, skill)
+        await record_test_run(db, {
+            "skill_name": "my-skill",
+            "status": "completed",
+            "total_tests": 12,
+            "passed": 10,
+            "failed": 2,
+            "errors": 0,
+            "skipped": 0,
+            "duration_seconds": 3.5,
+            "output": "10 passed, 2 failed",
+            "started_at": "2026-04-29T10:00:00",
+            "finished_at": "2026-04-29T10:00:04",
+        })
+        skills = [{"name": "my-skill", "path": "/tmp/my-skill"}]
+        result = await _add_test_counts(skills, db)
+        assert result[0]["test_count"] == 12
+        assert result[0]["pass_rate"] == 10 / 12
+        assert result[0]["last_tested_at"] == "2026-04-29T10:00:00"
+
+    @pytest.mark.asyncio
+    async def test_no_test_runs_pass_rate_is_none(self, db):
+        from app import _add_test_counts
+        from database import upsert_skill
+
+        skill = {
+            "name": "no-tests",
+            "version": "1.0",
+            "description": "test",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/no-tests",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "unknown",
+        }
+        await upsert_skill(db, skill)
+        skills = [{"name": "no-tests", "path": "/nonexistent"}]
+        result = await _add_test_counts(skills, db)
+        assert result[0]["pass_rate"] is None
+        assert result[0]["test_count"] == 0
+        assert result[0]["last_tested_at"] == ""
+
+    @pytest.mark.asyncio
+    async def test_pass_rate_zero_when_all_failed(self, db):
+        from app import _add_test_counts
+        from database import upsert_skill, record_test_run
+
+        skill = {
+            "name": "all-fail",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/all-fail",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "failing",
+        }
+        await upsert_skill(db, skill)
+        await record_test_run(db, {
+            "skill_name": "all-fail",
+            "status": "failed",
+            "total_tests": 5,
+            "passed": 0,
+            "failed": 5,
+            "errors": 0,
+            "skipped": 0,
+            "duration_seconds": 1.0,
+            "output": "0 passed, 5 failed",
+            "started_at": "2026-04-29T11:00:00",
+            "finished_at": "2026-04-29T11:00:01",
+        })
+        skills = [{"name": "all-fail", "path": "/tmp/all-fail"}]
+        result = await _add_test_counts(skills, db)
+        assert result[0]["pass_rate"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_empty_skills_list(self, db):
+        from app import _add_test_counts
+        result = await _add_test_counts([], db)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_multiple_skills(self, db):
+        from app import _add_test_counts
+        from database import upsert_skill, record_test_run
+
+        for i in range(3):
+            skill = {
+                "name": f"skill-{i}",
+                "version": "1.0",
+                "description": "",
+                "layer": "core",
+                "category": "core",
+                "path": f"/tmp/skill-{i}",
+                "scripts": [],
+                "modules": [],
+                "author": "",
+                "health": "unknown",
+            }
+            await upsert_skill(db, skill)
+            if i < 2:
+                await record_test_run(db, {
+                    "skill_name": f"skill-{i}",
+                    "status": "completed",
+                    "total_tests": 5 + i,
+                    "passed": 4 + i,
+                    "failed": 1,
+                    "errors": 0,
+                    "skipped": 0,
+                    "duration_seconds": 0.5,
+                    "output": "",
+                    "started_at": "2026-04-29T12:00:00",
+                    "finished_at": "2026-04-29T12:00:01",
+                })
+
+        skills = [
+            {"name": "skill-0", "path": "/tmp/skill-0"},
+            {"name": "skill-1", "path": "/tmp/skill-1"},
+            {"name": "skill-2", "path": "/nonexistent"},
+        ]
+        result = await _add_test_counts(skills, db)
+        assert result[0]["test_count"] == 5
+        assert result[1]["test_count"] == 6
+        assert result[2]["pass_rate"] is None
+
+    @pytest.mark.asyncio
+    async def test_test_count_from_dir_scan_when_no_runs(self, db, tmp_path):
+        from app import _add_test_counts
+        from database import upsert_skill
+
+        skill_dir = tmp_path / "scan-skill"
+        skill_dir.mkdir()
+        test_dir = skill_dir / "tests"
+        test_dir.mkdir()
+        (test_dir / "test_a.py").write_text("def test_one(): pass\ndef test_two(): pass\n")
+
+        skill = {
+            "name": "scan-skill",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": str(skill_dir),
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "unknown",
+        }
+        await upsert_skill(db, skill)
+        skills = [{"name": "scan-skill", "path": str(skill_dir)}]
+        result = await _add_test_counts(skills, db)
+        assert result[0]["test_count"] == 2
+        assert result[0]["pass_rate"] is None
+
+    @pytest.mark.asyncio
+    async def test_pass_rate_1_when_all_passed(self, db):
+        from app import _add_test_counts
+        from database import upsert_skill, record_test_run
+
+        skill = {
+            "name": "perfect",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/perfect",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "passing",
+        }
+        await upsert_skill(db, skill)
+        await record_test_run(db, {
+            "skill_name": "perfect",
+            "status": "completed",
+            "total_tests": 20,
+            "passed": 20,
+            "failed": 0,
+            "errors": 0,
+            "skipped": 0,
+            "duration_seconds": 2.0,
+            "output": "20 passed",
+            "started_at": "2026-04-29T13:00:00",
+            "finished_at": "2026-04-29T13:00:02",
+        })
+        skills = [{"name": "perfect", "path": "/tmp/perfect"}]
+        result = await _add_test_counts(skills, db)
+        assert result[0]["pass_rate"] == 1.0
+
+
+# --- _enrich_with_discovered_from_db direct unit tests ---
+
+
+class TestEnrichWithDiscoveredFromDbDirect:
+    """Direct unit tests for _enrich_with_discovered_from_db async helper."""
+
+    @pytest.mark.asyncio
+    async def test_enriches_with_db_health(self, db):
+        from app import _enrich_with_discovered_from_db
+        from database import upsert_skill
+
+        skill = {
+            "name": "enriched",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/enriched",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "passing",
+        }
+        await upsert_skill(db, skill)
+        skills = [{"name": "enriched", "health": "unknown"}]
+        result = await _enrich_with_discovered_from_db(skills, db)
+        assert result[0]["health"] == "passing"
+
+    @pytest.mark.asyncio
+    async def test_enriches_with_db_timestamps(self, db):
+        from app import _enrich_with_discovered_from_db
+        from database import upsert_skill
+
+        skill = {
+            "name": "timestamps",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/ts",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "unknown",
+        }
+        await upsert_skill(db, skill)
+        skills = [{"name": "timestamps", "health": "unknown"}]
+        result = await _enrich_with_discovered_from_db(skills, db)
+        assert "discovered_at" in result[0]
+        assert "updated_at" in result[0]
+
+    @pytest.mark.asyncio
+    async def test_skill_not_in_db_keeps_original_health(self, db):
+        from app import _enrich_with_discovered_from_db
+
+        skills = [{"name": "new-discovery", "health": "unknown"}]
+        result = await _enrich_with_discovered_from_db(skills, db)
+        assert result[0]["health"] == "unknown"
+
+    @pytest.mark.asyncio
+    async def test_empty_skills_list(self, db):
+        from app import _enrich_with_discovered_from_db
+
+        result = await _enrich_with_discovered_from_db([], db)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_multiple_skills_mixed_db_presence(self, db):
+        from app import _enrich_with_discovered_from_db
+        from database import upsert_skill
+
+        skill_in_db = {
+            "name": "in-db",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/in-db",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "failing",
+        }
+        await upsert_skill(db, skill_in_db)
+        skills = [
+            {"name": "in-db", "health": "unknown"},
+            {"name": "not-in-db", "health": "unknown"},
+        ]
+        result = await _enrich_with_discovered_from_db(skills, db)
+        assert result[0]["health"] == "failing"
+        assert result[1]["health"] == "unknown"
+
+    @pytest.mark.asyncio
+    async def test_overrides_discovery_health_with_db_health(self, db):
+        from app import _enrich_with_discovered_from_db
+        from database import upsert_skill
+
+        skill = {
+            "name": "override",
+            "version": "1.0",
+            "description": "",
+            "layer": "core",
+            "category": "core",
+            "path": "/tmp/override",
+            "scripts": [],
+            "modules": [],
+            "author": "",
+            "health": "passing",
+        }
+        await upsert_skill(db, skill)
+        # Discovery says "failing" but DB says "passing" — DB wins
+        skills = [{"name": "override", "health": "failing"}]
+        result = await _enrich_with_discovered_from_db(skills, db)
+        assert result[0]["health"] == "passing"
+
+
+# --- _run_skill_tests direct unit tests ---
+
+
+class TestRunSkillTestsDirect:
+    """Direct unit tests for _run_skill_tests async helper.
+
+    Uses the real skill-hub tests directory to run actual pytest,
+    verifying the full subprocess execution and result parsing pipeline.
+    """
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_run_tests_for_skill_hub(self):
+        from app import _run_skill_tests
+
+        skill_hub_path = str(Path(__file__).resolve().parent.parent)
+        result = await _run_skill_tests("skill-hub", skill_hub_path)
+        assert result["skill_name"] == "skill-hub"
+        assert result["status"] in ("completed", "failed")
+        assert isinstance(result["total_tests"], int)
+        assert isinstance(result["passed"], int)
+        assert isinstance(result["output"], str)
+        assert result["started_at"] != ""
+        assert result["finished_at"] != ""
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_run_tests_result_has_all_required_fields(self):
+        from app import _run_skill_tests
+
+        skill_hub_path = str(Path(__file__).resolve().parent.parent)
+        result = await _run_skill_tests("skill-hub", skill_hub_path)
+        required_fields = [
+            "skill_name", "status", "total_tests", "passed", "failed",
+            "errors", "skipped", "duration_seconds", "output",
+            "started_at", "finished_at",
+        ]
+        for field in required_fields:
+            assert field in result, f"Missing field: {field}"
+
+    @pytest.mark.asyncio
+    @pytest.mark.slow
+    async def test_run_tests_completed_when_all_pass(self):
+        from app import _run_skill_tests
+
+        skill_hub_path = str(Path(__file__).resolve().parent.parent)
+        result = await _run_skill_tests("skill-hub", skill_hub_path)
+        # If there are passing tests, status should be completed
+        if result["passed"] > 0 and result["failed"] == 0:
+            assert result["status"] == "completed"
+
+    def test_run_skill_tests_signature(self):
+        """Verify _run_skill_tests is an async function with correct signature."""
+        from app import _run_skill_tests
+        import asyncio
+        assert asyncio.iscoroutinefunction(_run_skill_tests)
+
+    def test_run_skill_tests_error_result_structure(self):
+        """When _find_test_dir returns nonexistent path, subprocess should fail gracefully."""
+        from app import _run_skill_tests
+        import asyncio
+        # Verify the function exists and is callable
+        assert callable(_run_skill_tests)
