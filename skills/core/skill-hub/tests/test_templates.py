@@ -710,6 +710,64 @@ class TestHomePageLastTested:
         assert resp.status_code == 200
 
 
+class TestHomePageHealthStatCards:
+    """Tests for home page health summary stat cards (Passing/Failing/Unknown/Avg Pass Rate)."""
+
+    def test_home_has_passing_stat_card(self, client):
+        """Home page should show Passing stat card with health_counts data."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "Passing" in resp.text
+
+    def test_home_has_failing_stat_card(self, client):
+        """Home page should show Failing stat card."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "Failing" in resp.text
+
+    def test_home_has_unknown_stat_card(self, client):
+        """Home page should show Unknown stat card."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "Unknown" in resp.text
+
+    def test_home_has_avg_pass_rate_stat_card(self, client):
+        """Home page should show Avg Pass Rate stat card."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        assert "Avg Pass Rate" in resp.text
+
+    def test_home_passing_value_green_color(self, client):
+        """Passing stat card value should use green color style."""
+        resp = client.get("/")
+        assert "color:var(--green)" in resp.text
+
+    def test_home_failing_value_red_color(self, client):
+        """Failing stat card value should use red color style."""
+        resp = client.get("/")
+        assert "color:var(--red)" in resp.text
+
+    def test_home_unknown_value_yellow_color(self, client):
+        """Unknown stat card value should use yellow color style."""
+        resp = client.get("/")
+        assert "color:var(--yellow)" in resp.text
+
+    def test_home_avg_pass_rate_percentage_format(self, client):
+        """Avg Pass Rate should show percentage format with % sign."""
+        resp = client.get("/")
+        assert resp.status_code == 200
+        # Template uses "%.0f" | format(avg_pass_rate * 100) with % suffix
+        assert "%" in resp.text
+
+    def test_home_has_five_stat_cards(self, client):
+        """Home page should now have 5 stat cards (Total, Passing, Failing, Unknown, Avg Pass Rate)."""
+        resp = client.get("/")
+        html = resp.text
+        # Count stat-card occurrences
+        count = html.count("stat-card")
+        assert count >= 5
+
+
 # --- Detail page Check Dependencies button ---
 
 

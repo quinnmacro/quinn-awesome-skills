@@ -28,6 +28,10 @@
 </form>
 <div class="stats-row">
   <div class="stat-card"><div class="label">Total Skills</div><div class="value">{{ total }}</div></div>
+  <div class="stat-card"><div class="label">Passing</div><div class="value" style="color:var(--green);">{{ health_counts.passing }}</div></div>
+  <div class="stat-card"><div class="label">Failing</div><div class="value" style="color:var(--red);">{{ health_counts.failing }}</div></div>
+  <div class="stat-card"><div class="label">Unknown</div><div class="value" style="color:var(--yellow);">{{ health_counts.unknown }}</div></div>
+  <div class="stat-card"><div class="label">Avg Pass Rate</div><div class="value">{{ "%.0f" | format(avg_pass_rate * 100) }}%</div></div>
 </div>
 {% if skills %}
 <div class="grid">

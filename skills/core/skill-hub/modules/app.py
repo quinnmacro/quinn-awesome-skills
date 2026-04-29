@@ -164,10 +164,20 @@ async def home(request: Request, q: Optional[str] = None, layer: Optional[str] =
         unfiltered = await _add_test_counts(unfiltered, db)
         all_layers = sorted(set(s.get("layer", "") for s in unfiltered if s.get("layer")))
         all_healths = sorted(set(s.get("health", "") for s in unfiltered if s.get("health")))
+    # Compute health counts from enriched skills
+    health_counts = {"passing": 0, "failing": 0, "unknown": 0}
+    for s in enriched:
+        h = s.get("health", "unknown")
+        if h in health_counts:
+            health_counts[h] += 1
+    # Compute avg pass rate from skills with pass_rate data
+    rates = [s.get("pass_rate", 0) for s in enriched if s.get("pass_rate") is not None]
+    avg_pass_rate = sum(rates) / len(rates) if rates else 0.0
     return _render_template("home.html", {
         "skills": enriched, "query": q or "", "total": len(enriched),
         "nav_active": "skills", "layer": layer or "", "health": health or "",
         "sort": sort or "", "all_layers": all_layers, "all_healths": all_healths,
+        "health_counts": health_counts, "avg_pass_rate": avg_pass_rate,
     })
 
 

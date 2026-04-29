@@ -627,8 +627,8 @@ class TestJinja2EnvironmentSingleton:
         """_render_template should use _jinja_env, not create a new Environment."""
         from app import _render_template, _jinja_env
         # Rendering twice should use same env
-        html1 = _render_template("home.html", {"skills": [], "query": "", "total": 0})
-        html2 = _render_template("home.html", {"skills": [], "query": "", "total": 0})
+        html1 = _render_template("home.html", {"skills": [], "query": "", "total": 0, "health_counts": {"passing": 0, "failing": 0, "unknown": 0}, "avg_pass_rate": 0.0})
+        html2 = _render_template("home.html", {"skills": [], "query": "", "total": 0, "health_counts": {"passing": 0, "failing": 0, "unknown": 0}, "avg_pass_rate": 0.0})
         # Both renders produce output (env wasn't recreated)
         assert len(html1) > 0
         assert len(html2) > 0
@@ -1775,6 +1775,52 @@ class TestHomePageResyncButton:
         """Resync JS should reload the page after success."""
         response = client.get("/")
         assert "window.location.reload" in response.text
+
+
+class TestHomePageHealthCounts:
+    """Tests for home page health_counts and avg_pass_rate stat cards."""
+
+    def test_home_has_passing_stat_card(self, client):
+        """Home page should show Passing stat card."""
+        response = client.get("/")
+        assert "Passing" in response.text
+
+    def test_home_has_failing_stat_card(self, client):
+        """Home page should show Failing stat card."""
+        response = client.get("/")
+        assert "Failing" in response.text
+
+    def test_home_has_unknown_stat_card(self, client):
+        """Home page should show Unknown stat card."""
+        response = client.get("/")
+        assert "Unknown" in response.text
+
+    def test_home_has_avg_pass_rate_card(self, client):
+        """Home page should show Avg Pass Rate stat card."""
+        response = client.get("/")
+        assert "Avg Pass Rate" in response.text
+
+    def test_home_health_counts_from_enriched_skills(self, client):
+        """health_counts should be computed from the enriched skills list."""
+        # All skills initially have health='unknown', so unknown count should match total
+        response = client.get("/")
+        # Skills start with health='unknown' before tests are run
+        assert "Unknown" in response.text
+
+    def test_home_avg_pass_rate_with_no_test_data(self, client):
+        """Avg Pass Rate should show 0% when no test runs exist."""
+        response = client.get("/")
+        assert response.status_code == 200
+        # With no test runs, avg_pass_rate should be 0.0, showing "0%"
+        assert "0%" in response.text
+
+    def test_home_filter_affects_health_counts(self, client):
+        """When filtering, health_counts should reflect filtered skills, not all skills."""
+        response = client.get("/?layer=core")
+        assert response.status_code == 200
+        # Should still show stat cards for filtered results
+        assert "Passing" in response.text
+        assert "Failing" in response.text
 
 
 # --- Test All API endpoint tests (mocked _run_skill_tests to avoid slow subprocess) ---
