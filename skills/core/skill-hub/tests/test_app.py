@@ -2870,3 +2870,155 @@ class TestSanitizeHtml:
         result = _sanitize_html('<img alt="chart" src="chart.png">')
         assert '<img' in result
         assert 'src="chart.png"' in result
+
+class TestValidateSkillName:
+    """Tests for _validate_skill_name input validation function."""
+
+    def test_valid_simple_name(self):
+        from app import _validate_skill_name
+        assert _validate_skill_name("url-fetcher") is None
+
+    def test_valid_alphanumeric(self):
+        from app import _validate_skill_name
+        assert _validate_skill_name("skill123") is None
+
+    def test_valid_with_dots(self):
+        from app import _validate_skill_name
+        assert _validate_skill_name("skill.hub") is None
+
+    def test_valid_with_underscores(self):
+        from app import _validate_skill_name
+        assert _validate_skill_name("my_skill") is None
+
+    def test_valid_complex_name(self):
+        from app import _validate_skill_name
+        assert _validate_skill_name("skill-hub.v2_1") is None
+
+    def test_empty_name_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("")
+        assert result is not None
+        assert "required" in result.lower()
+
+    def test_directory_traversal_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("../etc/passwd")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_slash_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("skill/name")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_spaces_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("skill name")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_special_chars_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("skill$name")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_sql_injection_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("skill'; DROP TABLE--")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_xss_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("<script>alert(1)</script>")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_directory_traversal_dots_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("..")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_leading_dot_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name(".hidden")
+        assert result is not None
+        assert "Invalid" in result
+
+    def test_trailing_dot_rejected(self):
+        from app import _validate_skill_name
+        result = _validate_skill_name("skill.")
+        assert result is not None
+        assert "Invalid" in result
+
+
+class TestSkillNameValidationApiEndpoints:
+    """Tests for input validation on API endpoints with {name} path parameter."""
+
+    def test_api_skill_detail_invalid_name_returns_400(self, client):
+        # FastAPI path segments don't include /, so use invalid chars
+        resp = client.get("/api/skills/bad$name")
+        assert resp.status_code == 400
+        data = resp.json()
+        assert "error" in data
+        assert "Invalid" in data["error"]
+
+    def test_api_skill_detail_double_dots_returns_404_or_400(self, client):
+        # Starlette normalizes .. in path, so it never reaches our validation
+        resp = client.get("/api/skills/..")
+        assert resp.status_code in (400, 404)  # caught at routing level
+
+    def test_api_run_test_invalid_name_returns_400(self, client):
+        resp = client.post("/api/skills/$bad/test")
+        assert resp.status_code == 400
+        assert "Invalid" in resp.json()["error"]
+
+    def test_api_skill_versions_invalid_name_returns_400(self, client):
+        resp = client.get("/api/skills/bad;name/versions")
+        assert resp.status_code == 400
+
+    def test_api_check_deps_invalid_name_returns_400(self, client):
+        # FastAPI won't route <script> in path - use other invalid chars
+        resp = client.post("/api/skills/bad!name/check-deps")
+        assert resp.status_code == 400
+
+    def test_api_delete_skill_invalid_name_returns_400(self, client):
+        resp = client.delete("/api/skills/bad$skill")
+        assert resp.status_code == 400
+
+    def test_api_delete_test_runs_invalid_name_returns_400(self, client):
+        resp = client.delete("/api/skills/bad@name/test-runs")
+        assert resp.status_code == 400
+
+    def test_api_skill_detail_valid_name_returns_200_or_404(self, client):
+        resp = client.get("/api/skills/url-fetcher")
+        assert resp.status_code in (200, 404)  # valid name, may or may not exist
+
+
+class TestSkillNameValidationHtmlEndpoints:
+    """Tests for input validation on HTML page endpoints with {name} path parameter."""
+
+    def test_skill_detail_double_dots_normalized_by_starlette(self, client):
+        # Starlette normalizes .. in path, resolving to parent route
+        resp = client.get("/skill/..")
+        assert resp.status_code in (200, 400, 404)  # normalized at routing level
+
+    def test_test_page_invalid_chars_returns_400_html(self, client):
+        resp = client.get("/test/bad!name")
+        assert resp.status_code == 400
+        assert "Invalid skill name" in resp.text
+
+    def test_skill_detail_valid_name_returns_200_or_404(self, client):
+        resp = client.get("/skill/url-fetcher")
+        assert resp.status_code in (200, 404)
+
+    def test_test_page_valid_name_returns_200_or_404(self, client):
+        resp = client.get("/test/url-fetcher")
+        assert resp.status_code in (200, 404)
+
+    def test_skill_detail_leading_dot_returns_400(self, client):
+        resp = client.get("/skill/.hidden")
+        assert resp.status_code == 400

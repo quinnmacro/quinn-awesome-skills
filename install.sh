@@ -194,7 +194,7 @@ install_skill() {
     if [ "$SKILL_NAME" = "skill-hub" ]; then
         mkdir -p ~/.quinn-skills
         echo -e "  ${BLUE}Installing skill-hub Python dependencies...${NC}"
-        pip install fastapi uvicorn jinja2 aiosqlite httpx websockets 2>/dev/null || pip3 install fastapi uvicorn jinja2 aiosqlite httpx websockets 2>/dev/null || true
+        pip install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio 2>/dev/null || pip3 install fastapi uvicorn jinja2 aiosqlite httpx websockets pytest pytest-asyncio 2>/dev/null || true
         echo -e "  ${GREEN}✅ Skill Hub ready — run with: bash ~/.claude/skills/skill-hub/scripts/start.sh${NC}"
     fi
 

@@ -4,7 +4,7 @@ from modules.app import (
     _sanitize_html, _render_markdown, _parse_md_table, _parse_semver,
     _sort_skills, _sort_key_and_reverse, _build_skill_config,
     _add_test_counts, _count_tests_in_dir, _parse_pytest_line,
-    _parse_pytest_summary, csv_field,
+    _parse_pytest_summary, csv_field, _validate_skill_name, _SKILL_NAME_RE,
 )
 from modules.skill_discovery import (
     discover_skills, get_skill_by_name, search_skills,

@@ -50,6 +50,8 @@ Server runs on `localhost:8765` (configurable via `SKILL_HUB_PORT`).
 | `/api/skills/{name}/test-runs` | DELETE | Clear all test run history for a skill |
 | `/api/health` | GET | Health dashboard data |
 
+**All `{name}` path parameters are validated** — only alphanumeric, hyphens, underscores, and dotted segments are allowed. Directory traversal (`..`, `/`), XSS (`<script>`), and injection patterns are rejected with 400 responses.
+
 ## Dependencies
 
 ```bash

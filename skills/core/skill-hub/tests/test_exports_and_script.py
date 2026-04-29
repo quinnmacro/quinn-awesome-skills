@@ -140,6 +140,14 @@ class TestModuleExports:
         assert hasattr(_modules_pkg, 'csv_field')
         assert callable(_modules_pkg.csv_field)
 
+    def test_app_exports_validate_skill_name(self):
+        assert hasattr(_modules_pkg, '_validate_skill_name')
+        assert callable(_modules_pkg._validate_skill_name)
+
+    def test_app_exports_skill_name_re(self):
+        assert hasattr(_modules_pkg, '_SKILL_NAME_RE')
+        assert hasattr(_modules_pkg._SKILL_NAME_RE, 'match')
+
 
 # --- start.sh script tests ---
 

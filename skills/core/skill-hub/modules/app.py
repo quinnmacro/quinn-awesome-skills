@@ -70,6 +70,18 @@ app = FastAPI(title="Skill Hub", version="1.0.0", lifespan=lifespan)
 # Global db connection
 _db = None
 
+# Valid skill name: alphanumeric segments with hyphens/underscores, dots between segments only
+_SKILL_NAME_RE = re.compile(r'^[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*$')
+
+
+def _validate_skill_name(name: str) -> Optional[str]:
+    """Validate a skill name path parameter. Returns error message if invalid, None if valid."""
+    if not name:
+        return "Skill name is required"
+    if not _SKILL_NAME_RE.match(name):
+        return f"Invalid skill name '{name}': must contain only alphanumeric characters, hyphens, underscores, and dots"
+    return None
+
 
 async def _render_error_page(status_code: int, message: str, skill_name: str = "") -> str:
     """Render a styled error page using the error template."""
@@ -185,6 +197,10 @@ async def home(request: Request, q: Optional[str] = None, layer: Optional[str] =
 
 @app.get("/skill/{name}", response_class=HTMLResponse)
 async def skill_detail(request: Request, name: str):
+    err = _validate_skill_name(name)
+    if err:
+        html = await _render_error_page(400, err, skill_name=name)
+        return HTMLResponse(html, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -248,6 +264,10 @@ async def install_page(request: Request):
 
 @app.get("/test/{name}", response_class=HTMLResponse)
 async def test_page(request: Request, name: str):
+    err = _validate_skill_name(name)
+    if err:
+        html = await _render_error_page(400, err, skill_name=name)
+        return HTMLResponse(html, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -309,6 +329,9 @@ async def api_export_csv():
 
 @app.get("/api/skills/{name}")
 async def api_skill_detail(name: str):
+    err = _validate_skill_name(name)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -323,6 +346,9 @@ async def api_skill_detail(name: str):
 
 @app.post("/api/skills/{name}/test")
 async def api_run_test(name: str):
+    err = _validate_skill_name(name)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -350,6 +376,9 @@ async def api_health():
 @app.get("/api/skills/{name}/versions")
 async def api_skill_versions(name: str):
     """Get version history for a skill."""
+    err = _validate_skill_name(name)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -374,6 +403,9 @@ async def api_resync_skills():
 @app.post("/api/skills/{name}/check-deps")
 async def api_check_deps(name: str):
     """Check whether a skill's dependencies are actually installed."""
+    err = _validate_skill_name(name)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -398,6 +430,9 @@ async def api_check_deps(name: str):
 @app.delete("/api/skills/{name}")
 async def api_delete_skill(name: str):
     """Delete a skill and all its associated data from the database."""
+    err = _validate_skill_name(name)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     db = await get_db()
     deleted = await delete_skill(db, name)
     if not deleted:
@@ -408,6 +443,9 @@ async def api_delete_skill(name: str):
 @app.delete("/api/skills/{name}/test-runs")
 async def api_delete_test_runs(name: str):
     """Clear all test run history for a skill."""
+    err = _validate_skill_name(name)
+    if err:
+        return JSONResponse({"error": err}, status_code=400)
     db = await get_db()
     skill = await get_skill(db, name)
     if skill is None:
@@ -458,6 +496,12 @@ async def api_test_all():
 
 @app.websocket("/ws/test/{name}")
 async def ws_test_stream(websocket: WebSocket, name: str):
+    err = _validate_skill_name(name)
+    if err:
+        await websocket.accept()
+        await websocket.send_json({"error": err})
+        await websocket.close()
+        return
     await websocket.accept()
     db = await get_db()
     skill = await get_skill(db, name)
