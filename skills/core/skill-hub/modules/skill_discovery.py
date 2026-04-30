@@ -117,10 +117,33 @@ def _layer_from_category(category: str) -> str:
     return mapping.get(top, top)
 
 
-def discover_skills(skills_dir: Path) -> list[dict]:
-    """Scan skills/core/*/SKILL.md and skills/external/*/SKILL.md.
+def _scan_for_skills(dir_path: Path, skills: list[dict], category_prefix: str) -> None:
+    """Recursively scan a directory for SKILL.md or template.md files."""
+    # If this directory itself contains SKILL.md or template.md, register it as a skill
+    if (dir_path / "SKILL.md").is_file():
+        _add_skill(skills, dir_path, category_prefix)
+        return
+    if (dir_path / "template.md").is_file():
+        _add_skill(skills, dir_path, category_prefix, is_template=True)
+        return
 
-    Returns list of skill dicts with keys:
+    # Otherwise recurse into subdirectories
+    for sub in sorted(dir_path.iterdir()):
+        if not sub.is_dir() or sub.name.startswith("."):
+            continue
+        # Skip directories that are clearly not skill dirs (scripts, modules, tests, references, templates)
+        if sub.name in {"scripts", "modules", "tests", "references", "templates", "__pycache__"}:
+            continue
+        extended_category = f"{category_prefix}/{sub.name}" if category_prefix else sub.name
+        _scan_for_skills(sub, skills, extended_category)
+
+
+def discover_skills(skills_dir: Path) -> list[dict]:
+    """Scan skills directory and commands/ for SKILL.md, template.md, and command .md files.
+
+    Recursively walks core/ and external/ directories, finding skills at
+    any nesting depth. Also scans commands/ and .claude/commands/ for
+    slash command definitions. Returns list of skill dicts with keys:
     name, version, description, layer, category, path, scripts, modules,
     skill_md, author, health
     """
@@ -131,30 +154,47 @@ def discover_skills(skills_dir: Path) -> list[dict]:
     for category_dir in sorted(skills_dir.iterdir()):
         if not category_dir.is_dir() or category_dir.name.startswith("."):
             continue
-        category = category_dir.name
-        for skill_dir in sorted(category_dir.iterdir()):
-            if not skill_dir.is_dir() or skill_dir.name.startswith("."):
-                continue
-            skill_md_path = skill_dir / "SKILL.md"
-            # For nested external skills (e.g. bloomberg/company/company-snapshot),
-            # also scan subdirectories for SKILL.md
-            if skill_md_path.is_file():
-                _add_skill(skills, skill_dir, category)
-            else:
-                # Scan one level deeper for nested skills
-                for sub_dir in sorted(skill_dir.iterdir()):
-                    if not sub_dir.is_dir():
-                        continue
-                    for nested_dir in sorted(sub_dir.iterdir()):
-                        if not nested_dir.is_dir():
-                            continue
-                        if (nested_dir / "SKILL.md").is_file():
-                            _add_skill(skills, nested_dir, f"{category}/{skill_dir.name}/{sub_dir.name}")
-                        elif (nested_dir / "template.md").is_file():
-                            # External skills may use template.md instead
-                            _add_skill(skills, nested_dir, f"{category}/{skill_dir.name}/{sub_dir.name}", is_template=True)
+        _scan_for_skills(category_dir, skills, category_dir.name)
+
+    # Also scan commands/ and .claude/commands/ for slash command definitions
+    project_root = skills_dir.parent
+    _scan_commands_dir(project_root / "commands", skills)
+    _scan_commands_dir(project_root / ".claude" / "commands", skills)
 
     return skills
+
+
+def _scan_commands_dir(commands_dir: Path, skills: list[dict]) -> None:
+    """Scan a commands/ directory for slash command .md files."""
+    if not commands_dir.is_dir():
+        return
+    for f in sorted(commands_dir.iterdir()):
+        if not f.is_file() or not f.name.endswith(".md") or f.name.startswith("."):
+            continue
+        content = f.read_text(encoding="utf-8", errors="replace")
+        fm = _yaml_frontmatter(content)
+        if not fm:
+            continue
+        name = fm.get("name", f.stem)
+        # Avoid duplicating skills already discovered from skills/ dir
+        # Commands like presearch, url-fetcher, daily-dev-pulse have corresponding skill dirs
+        existing_names = {s["name"] for s in skills}
+        if name in existing_names:
+            continue
+        skills.append({
+            "name": name,
+            "version": fm.get("version", "0.0.0"),
+            "description": fm.get("description", ""),
+            "layer": "command",
+            "category": "commands",
+            "path": str(f.parent),
+            "scripts": [],
+            "modules": [],
+            "skill_md": content,
+            "author": fm.get("author", ""),
+            "health": "unknown",
+            "dependencies": [],
+        })
 
 
 def _extract_dependencies(skill_md_content: str) -> list[dict]:
@@ -209,6 +249,33 @@ def _extract_dependencies(skill_md_content: str) -> list[dict]:
     return unique
 
 
+def _extract_goal_line(content: str) -> str:
+    """Extract description from a template.md — tries GOAL line first, then Metadata table Output field, then first heading."""
+    # Try GOAL line (most templates use this)
+    for match in re.finditer(r"^GOAL\s*\n(.+)", content, re.MULTILINE):
+        line = match.group(1).strip()
+        line = re.sub(r"\{[^}]+\}", "", line).strip()
+        line = re.sub(r"\s{2,}", " ", line).strip()
+        if line:
+            return line
+
+    # Try Metadata table Output field
+    for match in re.finditer(r"\|\s*Output\s*\|\s*(.+?)\s*\|", content):
+        line = match.group(1).strip()
+        line = re.sub(r"\{[^}]+\}", "", line).strip()
+        if line:
+            return line
+
+    # Try first Markdown heading
+    for match in re.finditer(r"^#\s+(.+)", content, re.MULTILINE):
+        line = match.group(1).strip()
+        line = re.sub(r"\{[^}]+\}", "", line).strip()
+        if line and line.lower() not in {"metadata", "prompt template"}:
+            return line
+
+    return ""
+
+
 def _add_skill(
     skills: list[dict],
     skill_dir: Path,
@@ -227,10 +294,14 @@ def _add_skill(
     else:
         layer = _layer_from_category(category)
 
+    description = _parse_description(fm)
+    if not description and is_template:
+        description = _extract_goal_line(content)
+
     skills.append({
         "name": name,
         "version": fm.get("version", "0.0.0"),
-        "description": _parse_description(fm),
+        "description": description,
         "layer": layer,
         "category": category,
         "path": str(skill_dir),

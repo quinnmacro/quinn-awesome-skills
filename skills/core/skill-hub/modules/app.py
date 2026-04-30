@@ -43,7 +43,7 @@ from database import (
 
 # Resolve paths: app.py is in skill-hub/modules/
 SKILL_HUB_DIR = Path(__file__).resolve().parent.parent  # skills/core/skill-hub/
-PROJECT_ROOT = SKILL_HUB_DIR.parent.parent.parent  # quinn-awesome-skills/
+PROJECT_ROOT = SKILL_HUB_DIR.parent.parent.parent  # quinn-awesome-skills/  (skill-hub → core → skills → project root)
 DEFAULT_SKILLS_DIR = PROJECT_ROOT / "skills"
 DEFAULT_PORT = int(os.environ.get("SKILL_HUB_PORT", "8765"))
 
