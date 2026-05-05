@@ -17,7 +17,7 @@
 
 ---
 
-## 主要模板 (5个)
+## 主要模板 (6个)
 
 | 视角 | 模板 | 变量 | 测试状态 |
 |------|------|------|----------|
@@ -25,6 +25,7 @@
 | **FX** | [currency-cross](fx/currency-cross/) | `{Currency Pair}` | 待测试 |
 | **Credit** | [spreads](credit/spreads/) | `{Market/Region}` | 待测试 |
 | **Commodities** | [energy-futures](commodities/energy-futures/) | `{Commodity}` | ✓ 已测试优化 |
+| **Commodities** | [hormuz-monitor](commodities/hormuz-monitor/) | `{Date}` | ✓ 新增监控工具 |
 | **Cross-Asset** | [cross-asset](cross-asset/) | `{Theme}` | 待测试 |
 
 ---
@@ -110,15 +111,17 @@ ficc/
 ├── rates/sovereign-yields/       # 国债收益率 ✓
 ├── fx/currency-cross/            # 货币对
 ├── credit/spreads/               # 信用利差
-├── commodities/energy-futures/   # 能源期货 ✓
+├── commodities/
+│   ├── energy-futures/          # 能源期货 ✓
+│   └── hormuz-monitor/          # 霍尔木兹监控 ✓ NEW
 └── cross-asset/                  # 跨资产联动
 ```
 
 ---
 
 **总文档数**: 11个
-**总Prompts数**: 26个 (5主模板 + 14 Mini + 7 Theme)
+**总Prompts数**: 27个 (6主模板 + 14 Mini + 7 Theme)
 **总案例数**: 7个 (2真实 + 5虚构)
 
-**版本**: v0.5
-**更新**: 2026-04-29
+**版本**: v0.6
+**更新**: 2026-05-04
